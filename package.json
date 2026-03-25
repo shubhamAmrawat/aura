@@ -1,13 +1,14 @@
 {
-  "name":"aura",
-  "version":"1.0.0",
-  "private":true, 
+  "name": "aura",
+  "version": "1.0.0",
+  "private": true,
   "scripts": {
-    "dev":"turbo run dev",
-    "build":"turbo run build",
-    "lint":"turbo run lint"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint"
   },
-  "devDependencies":{
-    "turbo":"^2.0.0"
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^6.0.2"
   }
 }
