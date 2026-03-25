@@ -7,7 +7,8 @@
   "scripts": {
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:seed": "tsx --env-file=../../.env src/seed.ts"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "drizzle-kit": "*"
+    "drizzle-kit": "*",
+     "tsx": "^4.0.0"
   }
 }
