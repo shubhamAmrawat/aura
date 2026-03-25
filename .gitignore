@@ -1,0 +1,11 @@
+code .gitignore
+```
+
+Type this:
+```
+node_modules
+.turbo
+.env
+.env.local
+dist
+.next
