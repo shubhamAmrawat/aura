@@ -1,44 +1,66 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #f5f0eb;
-  --accent: #ffffff;
-  --muted: #888888;
-  --border: #1a1a1a;
-  --card: #111111;
+  /* backgrounds */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-elevated: #1a1a1a;
+
+  /* text */
+  --text-primary: #f5f0eb;
+  --text-secondary: #888888;
+  --text-muted: #444444;
+
+  /* accent — change this one line to switch the whole app */
+  --accent: #8df87a;
+  --accent-hover: #D4B86A;
+  --accent-muted: rgba(201, 168, 76, 0.15);
+
+  /* borders */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+
+  /* other options to try — just swap into --accent above:
+     Orange:    #E8743A
+     Amber:     #D97706
+     Rose:      #E11D48
+     Teal:      #0D9488
+     Gold:      #C9A84C  (current)
+  */
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
-
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: var(--font-sans);
-  antialiased: true;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--accent-muted);
+  color: var(--text-primary);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
