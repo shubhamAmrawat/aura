@@ -1,19 +1,28 @@
 import { Hono } from "hono";
 import { db } from "@aura/db";
 import { wallpapers } from "@aura/db";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 export const wallpaperRoutes = new Hono();
 
-// GET /api/wallpapers — get all wallpapers
+// GET /api/wallpapers?featured=true&limit=20&category=nature
 wallpaperRoutes.get("/", async (c) => {
   try {
+    const featured = c.req.query("featured");
+    const limit = Number(c.req.query("limit")) || 20;
+
+    const conditions = [eq(wallpapers.status, "approved")];
+
+    if (featured === "true") {
+      conditions.push(eq(wallpapers.isFeatured, true));
+    }
+
     const result = await db
       .select()
       .from(wallpapers)
-      .where(eq(wallpapers.status, "approved"))
+      .where(and(...conditions))
       .orderBy(desc(wallpapers.createdAt))
-      .limit(20);
+      .limit(limit);
 
     return c.json({
       data: result,
@@ -46,3 +55,4 @@ wallpaperRoutes.get("/:id", async (c) => {
     return c.json({ error: "Failed to fetch wallpapers" }, 500);
   }
 });
+
