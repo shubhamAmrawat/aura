@@ -1,3 +1,4 @@
+import Logo from "@/app/components/Logo";
 import Link from "next/link";
 
 const Navbar = () => {
@@ -10,13 +11,7 @@ const Navbar = () => {
       }}
     >
       {/* logo */}
-      <Link
-        href="/"
-        className="text-2xl font-bold tracking-[0.3em] transition-opacity hover:opacity-70"
-        style={{ color: 'var(--accent)' }}
-      >
-        AURA
-      </Link>
+    <Logo size="md"/>
 
       {/* links */}
       <div className="hidden md:flex items-center gap-12">
@@ -39,7 +34,7 @@ const Navbar = () => {
       {/* cta */}
       <Link
         href="/login"
-        className="text-sm font-medium px-7 py-2.5 rounded-full border transition-all duration-200 hover:opacity-80 tracking-wider"
+        className="text-sm font-medium px-6 py-2  border transition-all duration-200 hover:opacity-80 tracking-wider "
         style={{
           borderColor: 'var(--accent)',
           color: 'var(--accent)',
