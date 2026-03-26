@@ -1,14 +1,11 @@
 
 
 import WallpaperCard from "@/app/components/WallpaperCard";
+import { getWallpapers } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
 
 export default async function HomePage() {
-  const response = await fetch("http://localhost:3001/api/wallpapers", {
-    cache: "no-store",
-  });
-
-  const { data: wallpapers } = await response.json();
+  const wallpapers =await getWallpapers();
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] pt-20">
