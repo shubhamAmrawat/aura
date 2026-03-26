@@ -23,7 +23,7 @@ const Navbar = () => {
           <Link
             key={link.href}
             href={link.href}
-            className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
+            className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-green-200"
             style={{ color: 'var(--text-secondary)' }}
           >
             {link.label}
