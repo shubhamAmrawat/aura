@@ -9,7 +9,7 @@ export const wallpaperRoutes = new Hono();
 wallpaperRoutes.get("/", async (c) => {
   try {
     const featured = c.req.query("featured");
-    const limit = Number(c.req.query("limit")) || 20;
+    const limit = Number(c.req.query("limit")) || 150;
 
     const conditions = [eq(wallpapers.status, "approved")];
 

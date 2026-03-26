@@ -1,7 +1,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import * as wallpaperSchema from "./schema/wallpapers";
-import * as schema from "./schema/users";
 
 const client = postgres(process.env.DATABASE_URL!, { ssl: "require", max: 1 });
 const db = drizzle(client);
@@ -9,27 +8,23 @@ const db = drizzle(client);
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 
 const CATEGORIES = [
-  { name: "Nature", slug: "nature", query: "nature landscape" },
-  { name: "Architecture", slug: "architecture", query: "architecture building" },
-  { name: "Abstract", slug: "abstract", query: "abstract art" },
-  { name: "Dark", slug: "dark", query: "dark moody aesthetic" },
-  { name: "Minimal", slug: "minimal", query: "minimal clean" },
-  { name: "Neon", slug: "neon", query: "neon city night" },
+  { name: "Nature", slug: "nature", query: "nature landscape", orientation: "portrait" },
+  { name: "Architecture", slug: "architecture", query: "architecture building", orientation: "portrait" },
+  { name: "Abstract", slug: "abstract", query: "abstract art", orientation: "portrait" },
+  { name: "Dark", slug: "dark", query: "dark moody aesthetic", orientation: "portrait" },
+  { name: "Minimal", slug: "minimal", query: "minimal clean", orientation: "portrait" },
+  { name: "Neon", slug: "neon", query: "neon city night", orientation: "portrait" },
+  { name: "Landscape", slug: "landscape", query: "landscape panorama", orientation: "landscape" },
+  { name: "Space", slug: "space", query: "space galaxy cosmos", orientation: "landscape" },
+  { name: "Mountains", slug: "mountains", query: "mountain range", orientation: "landscape" },
 ];
 
-async function fetchUnsplashPhotos(query: string, perPage = 8) {
-  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=portrait`;
-
+async function fetchUnsplashPhotos(query: string, orientation: string, perPage = 8) {
+  const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${perPage}&orientation=${orientation}`;
   const response = await fetch(url, {
-    headers: {
-      Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
-    },
+    headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
   });
-
-  if (!response.ok) {
-    throw new Error(`Unsplash API error: ${response.statusText}`);
-  }
-
+  if (!response.ok) throw new Error(`Unsplash API error: ${response.statusText}`);
   const data = await response.json() as any;
   return data.results;
 }
@@ -37,9 +32,8 @@ async function fetchUnsplashPhotos(query: string, perPage = 8) {
 async function seed() {
   console.log("Seeding database...");
 
-  // Insert categories first
-  console.log("Inserting categories...");
-  const insertedCategories = await db
+  // upsert categories
+  await db
     .insert(wallpaperSchema.categories)
     .values(
       CATEGORIES.map((cat, i) => ({
@@ -49,22 +43,24 @@ async function seed() {
         sortOrder: i,
       }))
     )
-    .onConflictDoNothing()
-    .returning();
+    .onConflictDoNothing();
 
-  console.log(`Inserted ${insertedCategories.length} categories`);
+  // fetch ALL categories from DB (existing + newly inserted)
+  const allCategories = await db
+    .select()
+    .from(wallpaperSchema.categories);
 
-  // Fetch and insert wallpapers for each category
+  console.log(`Found ${allCategories.length} categories`);
+
   for (const category of CATEGORIES) {
-    console.log(`Fetching ${category.name} wallpapers...`);
+    console.log(`Fetching ${category.name} (${category.orientation})...`);
 
-    const photos = await fetchUnsplashPhotos(category.query);
-    const categoryRecord = insertedCategories.find(
-      (c) => c.slug === category.slug
-    );
+    const photos = await fetchUnsplashPhotos(category.query, category.orientation);
+
+    const categoryRecord = allCategories.find(c => c.slug === category.slug);
 
     if (!categoryRecord) {
-      console.log(`Skipping ${category.name} - category not found`);
+      console.log(`Category ${category.name} not found in DB — skipping`);
       continue;
     }
 
@@ -96,8 +92,6 @@ async function seed() {
       .onConflictDoNothing();
 
     console.log(`Inserted ${wallpapers.length} ${category.name} wallpapers`);
-
-    // Small delay to respect Unsplash rate limits
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 

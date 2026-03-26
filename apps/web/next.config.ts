@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: "../../",
   },
-   images: {
+  images: {
     remotePatterns: [
       {
         protocol: "https",
@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+   devIndicators: false,
 };
 
 export default nextConfig;
