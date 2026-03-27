@@ -7,17 +7,29 @@ import { wallpaperRoutes } from "./routes/wallpapers";
 const app = new Hono();
 
 app.use("*", logger());
-app.use("*", cors());
+app.use("*", cors({
+  origin: "*",
+  credentials: false,
+}));
+
+app.get("/", (c) => {
+  return c.json({ name: "AURA API", status: "ok" });
+});
 
 app.get("/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
-const port = Number(process.env.PORT || 3001);
+
 app.route("/api/wallpapers", wallpaperRoutes);
+
+const port = parseInt(process.env.PORT ?? "3001", 10);
+
+console.log(`Starting server on port ${port}`);
 
 serve({
   fetch: app.fetch,
   port,
+  hostname: "0.0.0.0",
 }, (info) => {
-  console.log(`API running at http://localhost:${info.port}`);
+  console.log(`API running at http://0.0.0.0:${info.port}`);
 });
