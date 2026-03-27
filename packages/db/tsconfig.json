@@ -3,7 +3,10 @@
   "compilerOptions": {
     "rootDir": "./src",
     "outDir": "./dist",
-    "types": ["node"]
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "bundler",
+    "esModuleInterop": true
   },
-  "include": ["src/**/*", "drizzle.config.ts"]
+  "include": ["src/**/*"]
 }

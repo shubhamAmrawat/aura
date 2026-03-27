@@ -2,9 +2,10 @@
   "name": "@aura/db",
   "version": "1.0.0",
   "private": true,
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "types": "./src/index.ts",
   "scripts": {
+    "build": "tsc",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
@@ -18,6 +19,7 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "drizzle-kit": "*",
-     "tsx": "^4.0.0"
+    "tsx": "^4.0.0",
+    "typescript": "*"
   }
 }

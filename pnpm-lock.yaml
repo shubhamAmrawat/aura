@@ -76,8 +76,15 @@ importers:
       tsx:
         specifier: ^4.0.0
         version: 4.21.0
+      typescript:
+        specifier: '*'
+        version: 6.0.2
 
-  packages/types: {}
+  packages/types:
+    devDependencies:
+      typescript:
+        specifier: '*'
+        version: 6.0.2
 
   services/api:
     dependencies:
