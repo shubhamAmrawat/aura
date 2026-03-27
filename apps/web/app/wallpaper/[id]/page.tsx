@@ -157,7 +157,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 60%)",
+                  "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 4%)",
               }}
             />
           </div>

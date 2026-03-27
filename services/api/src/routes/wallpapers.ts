@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "@aura/db";
 import { wallpapers } from "@aura/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 
 export const wallpaperRoutes = new Hono();
 
@@ -12,7 +12,7 @@ wallpaperRoutes.get("/", async (c) => {
     const limit = Number(c.req.query("limit")) || 150;
 
     const conditions = [eq(wallpapers.status, "approved")];
-
+    conditions.push(gt(wallpapers.width, wallpapers.height));
     if (featured === "true") {
       conditions.push(eq(wallpapers.isFeatured, true));
     }
