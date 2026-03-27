@@ -90,6 +90,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.0.0
         version: 1.19.11(hono@4.12.9)
+      dotenv:
+        specifier: '*'
+        version: 17.3.1
       drizzle-orm:
         specifier: '*'
         version: 0.45.1(postgres@3.4.8)
@@ -103,9 +106,6 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.37
-      dotenv:
-        specifier: '*'
-        version: 17.3.1
       tsx:
         specifier: ^4.0.0
         version: 4.21.0
