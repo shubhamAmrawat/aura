@@ -2,6 +2,7 @@
   "name": "@aura/api",
   "version": "1.0.0",
   "private": true,
+  "type": "commonjs",
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/index.ts",
     "build": "tsc",
@@ -12,13 +13,13 @@
     "@hono/node-server": "^1.0.0",
     "drizzle-orm": "*",
     "postgres": "*",
+    "dotenv": "*",
     "@aura/types": "workspace:*",
     "@aura/db": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.0.0",
     "@types/node": "^20.0.0",
-    "typescript": "*",
-    "dotenv": "*"
+    "typescript": "*"
   }
 }
