@@ -44,8 +44,8 @@ const Hero = ({ wallpapers }: HeroProps) => {
             className="object-cover"
             priority={i === 0}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/20 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-l from-[#0a0a0a]/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/0 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-l from-[#0a0a0a]/10 to-transparent" />
         </div>
       ))}
 
