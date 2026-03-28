@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { wallpaperRoutes } from "./routes/wallpapers";
+import { categoryRoutes } from "./routes/categories";
 
 const app = new Hono();
 
@@ -21,7 +22,7 @@ app.get("/health", (c) => {
 });
 
 app.route("/api/wallpapers", wallpaperRoutes);
-
+app.route("/api/categories", categoryRoutes); 
 const port = parseInt(process.env.PORT ?? "3001", 10);
 
 console.log(`Starting server on port ${port}`);
