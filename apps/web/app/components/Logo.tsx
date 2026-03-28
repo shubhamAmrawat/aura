@@ -13,8 +13,6 @@ const sizes = {
   lg: "text-4xl tracking-[0.35em]",
 };
 
-/** Pixel size for /public/logo.png — Next.js serves `public` from site root, so use `/logo.png`. */
-const logoPx = { sm: 20, md: 40, lg: 56 } as const;
 
 const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
   const content = (
