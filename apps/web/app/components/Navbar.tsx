@@ -11,7 +11,7 @@ const Navbar = () => {
       }}
     >
       {/* logo */}
-    <Logo size="md"/>
+    <Logo size="sm"/>
 
       {/* links */}
       <div className="hidden md:flex items-center gap-12">

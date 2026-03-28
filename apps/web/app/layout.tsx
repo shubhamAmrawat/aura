@@ -9,8 +9,11 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "AURA — Premium Wallpapers",
+  title:"AURA | Premium Wallpapers",
   description: "Discover and download stunning wallpapers curated for every mood.",
+  icons:{
+    icon:"/4.png"
+  }
 };
 
 export default function RootLayout({

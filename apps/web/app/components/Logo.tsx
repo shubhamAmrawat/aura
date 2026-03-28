@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg";
@@ -7,14 +8,25 @@ interface LogoProps {
 }
 
 const sizes = {
-  sm: "text-lg tracking-[0.25em]",
+  sm: "text-md tracking-[0.25em]",
   md: "text-2xl tracking-[0.3em]",
   lg: "text-4xl tracking-[0.35em]",
 };
 
+/** Pixel size for /public/logo.png — Next.js serves `public` from site root, so use `/logo.png`. */
+const logoPx = { sm: 20, md: 40, lg: 56 } as const;
+
 const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
   const content = (
-    <div className="flex flex-col">
+    <div className="flex items-center gap-2">
+      <Image
+        src="/1.png"
+        alt="AURA"
+        width={30}
+        height={30}
+        className="shrink-0"
+        priority
+      />
       <span
         className={`font-bold ${sizes[size]}`}
         style={{ color: 'var(--accent)' }}
