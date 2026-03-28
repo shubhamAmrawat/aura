@@ -153,13 +153,13 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
               className="object-cover"
               priority
             />
-            <div
+            {/* <div
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 4%)",
+                  "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 0.5%)",
               }}
-            />
+            /> */}
           </div>
 
           {/* details — title left, download top right */}
