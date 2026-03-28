@@ -4,22 +4,24 @@ import { getWallpaperById, getWallpapers } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import WallpaperDetails from "@/app//wallpaper/WallpaperDetails";
+import { getContrastColor } from "@/lib/color";
 
 interface WallpaperPageProps {
   params: Promise<{ id: string }>;
 }
 
-const BackButton = () => (
+const BackButton = ({ wallpaper }: { wallpaper: Wallpaper }) => (
   <div className="fixed top-24 left-12 z-50">
     <Link
       href="/"
-      className="flex items-center gap-2 text-sm px-4 py-2 rounded-full backdrop-blur-md transition-opacity hover:opacity-70"
+      className="inline-flex items-center justify-center gap-2 text-sm px-3 py-1.5 rounded-full  transition-opacity hover:opacity-90 cursor-pointer"
       style={{
-        background: "rgba(10,10,10,0.6)",
-        color: "var(--text-secondary)",
-        border: "1px solid var(--border)",
+        backgroundColor: getContrastColor(wallpaper.dominantColor),
+        color: wallpaper.dominantColor,
+        
       }}
     >
+      
       ← Back
     </Link>
   </div>
@@ -87,7 +89,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
   return (
     <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
-      <BackButton />
+      <BackButton wallpaper={wallpaper} />
 
       {isPortrait ? (
         // portrait — side by side, fixed column widths

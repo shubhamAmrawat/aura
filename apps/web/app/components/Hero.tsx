@@ -3,6 +3,8 @@
 import { Wallpaper } from "@aura/types";
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { getContrastColor } from "@/lib/color";
 
 interface HeroProps {
   wallpapers: Wallpaper[];
@@ -55,9 +57,9 @@ const Hero = ({ wallpapers }: HeroProps) => {
           hovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
-        <p className="text-[11px] tracking-[0.3em] uppercase mb-2 text-white/40">
+        {/* <p className="text-[11px] tracking-[0.3em] uppercase mb-2 text-white/40">
           Featured Wallpaper
-        </p>
+        </p> */}
         <h2 className="text-[22px] font-bold leading-snug mb-2 text-white">
           {wallpaper.title}
         </h2>
@@ -78,9 +80,16 @@ const Hero = ({ wallpapers }: HeroProps) => {
             />
           ))}
         </div>
-        <button className="mt-2 px-6 py-2.5 border border-white/20 text-white/70 text-sm rounded-full hover:border-white/50 hover:text-white transition-all bg-transparent cursor-pointer">
+        <Link
+          href={`/wallpaper/${wallpaper.id}`}
+          className="mt-2 inline-flex items-center justify-center px-6 py-2.5 text-sm rounded-full border border-white/10 transition-opacity hover:opacity-90 cursor-pointer"
+          style={{
+            backgroundColor: wallpaper.dominantColor,
+            color: getContrastColor(wallpaper.dominantColor),
+          }}
+        >
           View Details →
-        </button>
+        </Link>
       </div>
 
       {/* indicators */}
