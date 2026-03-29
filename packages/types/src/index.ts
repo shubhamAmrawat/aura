@@ -23,14 +23,17 @@ export interface Wallpaper {
 
 export interface User {
   id: string;
+  email: string;
   username: string;
   displayName: string;
   avatarUrl: string | null;
   bio: string | null;
+  isEmailVerified: boolean;
   isCreator: boolean;
   isPro: boolean;
   totalDownloads: number;
   totalUploads: number;
+  createdAt: string;
 }
 
 export interface Collection {
@@ -41,4 +44,10 @@ export interface Collection {
   isPublic: boolean;
   wallpaperCount: number;
   createdAt: string;
+}
+
+export interface AuthSession {
+  user: User;
+  token: string;
+  expiresAt: string;
 }
