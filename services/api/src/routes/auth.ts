@@ -200,9 +200,9 @@ authRoutes.post("/signup", async (c) => {
       email: createdUser.email,
     });
 
-    c.header("Set-Cookie",
-      `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
-    );
+    // c.header("Set-Cookie",
+    //   `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
+    // );
     // clean up used OTP
     await db
       .delete(otps)
@@ -210,6 +210,7 @@ authRoutes.post("/signup", async (c) => {
 
     return c.json({
       message: "Account created successfully",
+      token, 
       user: {
         id: createdUser.id,
         email: createdUser.email,
@@ -267,13 +268,14 @@ authRoutes.post("/login", async (c) => {
     });
 
 
-    c.header("Set-Cookie", auraTokenSetCookie(token));
+    // c.header("Set-Cookie", auraTokenSetCookie(token));
     await db
       .delete(otps)
       .where(and(eq(otps.email, email), eq(otps.type, "login")));
 
     return c.json({
       message: "Logged in successfully",
+      token,
       user: {
         id: u.id,
         email: u.email,
@@ -291,12 +293,8 @@ authRoutes.post("/login", async (c) => {
 // ─── GET CURRENT USER ──────────────────────────────────────
 authRoutes.get("/me", async (c) => {
   try {
-    const cookieHeader = c.req.header("Cookie") ?? "";
-    const token = cookieHeader
-      .split(";")
-      .find((c) => c.trim().startsWith("aura_token="))
-      ?.split("=")[1]
-      ?.trim();
+    const authHeader = c.req.header("Authorization");
+    const token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -336,8 +334,5 @@ authRoutes.get("/me", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
-  c.header("Set-Cookie",
-    "aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax"
-  );
   return c.json({ message: "Logged out successfully" });
 });

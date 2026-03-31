@@ -10,12 +10,8 @@ const app = new Hono();
 
 app.use("*", logger());
 app.use("*", cors({
-  origin: [
-    "http://localhost:3000",
-    "https://aura-web-red.vercel.app",
-  ],
-  credentials: true,
-  allowHeaders: ["Content-Type", "Authorization"],
+  origin: "*",
+  credentials: false,
 }));
 
 app.get("/", (c) => {

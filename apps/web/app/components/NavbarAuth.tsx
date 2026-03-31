@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/authApi";
 import { User } from "@aura/types";
+import { clearToken } from "@/lib/token";
 
 interface NavbarAuthProps {
   user: User | null;
@@ -16,6 +17,7 @@ const NavbarAuth = ({ user }: NavbarAuthProps) => {
   const [loggingOut, setLoggingOut] = useState(false);
   const handleLogout = async () => {
     setLoggingOut(true);
+    clearToken(); // clear from localStorage
     await logout();
     router.push("/");
     router.refresh();

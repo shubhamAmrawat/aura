@@ -7,6 +7,7 @@ import { useState } from "react";
 import Logo from "@/app/components/Logo";
 import Link from "next/link";
 import Image from "next/image";
+import { saveToken } from "@/lib/token";
 
 const EyeIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,8 +91,10 @@ export default function LoginPage() {
       return;
     }
     try {
-      await signup({ email, username, displayName, password });
+      const data=await signup({ email, username, displayName, password });
+      saveToken(data.token);
       queueToast("Account created! Welcome to AURA", "success");
+      setNavigating(true);
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -105,14 +108,14 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await login({ email });
+      const data = await login({ email });
+      saveToken(data.token); // save to localStorage
       queueToast("Welcome back!", "success");
       setNavigating(true);
       router.push("/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
       setLoading(false);
     }
   };

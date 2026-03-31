@@ -27,7 +27,6 @@ export async function sendOtp({ email, type }: SendOtpParams) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, type }),
-    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to send OTP");
@@ -39,7 +38,6 @@ export async function verifyOtp({ email, code, type }: VerifyOtpParams) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code, type }),
-    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to verify OTP");
@@ -51,11 +49,10 @@ export async function signup({ email, username, displayName, password }: SignupP
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, username, displayName, password }),
-    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to signup");
-  return data;
+  return data; // { token, user, message }
 }
 
 export async function login({ email }: LoginParams) {
@@ -63,28 +60,29 @@ export async function login({ email }: LoginParams) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
-    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to login");
-  return data;
+  return data; // { token, user, message }
 }
 
-export async function me() {
+export async function me(token: string) {
   const response = await fetch(`${API_URL}/api/auth/me`, {
     method: "GET",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
     cache: "no-store",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to get user");
   return data;
 }
+
 export async function logout() {
   const response = await fetch(`${API_URL}/api/auth/logout`, {
     method: "POST",
-    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to logout");

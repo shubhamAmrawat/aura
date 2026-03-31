@@ -1,12 +1,35 @@
-import Logo from "@/app/components/Logo";
-import NavbarAuth from "@/app/components/NavbarAuth.";
-import { meServer } from "@/lib/authApi.server";
+"use client";
 
+import Logo from "@/app/components/Logo";
 import Link from "next/link";
 
+import { useEffect, useState } from "react";
+import { getToken } from "@/lib/token";
+import { me } from "@/lib/authApi";
+import { User } from "@aura/types";
+import NavbarAuth from "@/app/components/NavbarAuth";
 
-const Navbar = async () => {
-  const user = await meServer(); 
+
+const Navbar = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setLoaded(true);
+      return;
+    }
+    me(token)
+      .then((data) => {
+        setUser(data.user);
+        setLoaded(true);
+      })
+      .catch(() => {
+        setLoaded(true);
+      });
+  }, []);
+
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-2 border-b backdrop-blur-md"
@@ -34,7 +57,7 @@ const Navbar = async () => {
         ))}
       </div>
 
-      <NavbarAuth user={user}/>
+      {loaded && <NavbarAuth user={user} />}
     </nav>
   );
 };
