@@ -1,7 +1,12 @@
 import Logo from "@/app/components/Logo";
+import NavbarAuth from "@/app/components/NavbarAuth.";
+import { meServer } from "@/lib/authApi.server";
+
 import Link from "next/link";
 
-const Navbar = () => {
+
+const Navbar = async () => {
+  const user = await meServer(); 
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-2 border-b backdrop-blur-md"
@@ -10,10 +15,8 @@ const Navbar = () => {
         borderColor: 'var(--border)'
       }}
     >
-      {/* logo */}
-    <Logo size="sm"/>
+      <Logo size="sm" />
 
-      {/* links */}
       <div className="hidden md:flex items-center gap-12">
         {[
           { label: "Discover", href: "/" },
@@ -23,7 +26,7 @@ const Navbar = () => {
           <Link
             key={link.href}
             href={link.href}
-            className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-green-200"
+            className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
             style={{ color: 'var(--text-secondary)' }}
           >
             {link.label}
@@ -31,17 +34,7 @@ const Navbar = () => {
         ))}
       </div>
 
-      {/* cta */}
-      <Link
-        href="/login"
-        className="text-sm font-medium px-6 py-2  border transition-all duration-200 hover:opacity-80 tracking-wider "
-        style={{
-          borderColor: 'var(--accent)',
-          color: 'var(--accent)',
-        }}
-      >
-        Sign in
-      </Link>
+      <NavbarAuth user={user}/>
     </nav>
   );
 };

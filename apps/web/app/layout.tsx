@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/app/components/Navbar";
+import ConditionalNavbar from "@/app/components/ConditionalNavbar";
+import { ToastProvider } from "@/lib/toast";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -9,10 +11,10 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title:"AURA | Premium Wallpapers",
+  title: "AURA | Premium Wallpapers",
   description: "Discover and download stunning wallpapers curated for every mood.",
-  icons:{
-    icon:"/4.png"
+  icons: {
+    icon: "/4.png"
   }
 };
 
@@ -24,8 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={geist.variable}>
       <body>
-        <Navbar/>
-        {children}
+        <ToastProvider>
+          <ConditionalNavbar>
+            <Navbar />
+          </ConditionalNavbar>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

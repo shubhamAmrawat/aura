@@ -9,17 +9,23 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
-    "hono": "^4.0.0",
-    "@hono/node-server": "^1.0.0",
-    "drizzle-orm": "*",
-    "postgres": "*",
-    "dotenv": "*",
+    "@aura/db": "workspace:*",
     "@aura/types": "workspace:*",
-    "@aura/db": "workspace:*"
+    "@hono/node-server": "^1.0.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "*",
+    "drizzle-orm": "*",
+    "hono": "^4.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.4",
+    "postgres": "*"
   },
   "devDependencies": {
-    "tsx": "^4.0.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.0.0",
+    "@types/nodemailer": "^7.0.11",
+    "tsx": "^4.0.0",
     "typescript": "*"
   }
 }
