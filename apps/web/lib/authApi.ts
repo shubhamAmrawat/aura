@@ -59,7 +59,7 @@ export async function signup({ email, username, displayName, password }: SignupP
 }
 
 export async function login({ email }: LoginParams) {
-  const response = await fetch(`${authFetchBase()}/api/auth/login`, {
+  const response = await fetch(`${API_URL}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
