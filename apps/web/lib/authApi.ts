@@ -1,16 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-/** Browser calls same-origin `/api/auth/*` so HttpOnly cookie is set on the app host (Vercel). Server still uses API_URL for /me via authApi.server. */
-function authFetchBase(): string {
-  if (
-    typeof window !== "undefined" &&
-    process.env.NEXT_PUBLIC_AUTH_PROXY === "1"
-  ) {
-    return "";
-  }
-  return API_URL ?? "";
-}
-
 export interface SendOtpParams {
   email: string;
   type: "signup" | "login";
@@ -46,7 +35,7 @@ export async function sendOtp({ email, type }: SendOtpParams) {
 }
 
 export async function verifyOtp({ email, code, type }: VerifyOtpParams) {
-  const response = await fetch(`${authFetchBase()}/api/auth/verify-otp`, {
+  const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code, type }),
@@ -58,7 +47,7 @@ export async function verifyOtp({ email, code, type }: VerifyOtpParams) {
 }
 
 export async function signup({ email, username, displayName, password }: SignupParams) {
-  const response = await fetch(`${authFetchBase()}/api/auth/signup`, {
+  const response = await fetch(`${API_URL}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, username, displayName, password }),
@@ -82,7 +71,7 @@ export async function login({ email }: LoginParams) {
 }
 
 export async function me() {
-  const response = await fetch(`${authFetchBase()}/api/auth/me`, {
+  const response = await fetch(`${API_URL}/api/auth/me`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -93,7 +82,7 @@ export async function me() {
   return data;
 }
 export async function logout() {
-  const response = await fetch(`${authFetchBase()}/api/auth/logout`, {
+  const response = await fetch(`${API_URL}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
   });

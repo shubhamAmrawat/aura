@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../lib/otp";
 import { generateToken, verifyToken } from "../lib/jwt";
 import { sendOTPEmail } from "../lib/email";
-import { auraTokenClearCookie, auraTokenSetCookie } from "../lib/auth-cookie";
 
 export const authRoutes = new Hono();
 
@@ -201,7 +200,9 @@ authRoutes.post("/signup", async (c) => {
       email: createdUser.email,
     });
 
-    c.header("Set-Cookie", auraTokenSetCookie(token));
+    c.header("Set-Cookie",
+      `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
+    );
     // clean up used OTP
     await db
       .delete(otps)
@@ -335,6 +336,8 @@ authRoutes.get("/me", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
-  c.header("Set-Cookie", auraTokenClearCookie());
+  c.header("Set-Cookie",
+    "aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax"
+  );
   return c.json({ message: "Logged out successfully" });
 });
