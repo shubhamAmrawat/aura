@@ -6,7 +6,7 @@ export async function meServer() {
 
   if (!token) return null;
 
-  const response = await fetch(`${process.env.RENDER_API_URL}/api/auth/me`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
