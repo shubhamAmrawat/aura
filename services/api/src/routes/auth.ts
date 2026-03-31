@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../lib/otp";
 import { generateToken, verifyToken } from "../lib/jwt";
 import { sendOTPEmail } from "../lib/email";
+import { auraTokenClearCookie, auraTokenSetCookie } from "../lib/auth-cookie";
 
 export const authRoutes = new Hono();
 
@@ -200,9 +201,7 @@ authRoutes.post("/signup", async (c) => {
       email: createdUser.email,
     });
 
-    c.header("Set-Cookie",
-      `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
-    );
+    c.header("Set-Cookie", auraTokenSetCookie(token));
     // clean up used OTP
     await db
       .delete(otps)
@@ -267,9 +266,7 @@ authRoutes.post("/login", async (c) => {
     });
 
 
-    c.header("Set-Cookie",
-      `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
-    );
+    c.header("Set-Cookie", auraTokenSetCookie(token));
     await db
       .delete(otps)
       .where(and(eq(otps.email, email), eq(otps.type, "login")));
@@ -338,8 +335,6 @@ authRoutes.get("/me", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
-  c.header("Set-Cookie", 
-    "aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax"
-  );
+  c.header("Set-Cookie", auraTokenClearCookie());
   return c.json({ message: "Logged out successfully" });
 });
