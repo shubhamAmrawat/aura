@@ -1,7 +1,15 @@
 import { Context, Next } from "hono";
 import { verifyToken } from "../lib/jwt";
 
-export async function authMiddleware(c: Context, next: Next): Promise<Response | void> {
+type Variables = {
+  userId: string;
+  email: string;
+};
+
+export async function authMiddleware(
+  c: Context<{ Variables: Variables }>,
+  next: Next
+): Promise<Response | void> {
   const authHeader = c.req.header("Authorization");
   const token = authHeader?.replace("Bearer ", "");
 
