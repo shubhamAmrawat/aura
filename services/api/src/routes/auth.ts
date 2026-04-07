@@ -320,6 +320,7 @@ authRoutes.get("/me", async (c) => {
         username: u.username,
         displayName: u.displayName,
         avatarUrl: u.avatarUrl,
+        coverUrl: u.coverUrl,
         bio: u.bio,
         isCreator: u.isCreator,
         isPro: u.isPro,

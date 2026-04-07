@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/app/components/Navbar";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
 import { ToastProvider } from "@/lib/toast";
+import { AuthProvider } from "@/lib/authContext";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -26,12 +27,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={geist.variable}>
       <body>
-        <ToastProvider>
-          <ConditionalNavbar>
-            <Navbar />
-          </ConditionalNavbar>
-          {children}
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <ConditionalNavbar>
+              <Navbar />
+            </ConditionalNavbar>
+            {children}
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

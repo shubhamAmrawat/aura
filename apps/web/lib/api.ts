@@ -1,4 +1,11 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL; 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+function getApiUrl(): string {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+  return API_URL;
+}
 
 export async function getWallpapers(params?: {
   category?: string;
@@ -10,7 +17,7 @@ export async function getWallpapers(params?: {
   if (params?.q) query.set("q", params.q);
   if (params?.limit) query.set("limit", String(params.limit));
 
-  const url = `${API_URL}/api/wallpapers${query.toString() ? `?${query}` : ""}`;
+  const url = `${getApiUrl()}/api/wallpapers${query.toString() ? `?${query}` : ""}`;
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error("Failed to fetch wallpapers");
   const { data } = await response.json();
@@ -18,7 +25,7 @@ export async function getWallpapers(params?: {
 }
 export async function getFeaturedWallpapers() {
   const response = await fetch(
-    `${API_URL}/api/wallpapers?featured=true&limit=5`,
+    `${getApiUrl()}/api/wallpapers?featured=true&limit=5`,
     { cache: "no-store" }
   );
   if (!response.ok) throw new Error("Failed to fetch featured wallpapers");
@@ -27,7 +34,7 @@ export async function getFeaturedWallpapers() {
   return data;
 }
 export async function getWallpaperById(id:string) {
-  const response = await fetch(`${API_URL}/api/wallpapers/${id}`, { cache: "no-store" }); 
+  const response = await fetch(`${getApiUrl()}/api/wallpapers/${id}`, { cache: "no-store" });
 
   if (!response.ok) throw new Error("Failed to fetch wallpaper"); 
   const { data } = await response.json(); 
@@ -35,7 +42,7 @@ export async function getWallpaperById(id:string) {
 }
 
 export async function getCategories() {
-  const response = await fetch(`${API_URL}/api/categories`, { cache: "force-cache" }); 
+  const response = await fetch(`${getApiUrl()}/api/categories`, { cache: "force-cache" });
   if (!response.ok) throw new Error("Failed to fetch wallpaper"); 
   const { data } = await response.json(); 
   return data; 

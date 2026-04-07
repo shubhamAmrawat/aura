@@ -3,7 +3,7 @@ import { db } from "@aura/db";
 import { users } from "@aura/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { generateUploadUrl, deleteFile } from "../lib/r2";
+import { generateUploadUrl, deleteFile, buildObjectKey, uploadFileToKey } from "../lib/r2";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../lib/otp";
 import { sendOTPEmail } from "../lib/email";
 import { otps } from "@aura/db";
@@ -39,6 +39,7 @@ profileRoutes.get("/", async (c) => {
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      coverUrl: user.coverUrl,
       bio: user.bio,
       contactNo: user.contactNo,
       isCreator: user.isCreator,
@@ -129,6 +130,7 @@ profileRoutes.put("/", async (c) => {
 
 // ─── GET AVATAR UPLOAD URL ─────────────────────────────────
 profileRoutes.post("/avatar/upload-url", async (c) => {
+  const userId = c.get("userId");
 
   const { fileType } = await c.req.json();
 
@@ -137,7 +139,7 @@ profileRoutes.post("/avatar/upload-url", async (c) => {
     return c.json({ error: "Only JPEG, PNG and WebP images are allowed." }, 400);
   }
 
-  const { uploadUrl, fileUrl, key } = await generateUploadUrl("avatars", fileType);
+  const { uploadUrl, fileUrl, key } = await generateUploadUrl("avatars", fileType, userId);
 
   return c.json({ uploadUrl, fileUrl, key });
 });
@@ -155,14 +157,199 @@ profileRoutes.put("/avatar", async (c) => {
   const user = userRecord[0];
   if (!user) return c.json({ error: "User not found" }, 404);
 
-  const { fileUrl } = await c.req.json();
+  const { fileUrl, key } = await c.req.json();
+  const publicBaseUrl = process.env.R2_PUBLIC_URL;
+
+  if (!fileUrl || !key) {
+    return c.json({ error: "fileUrl and key are required." }, 400);
+  }
+  if (!publicBaseUrl) {
+    return c.json({ error: "Avatar storage is not configured." }, 500);
+  }
+
+  if (!key.startsWith(`avatars/${userId}/`)) {
+    return c.json({ error: "Invalid avatar key." }, 400);
+  }
+
+  const expectedFileUrl = `${publicBaseUrl}/${key}`;
+  if (fileUrl !== expectedFileUrl) {
+    return c.json({ error: "Invalid avatar URL." }, 400);
+  }
 
   // delete old avatar from R2 if exists
   if (user.avatarUrl) {
     try {
-      const oldKey = user.avatarUrl.replace(`${process.env.R2_PUBLIC_URL}/`, "");
-      await deleteFile(oldKey);
-    } catch {}
+      const oldPrefix = `${publicBaseUrl}/`;
+      if (user.avatarUrl.startsWith(oldPrefix)) {
+        const oldKey = user.avatarUrl.slice(oldPrefix.length);
+        if (oldKey.startsWith(`avatars/${userId}/`)) {
+          await deleteFile(oldKey);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to cleanup previous avatar", error);
+    }
+  }
+
+  await db
+    .update(users)
+    .set({ avatarUrl: fileUrl, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  return c.json({ message: "Avatar updated successfully", avatarUrl: fileUrl });
+});
+
+// ─── GET COVER UPLOAD URL ──────────────────────────────────
+profileRoutes.post("/cover/upload-url", async (c) => {
+  const userId = c.get("userId");
+
+  const { fileType } = await c.req.json();
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(fileType)) {
+    return c.json({ error: "Only JPEG, PNG and WebP images are allowed." }, 400);
+  }
+
+  const { uploadUrl, fileUrl, key } = await generateUploadUrl("covers", fileType, userId);
+
+  return c.json({ uploadUrl, fileUrl, key });
+});
+
+// ─── CONFIRM COVER UPLOAD ──────────────────────────────────
+profileRoutes.put("/cover", async (c) => {
+  const userId = c.get("userId");
+
+  const userRecord = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const user = userRecord[0];
+  if (!user) return c.json({ error: "User not found" }, 404);
+
+  const { fileUrl, key } = await c.req.json();
+  const publicBaseUrl = process.env.R2_PUBLIC_URL;
+
+  if (!fileUrl || !key) return c.json({ error: "fileUrl and key are required." }, 400);
+  if (!publicBaseUrl) return c.json({ error: "Cover storage is not configured." }, 500);
+
+  if (!key.startsWith(`covers/${userId}/`)) {
+    return c.json({ error: "Invalid cover key." }, 400);
+  }
+  if (fileUrl !== `${publicBaseUrl}/${key}`) {
+    return c.json({ error: "Invalid cover URL." }, 400);
+  }
+
+  if (user.coverUrl) {
+    try {
+      const prefix = `${publicBaseUrl}/`;
+      if (user.coverUrl.startsWith(prefix)) {
+        const oldKey = user.coverUrl.slice(prefix.length);
+        if (oldKey.startsWith(`covers/${userId}/`)) await deleteFile(oldKey);
+      }
+    } catch (error) {
+      console.error("Failed to cleanup previous cover", error);
+    }
+  }
+
+  await db
+    .update(users)
+    .set({ coverUrl: fileUrl, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  return c.json({ message: "Cover updated successfully", coverUrl: fileUrl });
+});
+
+// ─── DIRECT COVER UPLOAD (fallback for CORS/signed-url issues) ───────────────
+profileRoutes.post("/cover/direct", async (c) => {
+  const userId = c.get("userId");
+  const publicBaseUrl = process.env.R2_PUBLIC_URL;
+  if (!publicBaseUrl) return c.json({ error: "Cover storage is not configured." }, 500);
+
+  const userRecord = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const user = userRecord[0];
+  if (!user) return c.json({ error: "User not found" }, 404);
+
+  const formData = await c.req.formData();
+  const file = formData.get("cover");
+  if (!(file instanceof File)) return c.json({ error: "Cover file is required." }, 400);
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    return c.json({ error: "Only JPEG, PNG and WebP images are allowed." }, 400);
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return c.json({ error: "Cover must be smaller than 10MB." }, 400);
+  }
+
+  const key = buildObjectKey("covers", file.type, userId);
+  const bytes = await file.arrayBuffer();
+  const fileUrl = await uploadFileToKey(key, Buffer.from(bytes), file.type);
+
+  await db
+    .update(users)
+    .set({ coverUrl: fileUrl, updatedAt: new Date() })
+    .where(eq(users.id, userId));
+
+  if (user.coverUrl) {
+    try {
+      const prefix = `${publicBaseUrl}/`;
+      if (user.coverUrl.startsWith(prefix)) {
+        const oldKey = user.coverUrl.slice(prefix.length);
+        if (oldKey.startsWith(`covers/${userId}/`)) await deleteFile(oldKey);
+      }
+    } catch (error) {
+      console.error("Failed to cleanup previous cover", error);
+    }
+  }
+
+  return c.json({ message: "Cover updated successfully", coverUrl: fileUrl });
+});
+
+// ─── DIRECT AVATAR UPLOAD (fallback for CORS/signed-url issues) ─────────────
+profileRoutes.post("/avatar/direct", async (c) => {
+  const userId = c.get("userId");
+  const publicBaseUrl = process.env.R2_PUBLIC_URL;
+  if (!publicBaseUrl) {
+    return c.json({ error: "Avatar storage is not configured." }, 500);
+  }
+
+  const userRecord = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const user = userRecord[0];
+  if (!user) return c.json({ error: "User not found" }, 404);
+
+  const formData = await c.req.formData();
+  const file = formData.get("avatar");
+
+  if (!(file instanceof File)) {
+    return c.json({ error: "Avatar file is required." }, 400);
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    return c.json({ error: "Only JPEG, PNG and WebP images are allowed." }, 400);
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return c.json({ error: "Avatar must be smaller than 5MB." }, 400);
+  }
+
+  const key = buildObjectKey("avatars", file.type, userId);
+  const bytes = await file.arrayBuffer();
+  const fileUrl = await uploadFileToKey(key, Buffer.from(bytes), file.type);
+
+  if (user.avatarUrl) {
+    try {
+      const prefix = `${publicBaseUrl}/`;
+      if (user.avatarUrl.startsWith(prefix)) {
+        const oldKey = user.avatarUrl.slice(prefix.length);
+        if (oldKey.startsWith(`avatars/${userId}/`)) {
+          await deleteFile(oldKey);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to cleanup previous avatar", error);
+    }
   }
 
   await db
@@ -316,9 +503,19 @@ profileRoutes.delete("/", async (c) => {
 
   if (user.avatarUrl) {
     try {
-      const key = user.avatarUrl.replace(`${process.env.R2_PUBLIC_URL}/`, "");
-      await deleteFile(key);
-    } catch {}
+      const publicBaseUrl = process.env.R2_PUBLIC_URL;
+      if (publicBaseUrl) {
+        const prefix = `${publicBaseUrl}/`;
+        if (user.avatarUrl.startsWith(prefix)) {
+          const key = user.avatarUrl.slice(prefix.length);
+          if (key.startsWith(`avatars/${userId}/`)) {
+            await deleteFile(key);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to cleanup avatar on account delete", error);
+    }
   }
 
   await db.delete(users).where(eq(users.id, user.id));

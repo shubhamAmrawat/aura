@@ -13,11 +13,10 @@ const r2Client = new S3Client({
 
 export async function generateUploadUrl(
   folder: string,
-  fileType: string
+  fileType: string,
+  ownerId?: string
 ): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
-  // generate a unique filename
-  const extension = fileType.split("/")[1]; // "image/jpeg" → "jpeg"
-  const key = `${folder}/${crypto.randomUUID()}.${extension}`;
+  const key = buildObjectKey(folder, fileType, ownerId);
 
   const command = new PutObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME!,
@@ -25,13 +24,34 @@ export async function generateUploadUrl(
     ContentType: fileType,
   });
 
-  // presigned URL expires in 60 seconds
-  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 60 });
+  // presigned URL expires in 5 minutes
+  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
 
   // the public URL where the file will be accessible after upload
   const fileUrl = `${process.env.R2_PUBLIC_URL}/${key}`;
 
   return { uploadUrl, fileUrl, key };
+}
+
+export function buildObjectKey(folder: string, fileType: string, ownerId?: string): string {
+  const extension = fileType.split("/")[1];
+  const ownerPrefix = ownerId ? `${ownerId}/` : "";
+  return `${folder}/${ownerPrefix}${crypto.randomUUID()}.${extension}`;
+}
+
+export async function uploadFileToKey(
+  key: string,
+  body: Uint8Array | Buffer,
+  fileType: string
+): Promise<string> {
+  const command = new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET_NAME!,
+    Key: key,
+    ContentType: fileType,
+    Body: body,
+  });
+  await r2Client.send(command);
+  return `${process.env.R2_PUBLIC_URL}/${key}`;
 }
 
 export async function deleteFile(key: string): Promise<void> {

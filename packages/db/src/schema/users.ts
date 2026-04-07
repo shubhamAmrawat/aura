@@ -16,6 +16,7 @@ export const users = pgTable("users", {
   displayName: text("display_name").notNull(),
   passwordHash: text("password_hash"),
   avatarUrl: text("avatar_url"),
+  coverUrl: text("cover_url"),
   bio: text("bio"),
   contactNo: text("contact_no"),
   isEmailVerified: boolean("is_email_verified").notNull().default(false),

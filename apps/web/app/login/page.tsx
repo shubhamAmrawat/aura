@@ -158,7 +158,7 @@ export default function LoginPage() {
                 fontStyle: "italic",
               }}
             >
-              "The world is full of magic things, patiently waiting for our senses to grow sharper."
+              &quot;The world is full of magic things, patiently waiting for our senses to grow sharper.&quot;
             </p>
             <p
               className="text-xs tracking-[0.25em] uppercase"

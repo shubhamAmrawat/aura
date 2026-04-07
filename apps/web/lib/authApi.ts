@@ -1,5 +1,12 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+function getApiUrl(): string {
+  if (!API_URL) {
+    throw new Error("NEXT_PUBLIC_API_URL is not configured");
+  }
+  return API_URL;
+}
+
 export interface SendOtpParams {
   email: string;
   type: "signup" | "login";
@@ -23,7 +30,8 @@ export interface LoginParams {
 }
 
 export async function sendOtp({ email, type }: SendOtpParams) {
-  const response = await fetch(`${API_URL}/api/auth/send-otp`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/send-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, type }),
@@ -34,7 +42,8 @@ export async function sendOtp({ email, type }: SendOtpParams) {
 }
 
 export async function verifyOtp({ email, code, type }: VerifyOtpParams) {
-  const response = await fetch(`${API_URL}/api/auth/verify-otp`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/verify-otp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code, type }),
@@ -45,7 +54,8 @@ export async function verifyOtp({ email, code, type }: VerifyOtpParams) {
 }
 
 export async function signup({ email, username, displayName, password }: SignupParams) {
-  const response = await fetch(`${API_URL}/api/auth/signup`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, username, displayName, password }),
@@ -56,7 +66,8 @@ export async function signup({ email, username, displayName, password }: SignupP
 }
 
 export async function login({ email }: LoginParams) {
-  const response = await fetch(`${API_URL}/api/auth/login`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
@@ -67,7 +78,8 @@ export async function login({ email }: LoginParams) {
 }
 
 export async function me(token: string) {
-  const response = await fetch(`${API_URL}/api/auth/me`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -81,7 +93,8 @@ export async function me(token: string) {
 }
 
 export async function logout() {
-  const response = await fetch(`${API_URL}/api/auth/logout`, {
+  const baseUrl = getApiUrl();
+  const response = await fetch(`${baseUrl}/api/auth/logout`, {
     method: "POST",
   });
   const data = await response.json();
