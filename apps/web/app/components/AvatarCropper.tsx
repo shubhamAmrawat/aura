@@ -203,8 +203,16 @@ export default function AvatarCropper({ src, shape = "circle", onConfirm, onCanc
             onMouseUp={() => { dragging.current = false; }}
             onMouseLeave={() => { dragging.current = false; }}
             onWheel={handleWheel}
-            onTouchStart={(e) => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); }}
-            onTouchMove={(e) => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }}
+            onTouchStart={(e) => {
+              const t = e.touches.item(0);
+              if (!t) return;
+              startDrag(t.clientX, t.clientY);
+            }}
+            onTouchMove={(e) => {
+              const t = e.touches.item(0);
+              if (!t) return;
+              moveDrag(t.clientX, t.clientY);
+            }}
             onTouchEnd={() => { dragging.current = false; }}
           />
 

@@ -54,7 +54,7 @@ async function parseJson<T>(response: Response): Promise<T> {
       ? (data as { error: string }).error
       : "Request failed";
   if (!response.ok) throw new Error(errorMessage);
-  return data;
+  return data as T;
 }
 
 export async function getProfile(token: string): Promise<ProfileUser> {
