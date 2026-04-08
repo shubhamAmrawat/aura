@@ -6,6 +6,7 @@ import { wallpaperRoutes } from "./routes/wallpapers";
 import { categoryRoutes } from "./routes/categories";
 import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profile";
+import { likesRoutes } from "./routes/likes";
 
 const app = new Hono();
 
@@ -27,6 +28,7 @@ app.route("/api/wallpapers", wallpaperRoutes);
 app.route("/api/categories", categoryRoutes); 
 app.route("/api/auth", authRoutes);
 app.route("/api/profile", profileRoutes);
+app.route("/api/likes", likesRoutes);
 const port = parseInt(process.env.PORT ?? "3001", 10);
 
 console.log(`Starting server on port ${port}`);
