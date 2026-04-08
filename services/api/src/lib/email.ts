@@ -62,6 +62,6 @@ export async function sendOTPEmail(
     throw new Error(`Brevo API error (${response.status}): ${errorBody}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { messageId?: string };
   console.log("Email sent:", data.messageId);
 }
