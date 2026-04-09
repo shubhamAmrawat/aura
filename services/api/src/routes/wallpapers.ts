@@ -81,3 +81,18 @@ wallpaperRoutes.get("/:id", async (c) => {
   }
 });
 
+
+// POST /api/wallpapers/:id/download — track download
+wallpaperRoutes.post("/:id/download", async (c) => {
+  try {
+    const id = c.req.param("id");
+    await db
+      .update(wallpapers)
+      .set({ downloadCount: sql`${wallpapers.downloadCount} + 1` })
+      .where(eq(wallpapers.id, id));
+    return c.json({ message: "Download tracked" });
+  } catch (error) {
+    console.error("Download track error:", error);
+    return c.json({ error: "Failed to track download" }, 500);
+  }
+});

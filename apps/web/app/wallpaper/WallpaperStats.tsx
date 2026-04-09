@@ -58,7 +58,9 @@ const WallpaperStats = ({
         <StatItem label="Format" value={format.toUpperCase()} />
         <StatItem label="Likes" value={likeCount.toString()} />
         <StatItem label="Downloads" value={downloadCount.toString()} />
-        <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
+        {fileSizeBytes > 0 && (
+          <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
+        )}
         <StatItem label="Added" value={formatDate(createdAt)} />
       </div>
     );
@@ -73,8 +75,12 @@ const WallpaperStats = ({
       <StatItem label="Likes" value={likeCount.toString()} />
       <Divider />
       <StatItem label="Downloads" value={downloadCount.toString()} />
-      <Divider />
-      <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
+      {fileSizeBytes > 0 && (
+        <>
+          <Divider />
+          <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
+        </>
+      )}
       <Divider />
       <StatItem label="Added" value={formatDate(createdAt)} />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 interface DownloadButtonProps {
+  wallpaperId: string;
   fileUrl: string;
   title: string;
   dominantColor: string;
@@ -9,6 +10,7 @@ interface DownloadButtonProps {
 }
 
 const DownloadButton = ({
+  wallpaperId,
   fileUrl,
   title,
   dominantColor,
@@ -17,6 +19,12 @@ const DownloadButton = ({
 }: DownloadButtonProps) => {
   const handleDownload = async () => {
     try {
+      // track download
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
+        method: "POST",
+      }).catch(() => {}); // fire and forget — don't block download
+
+      // download file
       const response = await fetch(fileUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -28,7 +36,6 @@ const DownloadButton = ({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch {
-      // fallback — open in new tab
       window.open(fileUrl, "_blank");
     }
   };

@@ -7,7 +7,6 @@ import { toggleLike } from "@/lib/likesApi";
 
 interface LikeButtonProps {
   wallpaperId: string;
-  initialLiked?: boolean;
   initialCount?: number;
   showCount?: boolean;
   size?: "sm" | "md";
@@ -15,16 +14,19 @@ interface LikeButtonProps {
 
 const LikeButton = ({
   wallpaperId,
-  initialLiked = false,
   initialCount = 0,
   showCount = false,
   size = "md",
 }: LikeButtonProps) => {
-  const { user, token } = useAuth();
+  const { user, token, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
-  const [liked, setLiked] = useState(initialLiked);
+  const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [count, setCount] = useState(initialCount);
   const [loading, setLoading] = useState(false);
+  const [ripple, setRipple] = useState(false);
+
+  // derive liked from local override or global context
+  const liked = localLiked !== null ? localLiked : likedIds.has(wallpaperId);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -35,34 +37,51 @@ const LikeButton = ({
       return;
     }
 
-    // optimistic update
-    setLiked((prev) => !prev);
-    setCount((prev) => (liked ? prev - 1 : prev + 1));
+    setRipple(true);
+    setTimeout(() => setRipple(false), 600);
+
+    const newLiked = !liked;
+    setLocalLiked(newLiked);
+    setCount((prev) => newLiked ? prev + 1 : prev - 1);
+    toggleLikedId(wallpaperId);
 
     try {
       setLoading(true);
       const data = await toggleLike(wallpaperId, token);
-      // sync with server response
-      setLiked(data.liked);
+      setLocalLiked(data.liked);
+      if (data.liked !== newLiked) {
+        toggleLikedId(wallpaperId);
+      }
     } catch {
-      // revert on error
-      setLiked((prev) => !prev);
-      setCount((prev) => (liked ? prev + 1 : prev - 1));
+      setLocalLiked(!newLiked);
+      setCount((prev) => newLiked ? prev - 1 : prev + 1);
+      toggleLikedId(wallpaperId);
     } finally {
       setLoading(false);
     }
   };
 
-  const iconSize = size === "sm" ? 14 : 18;
+  const iconSize = size === "sm" ? 14 : 20;
 
   return (
     <button
       onClick={handleLike}
       disabled={loading}
-      className="flex items-center gap-1.5 transition-all duration-200 hover:scale-110 disabled:opacity-50"
+      className="relative flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
       style={{ color: liked ? "#ef4444" : "var(--text-muted)" }}
       title={liked ? "Unlike" : "Like"}
     >
+      {/* ripple */}
+      {ripple && (
+        <span
+          className="absolute inset-0 rounded-full pointer-events-none"
+          style={{
+            background: "rgba(239,68,68,0.2)",
+            animation: "ripple 0.6s ease-out forwards",
+          }}
+        />
+      )}
+
       <svg
         width={iconSize}
         height={iconSize}
@@ -73,8 +92,9 @@ const LikeButton = ({
         strokeLinecap="round"
         strokeLinejoin="round"
         style={{
-          transition: "all 0.2s ease",
-          filter: liked ? "drop-shadow(0 0 4px rgba(239,68,68,0.5))" : "none",
+          transition: "transform 0.2s ease, filter 0.2s ease",
+          transform: ripple ? "scale(0.85)" : "scale(1)",
+          filter: liked ? "drop-shadow(0 0 6px rgba(239,68,68,0.5))" : "none",
         }}
       >
         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />

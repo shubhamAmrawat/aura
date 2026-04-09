@@ -4,6 +4,7 @@ import WallpaperStats from "./WallpaperStats";
 import ColorPalette from "./ColorPalette";
 import WallpaperTags from "./WallpaperTags";
 import DownloadButton from "./DownloadButton";
+import LikeButton from "@/app/components/LikeButton";
 
 interface WallpaperDetailsProps {
   wallpaper: Wallpaper;
@@ -18,7 +19,6 @@ const WallpaperDetails = ({
   const isPortrait = statsLayout === "grid";
 
   if (isPortrait) {
-    // portrait — vertical stack, download full width at bottom
     return (
       <div className="flex flex-col gap-8">
         <div
@@ -56,21 +56,32 @@ const WallpaperDetails = ({
         <ColorPalette palette={wallpaper.palette} />
         <WallpaperTags tags={wallpaper.tags} />
 
-        <DownloadButton
-          fileUrl={wallpaper.fileUrl}
-          title={wallpaper.title}
-          dominantColor={wallpaper.dominantColor}
-          contrastColor={contrastColor}
-          fullWidth={true}
-        />
+        {/* download + like row */}
+        <div className="flex items-center gap-4">
+          <div className="flex-1">
+            <DownloadButton
+              wallpaperId={wallpaper.id}
+              fileUrl={wallpaper.fileUrl}
+              title={wallpaper.title}
+              dominantColor={wallpaper.dominantColor}
+              contrastColor={contrastColor}
+              fullWidth={true}
+            />
+          </div>
+          <LikeButton
+            wallpaperId={wallpaper.id}
+            initialCount={wallpaper.likeCount}
+            showCount={true}
+            size="md"
+          />
+        </div>
       </div>
     );
   }
 
-  // landscape — title+stats left, download top right
+  // landscape
   return (
     <div className="flex flex-col gap-8">
-      {/* top row — tag + download button */}
       <div className="flex items-start justify-between gap-8">
         <div className="flex flex-col gap-3">
           <div
@@ -92,9 +103,16 @@ const WallpaperDetails = ({
           )}
         </div>
 
-        {/* download top right */}
-        <div className="flex-shrink-0 pt-1">
+        {/* download + like top right */}
+        <div className="flex items-center gap-4 flex-shrink-0 pt-1">
+          <LikeButton
+            wallpaperId={wallpaper.id}
+            initialCount={wallpaper.likeCount}
+            showCount={true}
+            size="md"
+          />
           <DownloadButton
+            wallpaperId={wallpaper.id}
             fileUrl={wallpaper.fileUrl}
             title={wallpaper.title}
             dominantColor={wallpaper.dominantColor}
