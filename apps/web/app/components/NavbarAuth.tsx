@@ -134,8 +134,8 @@ const NavbarAuth = () => {
                 </svg>
                 Profile
               </Link>
-              <Link
-                href="/collections"
+              {/* <Link
+                href="/collection"
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-secondary)" }}
@@ -145,7 +145,7 @@ const NavbarAuth = () => {
                   <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
                 </svg>
                 Collections
-              </Link>
+              </Link> */}
             </div>
 
             <div className="py-1" style={{ borderTop: "1px solid var(--border)" }}>

@@ -6,6 +6,7 @@ export interface Collection {
   description: string | null;
   isPublic: boolean;
   coverWallpaperId: string | null;
+  coverUrl: string | null;
   createdAt: string;
   wallpaperCount: number;
 }

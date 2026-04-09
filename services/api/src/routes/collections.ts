@@ -134,6 +134,9 @@ collectionsRoutes.get("/", async (c) => {
         description: collections.description,
         isPublic: collections.isPublic,
         coverWallpaperId: collections.coverWallpaperId,
+        coverUrl: sql<string | null>`(
+          SELECT file_url FROM wallpapers WHERE id = ${collections.coverWallpaperId} LIMIT 1
+        )`,
         createdAt: collections.createdAt,
         wallpaperCount: sql<number>`count(${collectionWallpapers.wallpaperId})::int`,
       })
@@ -359,7 +362,7 @@ collectionsRoutes.delete("/:id/wallpapers/:wallpaperId", async (c) => {
 });
 
 // GET /api/collections/check/:wallpaperId — which collections contain this wallpaper
-collectionsRoutes.get("/check/:wallpaperId", async (c) => {
+collectionsRoutes.get("/check/:wallpaperId",authMiddleware, async (c) => {
   try {
     const userId = c.get("userId");
     const wallpaperId = c.req.param("wallpaperId");

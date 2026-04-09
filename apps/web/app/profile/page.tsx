@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { getUserCollections, type Collection } from "@/lib/collectionsApi";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -196,7 +197,6 @@ export default function ProfilePage() {
   const { user: authUser, token, setUser: setAuthUser, loaded: authLoaded } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  const likedGridRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileUser | null>(null);
@@ -229,9 +229,9 @@ export default function ProfilePage() {
   const [likedWallpapers, setLikedWallpapers] = useState<any[]>([]);
   const [likedLoading, setLikedLoading] = useState(false);
   const [visibleRows, setVisibleRows] = useState(2);
-  const [gridCols, setGridCols] = useState(5);
   const [twoFaEnabled, setTwoFaEnabled] = useState(false);
-
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
   const inputStyleBase: React.CSSProperties = {
     background: "var(--bg-elevated)",
     color: "var(--text-primary)",
@@ -263,29 +263,23 @@ export default function ProfilePage() {
       })
       .finally(() => setLoading(false));
 
-    // fetch liked wallpapers in parallel
+    // fetch liked wallpapers + collections in parallel
     setLikedLoading(true);
     getLikedWallpapers(token)
       .then(setLikedWallpapers)
       .catch(() => setLikedWallpapers([]))
       .finally(() => setLikedLoading(false));
 
+    setCollectionsLoading(true);
+    getUserCollections(token)
+      .then(setCollections)
+      .catch(() => setCollections([]))
+      .finally(() => setCollectionsLoading(false));
+
   }, [authLoaded, token, router, toast]);
 
-  useEffect(() => {
-    const el = likedGridRef.current;
-    if (!el) return;
-    const sync = () => {
-      const cols = getComputedStyle(el).gridTemplateColumns.split(" ").length;
-      setGridCols(cols);
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [likedWallpapers.length]);
-
-  const visibleCount = visibleRows * gridCols;
+  const LIKED_COLS = 3;
+  const visibleCount = visibleRows * LIKED_COLS;
 
   function openEdit() {
     if (!profile) return;
@@ -551,32 +545,36 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* ── Personal Info + Account & Security ─────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-6" style={{ borderTop: "1px solid var(--border)" }}>
+          {/* ── Personal Information & Settings ──────────────── */}
+          <div className="pt-6" style={{ borderTop: "1px solid var(--border)" }}>
 
-            {/* ── Left: Personal Information ──────────────────── */}
-            <div className="flex flex-col">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                  {isEditing ? "Editing profile" : "Personal information"}
-                </p>
-                {isEditing ? (
-                  <div className="flex gap-2">
-                    <button onClick={cancelEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                      Cancel
-                    </button>
-                    <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
-                      {saving ? "Saving…" : "Save changes"}
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={openEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
-                    Edit profile
+            {/* section header */}
+            <div className="flex items-center justify-between mb-5">
+              <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+                {isEditing ? "Editing profile" : "Personal information & settings"}
+              </p>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <button onClick={cancelEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                    Cancel
                   </button>
-                )}
-              </div>
-              <div className="rounded-2xl p-6 flex-1" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-                <div className="space-y-4">
+                  <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={openEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
+                  Edit profile
+                </button>
+              )}
+            </div>
+
+            {/* unified card */}
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+              <div className="grid grid-cols-1 lg:grid-cols-2">
+
+                {/* ── Left: profile fields ──────────────────────── */}
+                <div className="p-6 space-y-4">
                   <FieldRow icon={<IcUser />} label="Display name">
                     {isEditing ? (
                       <input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="Your name" style={inputBase(true)} />
@@ -613,171 +611,273 @@ export default function ProfilePage() {
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* ── Right: Account & Security ───────────────────── */}
-            <div className="flex flex-col">
-              <p className="text-xs tracking-widest uppercase mb-5" style={{ color: "var(--text-muted)" }}>Account &amp; security</p>
-              <div className="rounded-2xl overflow-hidden flex-1 flex flex-col" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-
-                {/* 2FA toggle */}
-                <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-                  <div className="flex items-center gap-3">
-                    <IcShield />
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Two-factor authentication</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Add an extra layer of security to your account</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => { setTwoFaEnabled(!twoFaEnabled); toast(twoFaEnabled ? "2FA disabled." : "2FA enabled."); }}
-                    aria-label="Toggle two-factor authentication"
-                    className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200"
-                    style={{ background: twoFaEnabled ? "var(--accent)" : "var(--border)" }}
-                  >
-                    <span className="inline-block h-4 w-4 rounded-full shadow-sm transition-transform duration-200" style={{ background: "#fff", transform: twoFaEnabled ? "translateX(22px)" : "translateX(4px)" }} />
-                  </button>
-                </div>
-
-                {/* Password */}
-                <div className="px-6 py-5 flex-1" style={{ borderBottom: "1px solid var(--border)" }}>
-                  <div className="flex items-center gap-3">
-                    <IcLock />
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Password</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Change your password via email OTP verification</p>
-                    </div>
-                  </div>
-                  {pwStep === "idle" && (
-                    <button onClick={() => setPwStep("verify")} className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium text-left px-4 flex items-center justify-center gap-2 transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                      Change password
-                    </button>
-                  )}
-                  {pwStep === "verify" && (
-                    <div className="space-y-3 mt-4">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Enter your current password to receive an OTP.</p>
-                      <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Current password" style={inputStyleBase} />
-                      <div className="flex gap-2">
-                        <button onClick={() => { setPwStep("idle"); setCurrentPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
-                        <button onClick={handleVerifyPassword} disabled={pwLoading || !currentPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Verifying…" : "Send OTP"}</button>
+                {/* ── Right: security ──────────────────────────── */}
+                {/* border-t on mobile, border-l on desktop */}
+                <div
+                  className="flex flex-col border-t lg:border-t-0 lg:border-l"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  {/* 2FA toggle */}
+                  <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div className="flex items-center gap-3">
+                      <IcShield />
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Two-factor authentication</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Add an extra layer of security</p>
                       </div>
                     </div>
-                  )}
-                  {pwStep === "confirm" && (
-                    <div className="space-y-3 mt-4">
-                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Check your email for the 6-digit OTP.</p>
-                      <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit OTP" className="tracking-widest text-center" style={inputStyleBase} />
-                      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyleBase} />
-                      <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" style={{ ...inputStyleBase, borderColor: confirmPw && newPw && confirmPw === newPw ? "#40C057" : confirmPw && newPw && confirmPw.length >= newPw.length && confirmPw !== newPw ? "#ef4444" : "var(--border)" }} />
-                      <div className="flex gap-2">
-                        <button onClick={() => { setPwStep("idle"); setOtp(""); setNewPw(""); setConfirmPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
-                        <button onClick={handleChangePassword} disabled={pwLoading || otp.length !== 6 || !newPw || !confirmPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Updating…" : "Update password"}</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Delete account */}
-                <div className="px-6 py-5" style={{ background: "rgba(239,68,68,0.04)" }}>
-                  <h3 className="text-sm font-semibold mb-1" style={{ color: "#ef4444" }}>Delete account</h3>
-                  <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-                    Permanently deletes your account, avatar, and all data. This cannot be undone.
-                  </p>
-                  <div className="space-y-3">
-                    <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
-                    <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder='Type "DELETE" to confirm' style={{ ...inputStyleBase, borderColor: delConfirm === "DELETE" ? "#ef4444" : "var(--border)" }} />
-                    <button onClick={handleDeleteAccount} disabled={deleting || !delPw || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
-                      {deleting ? "Deleting account…" : "Delete my account"}
+                    <button
+                      onClick={() => { setTwoFaEnabled(!twoFaEnabled); toast(twoFaEnabled ? "2FA disabled." : "2FA enabled."); }}
+                      aria-label="Toggle two-factor authentication"
+                      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200"
+                      style={{ background: twoFaEnabled ? "var(--accent)" : "var(--border)" }}
+                    >
+                      <span className="inline-block h-4 w-4 rounded-full shadow-sm transition-transform duration-200" style={{ background: "#fff", transform: twoFaEnabled ? "translateX(22px)" : "translateX(4px)" }} />
                     </button>
                   </div>
+
+                  {/* Password */}
+                  <div className="px-6 py-5 flex-1" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div className="flex items-center gap-3">
+                      <IcLock />
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Password</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Change via email OTP verification</p>
+                      </div>
+                    </div>
+                    {pwStep === "idle" && (
+                      <button onClick={() => setPwStep("verify")} className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium px-4 flex items-center justify-center gap-2 transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                        Change password
+                      </button>
+                    )}
+                    {pwStep === "verify" && (
+                      <div className="space-y-3 mt-4">
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Enter your current password to receive an OTP.</p>
+                        <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Current password" style={inputStyleBase} />
+                        <div className="flex gap-2">
+                          <button onClick={() => { setPwStep("idle"); setCurrentPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
+                          <button onClick={handleVerifyPassword} disabled={pwLoading || !currentPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Verifying…" : "Send OTP"}</button>
+                        </div>
+                      </div>
+                    )}
+                    {pwStep === "confirm" && (
+                      <div className="space-y-3 mt-4">
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Check your email for the 6-digit OTP.</p>
+                        <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit OTP" className="tracking-widest text-center" style={inputStyleBase} />
+                        <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyleBase} />
+                        <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" style={{ ...inputStyleBase, borderColor: confirmPw && newPw && confirmPw === newPw ? "#40C057" : confirmPw && newPw && confirmPw.length >= newPw.length && confirmPw !== newPw ? "#ef4444" : "var(--border)" }} />
+                        <div className="flex gap-2">
+                          <button onClick={() => { setPwStep("idle"); setOtp(""); setNewPw(""); setConfirmPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
+                          <button onClick={handleChangePassword} disabled={pwLoading || otp.length !== 6 || !newPw || !confirmPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Updating…" : "Update password"}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Delete account */}
+                  <div className="px-6 py-5" style={{ background: "rgba(239,68,68,0.04)" }}>
+                    <h3 className="text-sm font-semibold mb-1" style={{ color: "#ef4444" }}>Delete account</h3>
+                    <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                      Permanently deletes your account, avatar, and all data. This cannot be undone.
+                    </p>
+                    <div className="space-y-3">
+                      <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
+                      <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder='Type "DELETE" to confirm' style={{ ...inputStyleBase, borderColor: delConfirm === "DELETE" ? "#ef4444" : "var(--border)" }} />
+                      <button onClick={handleDeleteAccount} disabled={deleting || !delPw || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
+                        {deleting ? "Deleting account…" : "Delete my account"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
               </div>
             </div>
           </div>
 
-          {/* ── Liked Wallpapers ──────────────────────────────── */}
-          <div className="pt-8 pb-16" style={{ borderTop: "1px solid var(--border)", marginTop: 24 }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
-                  Liked Wallpapers
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                  {likedWallpapers.length} wallpaper{likedWallpapers.length !== 1 ? "s" : ""} in your collection
-                </p>
+          {/* ── Liked Wallpapers + Collections ──────────────────── */}
+          <div
+            className="grid grid-cols-1 xl:grid-cols-2 gap-10 pt-8 pb-16"
+            style={{ borderTop: "1px solid var(--border)", marginTop: 24 }}
+          >
+
+            {/* ── Liked Wallpapers (left) ─────────────────────── */}
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
+                    Liked Wallpapers
+                  </h2>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    {likedWallpapers.length} wallpaper{likedWallpapers.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
+                {likedWallpapers.length > 0 && (
+                  <Link href="/" className="text-xs tracking-widest uppercase transition-opacity hover:opacity-70" style={{ color: "var(--accent)" }}>
+                    Discover more →
+                  </Link>
+                )}
               </div>
-              {likedWallpapers.length > 0 && (
-                <Link href="/" className="text-xs tracking-widest uppercase transition-opacity hover:opacity-70" style={{ color: "var(--accent)" }}>
-                  Discover more →
-                </Link>
+
+              {likedLoading ? (
+                <div className="grid grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="aspect-[3/4] rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+                  ))}
+                </div>
+              ) : likedWallpapers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3" style={{ color: "var(--text-muted)" }}>
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                  </svg>
+                  <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No liked wallpapers yet</p>
+                  <p className="text-xs mb-3" style={{ color: "var(--text-muted)", opacity: 0.7 }}>Wallpapers you heart will appear here</p>
+                  <Link href="/" className="text-xs px-4 py-2 rounded-lg transition-opacity hover:opacity-70" style={{ color: "var(--accent)", border: "1px solid rgba(64,192,87,0.3)" }}>
+                    Browse wallpapers →
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    {likedWallpapers.slice(0, visibleCount).map((w) => (
+                      <Link key={w.id} href={`/wallpaper/${w.id}`}>
+                        <div className="relative aspect-[3/4] rounded-xl overflow-hidden group" style={{ backgroundColor: w.dominantColor }}>
+                          <Image
+                            src={w.fileUrl}
+                            alt={w.title}
+                            fill
+                            sizes="(max-width: 640px) 50vw, 33vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                          <div
+                            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-2"
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }}
+                          >
+                            <p className="text-xs font-medium line-clamp-2 leading-tight" style={{ color: "var(--text-primary)" }}>
+                              {w.title}
+                            </p>
+                          </div>
+                          <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-full" style={{ background: "rgba(239,68,68,0.85)" }}>
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
+                              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  {visibleCount < likedWallpapers.length && (
+                    <div className="flex justify-center mt-5">
+                      <button
+                        onClick={() => setVisibleRows((r) => r + 1)}
+                        className="flex items-center gap-2.5 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110"
+                        style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+                      >
+                        Show more
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}>
+                          {likedWallpapers.length - visibleCount} remaining
+                        </span>
+                        <IcChevronDown />
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            {likedLoading ? (
-              <div ref={likedGridRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="aspect-[3/4] rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
-                ))}
+            {/* ── Collections (right) ─────────────────────────── */}
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
+                    My Collections
+                  </h2>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    {collections.length} collection{collections.length !== 1 ? "s" : ""}
+                  </p>
+                </div>
               </div>
-            ) : likedWallpapers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3" style={{ color: "var(--text-muted)" }}>
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
-                <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No liked wallpapers yet</p>
-                <p className="text-xs mb-3" style={{ color: "var(--text-muted)", opacity: 0.7 }}>Wallpapers you heart will appear here</p>
-                <Link href="/" className="text-xs px-4 py-2 rounded-lg transition-opacity hover:opacity-70" style={{ color: "var(--accent)", border: "1px solid rgba(64,192,87,0.3)" }}>
-                  Browse wallpapers →
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div ref={likedGridRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {likedWallpapers.slice(0, visibleCount).map((w) => (
-                    <Link key={w.id} href={`/wallpaper/${w.id}`}>
-                      <div className="relative aspect-[3/4] rounded-xl overflow-hidden group" style={{ backgroundColor: w.dominantColor }}>
-                        <Image
-                          src={w.fileUrl}
-                          alt={w.title}
-                          fill
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
+
+              {collectionsLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="aspect-[3/4] rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+                  ))}
+                </div>
+              ) : collections.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-14 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3" style={{ color: "var(--text-muted)" }}>
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No collections yet</p>
+                  <p className="text-xs text-center px-6" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+                    Save wallpapers to collections and they&apos;ll appear here
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {collections.map((col) => (
+                    <Link key={col.id} href={`/collection/${col.id}`}>
+                      <div className="group cursor-pointer">
                         <div
-                          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-2"
-                          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }}
+                          className="relative aspect-[3/4] rounded-xl overflow-hidden"
+                          style={{ backgroundColor: "var(--bg-elevated)" }}
                         >
-                          <p className="text-xs font-medium line-clamp-2 leading-tight" style={{ color: "var(--text-primary)" }}>
-                            {w.title}
-                          </p>
-                        </div>
-                        <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-full" style={{ background: "rgba(239,68,68,0.85)" }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                          </svg>
+                          {col.coverUrl ? (
+                            <Image
+                              src={col.coverUrl}
+                              alt={col.title}
+                              fill
+                              sizes="(max-width: 640px) 50vw, 33vw"
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: "var(--text-muted)" }}>
+                              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                              </svg>
+                              <span className="text-[11px]">Empty</span>
+                            </div>
+                          )}
+
+                          {/* bottom gradient always visible */}
+                          <div
+                            className="absolute inset-0"
+                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 52%)" }}
+                          />
+
+                          {/* title + count */}
+                          <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                            <p className="text-xs font-semibold line-clamp-1 leading-snug" style={{ color: "#fff" }}>
+                              {col.title}
+                            </p>
+                            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
+                              {col.wallpaperCount} {col.wallpaperCount === 1 ? "wallpaper" : "wallpapers"}
+                            </p>
+                          </div>
+
+                          {/* visibility badge */}
+                          <div className="absolute top-2 right-2">
+                            <span
+                              className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-full font-medium"
+                              style={{
+                                background: col.isPublic ? "rgba(64,192,87,0.88)" : "rgba(0,0,0,0.52)",
+                                color: "#fff",
+                                backdropFilter: "blur(4px)",
+                                border: col.isPublic ? "none" : "1px solid rgba(255,255,255,0.14)",
+                              }}
+                            >
+                              {col.isPublic ? "Public" : "Private"}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </Link>
                   ))}
                 </div>
-                {visibleCount < likedWallpapers.length && (
-                  <div className="flex justify-center mt-6">
-                    <button
-                      onClick={() => setVisibleRows((r) => r + 2)}
-                      className="flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110"
-                      style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
-                    >
-                      Show more
-                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}>
-                        {likedWallpapers.length - visibleCount} remaining
-                      </span>
-                      <IcChevronDown />
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+              )}
+            </div>
+
           </div>
         </div>
       </main>
