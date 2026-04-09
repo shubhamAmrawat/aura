@@ -41,6 +41,25 @@ collectionsRoutes.get("/public", async (c) => {
   }
 });
 
+// GET /api/collections/saved-ids — all unique wallpaper IDs saved by the user across all collections
+// NOTE: must be registered before /:id so the static path wins over the dynamic one
+collectionsRoutes.get("/saved-ids", authMiddleware, async (c) => {
+  try {
+    const userId = c.get("userId");
+
+    const result = await db
+      .selectDistinct({ wallpaperId: collectionWallpapers.wallpaperId })
+      .from(collectionWallpapers)
+      .innerJoin(collections, eq(collectionWallpapers.collectionId, collections.id))
+      .where(eq(collections.userId, userId));
+
+    return c.json({ data: result.map((r) => r.wallpaperId) });
+  } catch (error) {
+    console.error("Get saved IDs error:", error);
+    return c.json({ error: "Failed to fetch saved wallpaper IDs" }, 500);
+  }
+});
+
 // GET /api/collections/:id — view single collection (public or owned)
 collectionsRoutes.get("/:id", async (c) => {
   try {

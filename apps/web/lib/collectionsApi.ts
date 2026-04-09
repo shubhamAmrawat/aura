@@ -77,6 +77,20 @@ export async function removeFromCollection(
   if (!response.ok) throw new Error(data.error || "Failed to remove from collection");
 }
 
+export async function getSavedWallpaperIds(token: string): Promise<Set<string>> {
+  try {
+    const response = await fetch(`${API_URL}/api/collections/saved-ids`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    const data = await response.json();
+    if (!response.ok) return new Set();
+    return new Set(data.data as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
 export async function checkCollections(
   token: string,
   wallpaperId: string

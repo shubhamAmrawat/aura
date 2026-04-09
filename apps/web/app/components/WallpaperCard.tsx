@@ -22,10 +22,10 @@ const DownloadIcon = () => (
 );
 
 const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
-  const [hovered, setHovered] = useState(false);
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [likeCount, setLikeCount] = useState(wallpaper.likeCount);
   const [ripple, setRipple] = useState(false);
+  const [bookmarkOpen, setBookmarkOpen] = useState(false);
 
   const { user, token, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
@@ -68,8 +68,6 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
       <div
         className="relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer group"
         style={{ backgroundColor: wallpaper.dominantColor }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
       >
         {/* image */}
         <Image
@@ -81,13 +79,13 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
           loading="lazy"
         />
         
-        {/* like button — top right */}
+        {/* bookmark + like buttons — top right */}
         <div
-          className="absolute top-3 right-3 z-10 transition-all duration-200 "
-          style={{
-            opacity: hovered ? 1 : 0,
-            transform: hovered ? "translateY(0)" : "translateY(-6px)",
-          }}
+          className={`absolute top-3 right-3 z-10 transition-all duration-200 ${
+            bookmarkOpen
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 -translate-y-1.5 group-hover:opacity-100 group-hover:translate-y-0"
+          }`}
         >
           {/* bookmark button */}
   
@@ -95,6 +93,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
               wallpaperId={wallpaper.id}
               size="sm"
               variant="card"
+              onDropdownChange={setBookmarkOpen}
             />
   
           <button
@@ -142,7 +141,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
 
         {/* hover overlay */}
         <div
-          className={`absolute inset-0 transition-opacity duration-300 ${hovered ? "opacity-100" : "opacity-0"}`}
+          className="absolute inset-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
           style={{
             background: "linear-gradient(to top, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)"
           }}

@@ -12,6 +12,7 @@ import { User } from "@aura/types";
 import { getToken } from "@/lib/token";
 import { me } from "@/lib/authApi";
 import { getLikedWallpaperIds } from "@/lib/likesApi";
+import { getSavedWallpaperIds } from "@/lib/collectionsApi";
 
 interface AuthContextValue {
   user: User | null;
@@ -21,6 +22,8 @@ interface AuthContextValue {
   loaded: boolean;
   likedIds: Set<string>;
   toggleLikedId: (id: string) => void;
+  savedIds: Set<string>;
+  toggleSavedId: (id: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const refreshUser = useCallback(async () => {
     const t = getToken();
@@ -43,20 +47,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null);
       setUser(null);
       setLikedIds(new Set());
+      setSavedIds(new Set());
       setLoaded(true);
       return;
     }
     setToken(t);
     try {
-      const [userData, ids] = await Promise.all([
+      const [userData, ids, saved] = await Promise.all([
         me(t),
         getLikedWallpaperIds(t),
+        getSavedWallpaperIds(t),
       ]);
       setUser(userData.user ?? null);
       setLikedIds(ids);
+      setSavedIds(saved);
     } catch {
       setUser(null);
       setLikedIds(new Set());
+      setSavedIds(new Set());
     } finally {
       setLoaded(true);
     }
@@ -65,11 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const toggleLikedId = useCallback((id: string) => {
     setLikedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSavedId = useCallback((id: string) => {
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }, []);
@@ -80,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, setUser, refreshUser, loaded, likedIds, toggleLikedId }}
+      value={{ user, token, setUser, refreshUser, loaded, likedIds, toggleLikedId, savedIds, toggleSavedId }}
     >
       {children}
     </AuthContext.Provider>

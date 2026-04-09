@@ -70,7 +70,7 @@ function ToastItem({
     <div
       role="alert"
       onClick={dismiss}
-      className="flex items-center gap-3 px-5 py-3.5 rounded-full cursor-pointer select-none"
+      className="flex items-center gap-3 px-5 py-3 rounded-[4px] cursor-pointer select-none"
       style={{
         background: isSuccess ? "var(--accent)" : "#ef4444",
         color: isSuccess ? "var(--bg-primary)" : "#fff",
