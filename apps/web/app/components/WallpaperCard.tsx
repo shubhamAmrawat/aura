@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/authContext";
 import { useRouter } from "next/navigation";
 import { toggleLike } from "@/lib/likesApi";
+import BookmarkButton from "@/app/components/BookmarkButton";
 
 interface WallpaperCardProps {
   wallpaper: Wallpaper;
@@ -79,18 +80,26 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
           className="object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
         />
-
+        
         {/* like button — top right */}
         <div
-          className="absolute top-3 right-3 z-10 transition-all duration-200"
+          className="absolute top-3 right-3 z-10 transition-all duration-200 "
           style={{
             opacity: hovered ? 1 : 0,
             transform: hovered ? "translateY(0)" : "translateY(-6px)",
           }}
         >
+          {/* bookmark button */}
+  
+            <BookmarkButton
+              wallpaperId={wallpaper.id}
+              size="sm"
+              variant="card"
+            />
+  
           <button
             onClick={handleLike}
-            className="relative flex items-center justify-center w-8 h-8 rounded-full"
+            className="relative flex items-center justify-center w-8 h-8 rounded-full mt-1.5 cursor-pointer"
             style={{
               background: liked ? "rgba(239,68,68,0.9)" : "rgba(0,0,0,0.5)",
               border: liked

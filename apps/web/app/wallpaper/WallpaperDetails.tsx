@@ -5,6 +5,7 @@ import ColorPalette from "./ColorPalette";
 import WallpaperTags from "./WallpaperTags";
 import DownloadButton from "./DownloadButton";
 import LikeButton from "@/app/components/LikeButton";
+import BookmarkButton from "@/app/components/BookmarkButton";
 
 interface WallpaperDetailsProps {
   wallpaper: Wallpaper;
@@ -74,6 +75,7 @@ const WallpaperDetails = ({
             showCount={true}
             size="md"
           />
+          <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" />
         </div>
       </div>
     );
@@ -111,6 +113,7 @@ const WallpaperDetails = ({
             showCount={true}
             size="md"
           />
+          <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" />
           <DownloadButton
             wallpaperId={wallpaper.id}
             fileUrl={wallpaper.fileUrl}
