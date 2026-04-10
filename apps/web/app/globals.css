@@ -81,3 +81,12 @@ body {
     opacity: 0;
   }
 }
+
+@keyframes aura-slide {
+  0% {
+    transform: translateX(-250%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}

@@ -91,12 +91,12 @@ export default function LoginPage() {
       return;
     }
     try {
-      const data=await signup({ email, username, displayName, password });
+      const data = await signup({ email, username, displayName, password });
       saveToken(data.token);
       await refreshUser();
       queueToast("Account created! Welcome to AURA", "success");
       setNavigating(true);
-      router.push("/"); 
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -464,18 +464,32 @@ export default function LoginPage() {
       </div>
       {navigating && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6"
           style={{ background: "var(--bg-primary)" }}
         >
-          <div className="flex flex-col items-center gap-4">
+          <Logo size="md" href="/" />
+
+          {/* sliding accent bar */}
+          <div
+            className="relative h-[2px] rounded-full overflow-hidden"
+            style={{ width: 120, background: "var(--border)" }}
+          >
             <div
-              className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }}
+              className="absolute top-0 left-0 h-full rounded-full"
+              style={{
+                width: "40%",
+                background: "var(--accent)",
+                animation: "aura-slide 1.2s ease-in-out infinite",
+              }}
             />
-            <p className="text-sm tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-              Loading...
-            </p>
           </div>
+
+          <p
+            className="text-xs tracking-[0.3em] uppercase"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Entering AURA
+          </p>
         </div>
       )}
     </main>
