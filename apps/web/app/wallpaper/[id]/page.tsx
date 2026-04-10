@@ -18,10 +18,10 @@ const BackButton = ({ wallpaper }: { wallpaper: Wallpaper }) => (
       style={{
         backgroundColor: getContrastColor(wallpaper.dominantColor),
         color: wallpaper.dominantColor,
-        
+
       }}
     >
-      
+
       ← Back
     </Link>
   </div>
@@ -96,7 +96,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
   const [wallpaperResult, similarResult] = await Promise.allSettled([
     getWallpaperById(id),
-    getWallpapers({ limit: 6 }),
+    getWallpapers({ limit: 20 }),
   ]);
 
   const wallpaper = wallpaperResult.status === "fulfilled" ? wallpaperResult.value : null;
@@ -115,7 +115,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
   const others = similarWallpapers
     ?.filter((w: Wallpaper) => w.id !== id)
-    .slice(0, 5) ?? [];
+    .slice(0, 19) ?? [];
 
   const isPortrait = wallpaper.height > wallpaper.width;
 
@@ -130,10 +130,21 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
             {/* image panel — full width on mobile, 55% on desktop */}
             <div
-              className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[60vw] min-h-[320px] md:h-[calc(100vh-72px)]"
-              style={{ background: wallpaper.dominantColor }}
+              className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[60vw] min-h-[320px] md:h-[calc(100vh-72px)] overflow-hidden"
+
             >
-              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.15)" }} />
+              {/* blurred background — same image, heavily blurred */}
+              <Image
+                src={wallpaper.fileUrl}
+                alt=""
+                fill
+                sizes="55vw"
+                className="object-cover scale-110"
+                style={{ filter: "blur(40px)", transform: "scale(1.2)" }}
+                priority
+                aria-hidden
+              />
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
               <div
                 className="relative w-full h-full flex items-center justify-center"
                 style={{ maxWidth: "85%", maxHeight: "90%" }}
