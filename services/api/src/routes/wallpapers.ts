@@ -8,7 +8,22 @@ export const wallpaperRoutes = new Hono();
 wallpaperRoutes.get("/", async (c) => {
   try {
     const featured = c.req.query("featured");
-    const limit = Number(c.req.query("limit")) || 150;
+    const limitParam = c.req.query("limit");
+    const offsetParam = c.req.query("offset");
+
+    let limit: number;
+    if (limitParam === undefined || limitParam === "") {
+      limit = 150;
+    } else {
+      const n = Number(limitParam);
+      limit = Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), 100) : 30;
+    }
+
+    const offset =
+      offsetParam !== undefined && offsetParam !== ""
+        ? Math.max(0, Math.floor(Number(offsetParam)) || 0)
+        : 0;
+
     const categorySlug = c.req.query("category")?.trim();
     const q = c.req.query("q")?.trim();
 
@@ -46,11 +61,16 @@ wallpaperRoutes.get("/", async (c) => {
       .from(wallpapers)
       .where(and(...conditions))
       .orderBy(desc(wallpapers.createdAt))
-      .limit(limit);
+      .limit(limit + 1)
+      .offset(offset);
+
+    const hasMore = result.length > limit;
+    const data = hasMore ? result.slice(0, limit) : result;
 
     return c.json({
-      data: result,
-      count: result.length,
+      data,
+      count: data.length,
+      hasMore,
     });
   } catch (error) {
     console.error("Wallpapers error:", error);

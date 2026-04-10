@@ -1,5 +1,8 @@
 import { Wallpaper } from "@aura/types";
 
+/** Keep server initial fetch and client infinite scroll in sync. */
+export const WALLPAPERS_FEED_PAGE_SIZE = 24;
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 interface Category {
   id: string;
@@ -23,20 +26,46 @@ async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> 
   return (await response.json()) as T;
 }
 
+function wallpapersListUrl(params?: {
+  category?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): string {
+  const query = new URLSearchParams();
+  if (params?.category) query.set("category", params.category);
+  if (params?.q) query.set("q", params.q);
+  if (params?.limit != null) query.set("limit", String(params.limit));
+  if (params?.offset != null) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  return `${getApiUrl()}/api/wallpapers${qs ? `?${qs}` : ""}`;
+}
+
 export async function getWallpapers(params?: {
   category?: string;
   q?: string;
   limit?: number;
+  offset?: number;
 }): Promise<Wallpaper[]> {
-  const query = new URLSearchParams();
-  if (params?.category) query.set("category", params.category);
-  if (params?.q) query.set("q", params.q);
-  if (params?.limit) query.set("limit", String(params.limit));
-
-  const url = `${getApiUrl()}/api/wallpapers${query.toString() ? `?${query}` : ""}`;
+  const url = wallpapersListUrl(params);
   const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(url, { cache: "no-store" });
   return data;
 }
+
+/** Paginated list for infinite scroll; uses `hasMore` from the API. */
+export async function getWallpapersPage(params?: {
+  category?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: Wallpaper[]; hasMore: boolean }> {
+  const url = wallpapersListUrl(params);
+  const json = await fetchJsonOrThrow<{ data: Wallpaper[]; hasMore?: boolean }>(url, {
+    cache: "no-store",
+  });
+  return { data: json.data, hasMore: Boolean(json.hasMore) };
+}
+
 export async function getFeaturedWallpapers(): Promise<Wallpaper[]> {
   const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(
     `${getApiUrl()}/api/wallpapers?featured=true&limit=5`,

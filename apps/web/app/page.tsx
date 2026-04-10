@@ -1,17 +1,19 @@
-import WallpaperCard from "./components/WallpaperCard";
 import Hero from "./components/Hero";
+import LatestWallpapersInfinite from "./components/LatestWallpapersInfinite";
 import Link from "next/link";
 import { Wallpaper } from "@aura/types";
-import { getWallpapers, getFeaturedWallpapers } from "@/lib/api";
+import { getWallpapersPage, getFeaturedWallpapers, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
 
 export default async function HomePage() {
   const [wallpapersResult, featuredResult] = await Promise.allSettled([
-    getWallpapers({ limit: 100 }),
+    getWallpapersPage({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0 }),
     getFeaturedWallpapers(),
   ]);
 
   const wallpapers: Wallpaper[] =
-    wallpapersResult.status === "fulfilled" ? wallpapersResult.value : [];
+    wallpapersResult.status === "fulfilled" ? wallpapersResult.value.data : [];
+  const initialHasMore =
+    wallpapersResult.status === "fulfilled" ? wallpapersResult.value.hasMore : false;
   const featuredWallpapers: Wallpaper[] =
     featuredResult.status === "fulfilled" ? featuredResult.value : [];
 
@@ -47,31 +49,10 @@ export default async function HomePage() {
       )}
 
       <div className="w-full px-4 sm:px-8 md:px-12 py-8">
-        <div className="mb-8">
-          <h2
-            className="text-base font-semibold tracking-[0.15em] uppercase"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Latest Wallpapers
-          </h2>
-          <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-            {wallpapers.length} wallpapers
-          </p>
-        </div>
-
-        {wallpapers.length > 0 ? (
-          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
-            {wallpapers.map((wallpaper: Wallpaper) => (
-              <div key={wallpaper.id} className="break-inside-avoid mb-4">
-                <WallpaperCard wallpaper={wallpaper} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="py-20 text-center">
-            <p style={{ color: "var(--text-secondary)" }}>No wallpapers found</p>
-          </div>
-        )}
+        <LatestWallpapersInfinite
+          initialWallpapers={wallpapers}
+          initialHasMore={initialHasMore}
+        />
       </div>
     </main>
   );
