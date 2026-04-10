@@ -9,16 +9,15 @@ import {
   type ReactNode,
 } from "react";
 import { User } from "@aura/types";
-import { getToken, clearToken } from "@/lib/token";
-import { me } from "@/lib/authApi";
+import { me, logout as authLogout } from "@/lib/authApi";
 import { getLikedWallpaperIds } from "@/lib/likesApi";
 import { getSavedWallpaperIds } from "@/lib/collectionsApi";
 
 interface AuthContextValue {
   user: User | null;
-  token: string | null;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
+  logout: () => Promise<void>;
   loaded: boolean;
   likedIds: Set<string>;
   toggleLikedId: (id: string) => void;
@@ -36,44 +35,55 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const refreshUser = useCallback(async () => {
-    const t = getToken();
-    if (!t) {
-      setToken(null);
-      setUser(null);
-      setLikedIds(new Set());
-      setSavedIds(new Set());
-      setLoaded(true);
-      return;
-    }
-    setToken(t);
     try {
-      const [userData, ids, saved] = await Promise.all([
-        me(t),
-        getLikedWallpaperIds(t),
-        getSavedWallpaperIds(t),
+      const results = await Promise.allSettled([
+        me(),
+        getLikedWallpaperIds(),
+        getSavedWallpaperIds(),
       ]);
+
+      const userRes = results[0];
+      const likedRes = results[1];
+      const savedRes = results[2];
+
+      if (userRes.status === "rejected") {
+        const err = userRes.reason;
+        if (err instanceof Error && err.message.toLowerCase().includes("unauthorized")) {
+          setUser(null);
+          setLikedIds(new Set());
+          setSavedIds(new Set());
+        }
+        return;
+      }
+
+      const userData = userRes.value as { user?: User | null };
       setUser(userData.user ?? null);
-      setLikedIds(ids);
-      setSavedIds(saved);
-    } catch (err) {
-      // Only clear the session on a genuine 401 (expired/invalid token).
-      // Network errors or API blips (cold starts, timeouts) must not log the user out.
-      if (err instanceof Error && err.message.toLowerCase().includes("unauthorized")) {
-        clearToken();
-        setToken(null);
-        setUser(null);
-        setLikedIds(new Set());
-        setSavedIds(new Set());
+
+      if (likedRes.status === "fulfilled") {
+        setLikedIds(likedRes.value);
+      }
+      if (savedRes.status === "fulfilled") {
+        setSavedIds(savedRes.value);
       }
     } finally {
       setLoaded(true);
     }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await authLogout();
+    } catch {
+      // Network failure — still clear client state
+    }
+    setUser(null);
+    setLikedIds(new Set());
+    setSavedIds(new Set());
   }, []);
 
   const toggleLikedId = useCallback((id: string) => {
@@ -100,7 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, setUser, refreshUser, loaded, likedIds, toggleLikedId, savedIds, toggleSavedId }}
+      value={{
+        user,
+        setUser,
+        refreshUser,
+        logout,
+        loaded,
+        likedIds,
+        toggleLikedId,
+        savedIds,
+        toggleSavedId,
+      }}
     >
       {children}
     </AuthContext.Provider>

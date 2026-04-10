@@ -53,7 +53,7 @@ const Navbar = () => {
       setCatLoading(false);
       return;
     }
-    fetch(`${apiUrl}/api/categories`)
+    fetch(`${apiUrl}/api/categories`, { credentials: "include" })
       .then((r) => r.json())
       .then((json) => setCategories(json.data ?? []))
       .catch(() => {})

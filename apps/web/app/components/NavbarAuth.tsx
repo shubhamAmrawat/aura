@@ -3,31 +3,20 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { logout } from "@/lib/authApi";
-import { clearToken } from "@/lib/token";
-import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 
 const NavbarAuth = () => {
   const router = useRouter();
-  const { toast } = useToast();
-  const { user, setUser, loaded } = useAuth();
+  const { user, logout, loaded } = useAuth();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    try {
-      await logout();
-    } catch {
-      toast("Could not reach server during logout. You are signed out locally.", "error");
-    } finally {
-      clearToken();
-      setUser(null);
-      router.push("/");
-      router.refresh();
-      setLoggingOut(false);
-    }
+    await logout();
+    router.push("/login");
+    router.refresh();
+    setLoggingOut(false);
   };
 
   if (!loaded) {

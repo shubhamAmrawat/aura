@@ -19,7 +19,7 @@ const LikeButton = ({
   showCount = false,
   size = "md",
 }: LikeButtonProps) => {
-  const { user, token, likedIds, toggleLikedId } = useAuth();
+  const { user, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
@@ -34,7 +34,7 @@ const LikeButton = ({
     e.preventDefault();
     e.stopPropagation();
 
-    if (!user || !token) {
+    if (!user) {
       router.push("/login");
       return;
     }
@@ -49,7 +49,7 @@ const LikeButton = ({
 
     try {
       setLoading(true);
-      const data = await toggleLike(wallpaperId, token);
+      const data = await toggleLike(wallpaperId);
       setLocalLiked(data.liked);
       if (data.liked !== newLiked) {
         toggleLikedId(wallpaperId);

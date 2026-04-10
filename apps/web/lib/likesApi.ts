@@ -1,24 +1,22 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function toggleLike(wallpaperId: string, token: string) {
+export async function toggleLike(wallpaperId: string) {
   const response = await fetch(`${API_URL}/api/likes/${wallpaperId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
     },
+    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to toggle like");
   return data; // { liked: boolean }
 }
 
-export async function checkLike(wallpaperId: string, token: string) {
+export async function checkLike(wallpaperId: string) {
   const response = await fetch(`${API_URL}/api/likes/${wallpaperId}`, {
     method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-    },
+    credentials: "include",
     cache: "no-store",
   });
   const data = await response.json();
@@ -26,12 +24,10 @@ export async function checkLike(wallpaperId: string, token: string) {
   return data; // { liked: boolean }
 }
 
-export async function getLikedWallpapers(token: string) {
+export async function getLikedWallpapers() {
   const response = await fetch(`${API_URL}/api/likes`, {
     method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-    },
+    credentials: "include",
     cache: "no-store",
   });
   const data = await response.json();
@@ -40,11 +36,11 @@ export async function getLikedWallpapers(token: string) {
 }
 
 
-export async function getLikedWallpaperIds(token: string): Promise<Set<string>> {
+export async function getLikedWallpaperIds(): Promise<Set<string>> {
   try {
     const response = await fetch(`${API_URL}/api/likes`, {
       method: "GET",
-      headers: { "Authorization": `Bearer ${token}` },
+      credentials: "include",
       cache: "no-store",
     });
     const data = await response.json();

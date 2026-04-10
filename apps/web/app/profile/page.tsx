@@ -19,7 +19,6 @@ import {
   uploadCoverDirect,
   verifyCurrentPassword,
 } from "@/lib/profileApi";
-import { clearToken } from "@/lib/token";
 import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 import { getLikedWallpapers } from "@/lib/likesApi";
@@ -194,7 +193,7 @@ function AvatarHoverButton({ avatarUrl, initials, uploading, onClick }: {
 export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user: authUser, token, setUser: setAuthUser, loaded: authLoaded } = useAuth();
+  const { user: authUser, setUser: setAuthUser, loaded: authLoaded, refreshUser } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -244,12 +243,12 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!authLoaded) return;
-    if (!token) {
+    if (!authUser) {
       router.push("/login");
       return;
     }
 
-    getProfile(token)
+    getProfile()
       .then((p) => {
         setProfile(p);
         setDraftName(p.displayName ?? "");
@@ -264,18 +263,18 @@ export default function ProfilePage() {
 
     // fetch liked wallpapers + collections in parallel
     setLikedLoading(true);
-    getLikedWallpapers(token)
+    getLikedWallpapers()
       .then(setLikedWallpapers)
       .catch(() => setLikedWallpapers([]))
       .finally(() => setLikedLoading(false));
 
     setCollectionsLoading(true);
-    getUserCollections(token)
+    getUserCollections()
       .then(setCollections)
       .catch(() => setCollections([]))
       .finally(() => setCollectionsLoading(false));
 
-  }, [authLoaded, token, router, toast]);
+  }, [authLoaded, authUser, router, toast]);
 
   const LIKED_COLS = 3;
   const visibleCount = visibleRows * LIKED_COLS;
@@ -299,12 +298,12 @@ export default function ProfilePage() {
   }
 
   async function handleSave() {
-    if (!token || !profile || !authUser) return;
+    if (!profile || !authUser) return;
     if (!draftName.trim()) { toast("Display name is required.", "error"); return; }
     if (draftUsername.trim().length < 3) { toast("Username must be at least 3 characters.", "error"); return; }
     setSaving(true);
     try {
-      const updated = await updateProfile(token, {
+      const updated = await updateProfile({
         displayName: draftName.trim(),
         username: draftUsername.trim().toLowerCase(),
         bio: draftBio.trim(),
@@ -348,18 +347,18 @@ export default function ProfilePage() {
   const handleCropConfirm = useCallback(
     async (croppedFile: File) => {
       setCropSrc(null);
-      if (!token || !authUser) return;
+      if (!authUser) return;
 
       if (cropMode === "avatar") {
         setUploadingAvatar(true);
         try {
           let newUrl: string;
           try {
-            const { uploadUrl, fileUrl, key } = await getAvatarUploadUrl(token, croppedFile.type);
+            const { uploadUrl, fileUrl, key } = await getAvatarUploadUrl(croppedFile.type);
             await uploadAvatarToSignedUrl(uploadUrl, croppedFile);
-            newUrl = await confirmAvatarUpload(token, fileUrl, key);
+            newUrl = await confirmAvatarUpload(fileUrl, key);
           } catch (e) {
-            if (e instanceof TypeError) { newUrl = await uploadAvatarDirect(token, croppedFile); }
+            if (e instanceof TypeError) { newUrl = await uploadAvatarDirect(croppedFile); }
             else throw e;
           }
           setProfile((p) => (p ? { ...p, avatarUrl: newUrl } : p));
@@ -373,7 +372,7 @@ export default function ProfilePage() {
       } else {
         setUploadingCover(true);
         try {
-          const newUrl = await uploadCoverDirect(token, croppedFile);
+          const newUrl = await uploadCoverDirect(croppedFile);
           setProfile((p) => (p ? { ...p, coverUrl: newUrl } : p));
           toast("Cover updated.");
         } catch (err: unknown) {
@@ -383,14 +382,14 @@ export default function ProfilePage() {
         }
       }
     },
-    [token, authUser, setAuthUser, cropMode, toast]
+    [authUser, setAuthUser, cropMode, toast]
   );
 
   async function handleVerifyPassword() {
-    if (!token || !currentPw) return;
+    if (!currentPw) return;
     setPwLoading(true);
     try {
-      await verifyCurrentPassword(token, currentPw);
+      await verifyCurrentPassword(currentPw);
       setPwStep("confirm");
       toast("OTP sent to your email.");
     } catch (err: unknown) {
@@ -401,12 +400,11 @@ export default function ProfilePage() {
   }
 
   async function handleChangePassword() {
-    if (!token) return;
     if (newPw.length < 8) { toast("New password must be at least 8 characters.", "error"); return; }
     if (newPw !== confirmPw) { toast("Passwords do not match.", "error"); return; }
     setPwLoading(true);
     try {
-      await confirmPasswordChange(token, otp, newPw);
+      await confirmPasswordChange(otp, newPw);
       setCurrentPw(""); setOtp(""); setNewPw(""); setConfirmPw("");
       setPwStep("idle");
       toast("Password changed.");
@@ -418,14 +416,13 @@ export default function ProfilePage() {
   }
 
   async function handleDeleteAccount() {
-    if (!token) return;
     if (delConfirm !== "DELETE") { toast('Type "DELETE" to confirm.', "error"); return; }
     if (!delPw) { toast("Password is required.", "error"); return; }
     setDeleting(true);
     try {
-      await deleteAccount(token, delPw);
-      clearToken();
+      await deleteAccount(delPw);
       setAuthUser(null);
+      await refreshUser();
       router.push("/");
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : "Failed to delete account.", "error");

@@ -18,9 +18,9 @@ export interface CollectionCheck {
   hasWallpaper: boolean;
 }
 
-export async function getUserCollections(token: string): Promise<Collection[]> {
+export async function getUserCollections(): Promise<Collection[]> {
   const response = await fetch(`${API_URL}/api/collections`, {
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
     cache: "no-store",
   });
   const data = await response.json();
@@ -29,15 +29,14 @@ export async function getUserCollections(token: string): Promise<Collection[]> {
 }
 
 export async function createCollection(
-  token: string,
   payload: { title: string; description?: string; isPublic: boolean }
 ): Promise<Collection> {
   const response = await fetch(`${API_URL}/api/collections`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   const data = await response.json();
@@ -46,7 +45,6 @@ export async function createCollection(
 }
 
 export async function addToCollection(
-  token: string,
   collectionId: string,
   wallpaperId: string
 ): Promise<void> {
@@ -54,8 +52,8 @@ export async function addToCollection(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify({ wallpaperId }),
   });
   const data = await response.json();
@@ -63,7 +61,6 @@ export async function addToCollection(
 }
 
 export async function removeFromCollection(
-  token: string,
   collectionId: string,
   wallpaperId: string
 ): Promise<void> {
@@ -71,17 +68,17 @@ export async function removeFromCollection(
     `${API_URL}/api/collections/${collectionId}/wallpapers/${wallpaperId}`,
     {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
     }
   );
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to remove from collection");
 }
 
-export async function getSavedWallpaperIds(token: string): Promise<Set<string>> {
+export async function getSavedWallpaperIds(): Promise<Set<string>> {
   try {
     const response = await fetch(`${API_URL}/api/collections/saved-ids`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
       cache: "no-store",
     });
     const data = await response.json();
@@ -93,13 +90,12 @@ export async function getSavedWallpaperIds(token: string): Promise<Set<string>> 
 }
 
 export async function checkCollections(
-  token: string,
   wallpaperId: string
 ): Promise<CollectionCheck[]> {
   const response = await fetch(
     `${API_URL}/api/collections/check/${wallpaperId}`,
     {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
       cache: "no-store",
     }
   );
@@ -108,12 +104,9 @@ export async function checkCollections(
   return data.data;
 }
 
-export async function getCollection(token: string | null, collectionId: string) {
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
-
+export async function getCollection(collectionId: string) {
   const response = await fetch(`${API_URL}/api/collections/${collectionId}`, {
-    headers,
+    credentials: "include",
     cache: "no-store",
   });
   const data = await response.json();
@@ -121,17 +114,16 @@ export async function getCollection(token: string | null, collectionId: string) 
   return data;
 }
 
-export async function deleteCollection(token: string, collectionId: string): Promise<void> {
+export async function deleteCollection(collectionId: string): Promise<void> {
   const response = await fetch(`${API_URL}/api/collections/${collectionId}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || "Failed to delete collection");
 }
 
 export async function updateCollection(
-  token: string,
   collectionId: string,
   payload: { title?: string; description?: string; isPublic?: boolean }
 ): Promise<Collection> {
@@ -139,8 +131,8 @@ export async function updateCollection(
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   const data = await response.json();

@@ -18,7 +18,7 @@ function getApiUrl(): string {
 }
 
 async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(url, { ...init, credentials: "include" });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
     throw new Error(`Request failed (${response.status}) for ${url}${body ? `: ${body.slice(0, 240)}` : ""}`);

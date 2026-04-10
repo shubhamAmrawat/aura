@@ -33,7 +33,7 @@ const BookmarkButton = ({
   variant = "detail",
   onDropdownChange,
 }: BookmarkButtonProps) => {
-  const { user, token, savedIds, toggleSavedId } = useAuth();
+  const { user, savedIds, toggleSavedId } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -66,10 +66,10 @@ const BookmarkButton = ({
     : savedIds.has(wallpaperId);
 
   const loadCollections = useCallback(async () => {
-    if (!token || loading) return;
+    if (!user || loading) return;
     setLoading(true);
     try {
-      const data = await checkCollections(token, wallpaperId);
+      const data = await checkCollections(wallpaperId);
       setCollections(data);
       setLoaded(true);
     } catch {
@@ -77,15 +77,15 @@ const BookmarkButton = ({
     } finally {
       setLoading(false);
     }
-  }, [token, wallpaperId, loading, toast]);
+  }, [user, wallpaperId, loading, toast]);
 
   // Detail page: eagerly load so the dropdown is ready instantly on open
   useEffect(() => {
-    if (variant === "detail" && token && !loaded) {
+    if (variant === "detail" && user && !loaded) {
       loadCollections();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant, token]);
+  }, [variant, user]);
 
   const computePos = useCallback(() => {
     if (!buttonRef.current) return;
@@ -149,18 +149,18 @@ const BookmarkButton = ({
   );
 
   const handleToggle = async (collection: CollectionCheck) => {
-    if (!token) return;
+    if (!user) return;
     setSaving(collection.id);
     try {
       let next: CollectionCheck[];
       if (collection.hasWallpaper) {
-        await removeFromCollection(token, collection.id, wallpaperId);
+        await removeFromCollection(collection.id, wallpaperId);
         next = collections.map((c) =>
           c.id === collection.id ? { ...c, hasWallpaper: false } : c
         );
         toast(`Removed from ${collection.title}`);
       } else {
-        await addToCollection(token, collection.id, wallpaperId);
+        await addToCollection(collection.id, wallpaperId);
         next = collections.map((c) =>
           c.id === collection.id ? { ...c, hasWallpaper: true } : c
         );
@@ -179,14 +179,14 @@ const BookmarkButton = ({
   };
 
   const handleCreate = async () => {
-    if (!token || !newTitle.trim()) return;
+    if (!user || !newTitle.trim()) return;
     setCreating(true);
     try {
-      const created = await createCollection(token, {
+      const created = await createCollection({
         title: newTitle.trim(),
         isPublic: newIsPublic,
       });
-      await addToCollection(token, created.id, wallpaperId);
+      await addToCollection(created.id, wallpaperId);
       const next: CollectionCheck[] = [
         {
           id: created.id,

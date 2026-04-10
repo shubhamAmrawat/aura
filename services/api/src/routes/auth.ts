@@ -199,10 +199,13 @@ authRoutes.post("/signup", async (c) => {
       userId: createdUser.id,
       email: createdUser.email,
     });
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = isProduction
+      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurawalls.site; Secure`
+      : `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
-    // c.header("Set-Cookie",
-    //   `aura_token=${token}; HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`
-    // );
+    c.header("Set-Cookie", `aura_token=${token}; ${cookieOptions}`);
+
     // clean up used OTP
     await db
       .delete(otps)
@@ -210,7 +213,6 @@ authRoutes.post("/signup", async (c) => {
 
     return c.json({
       message: "Account created successfully",
-      token, 
       user: {
         id: createdUser.id,
         email: createdUser.email,
@@ -268,14 +270,18 @@ authRoutes.post("/login", async (c) => {
     });
 
 
-    // c.header("Set-Cookie", auraTokenSetCookie(token));
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = isProduction
+      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurawalls.site; Secure`
+      : `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+
+    c.header("Set-Cookie", `aura_token=${token}; ${cookieOptions}`);
     await db
       .delete(otps)
       .where(and(eq(otps.email, email), eq(otps.type, "login")));
 
     return c.json({
       message: "Logged in successfully",
-      token,
       user: {
         id: u.id,
         email: u.email,
@@ -293,8 +299,19 @@ authRoutes.post("/login", async (c) => {
 // ─── GET CURRENT USER ──────────────────────────────────────
 authRoutes.get("/me", async (c) => {
   try {
+    // try cookie first, fall back to Authorization header for local dev
+    const cookieHeader = c.req.header("Cookie") ?? "";
+    const cookieToken = cookieHeader
+      .split(";")
+      .map(s => s.trim())
+      .find(s => s.startsWith("aura_token="))
+      ?.split("=")[1];
+
     const authHeader = c.req.header("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const headerToken = authHeader?.replace("Bearer ", "");
+
+    const token = cookieToken || headerToken;
+
 
     if (!token) {
       return c.json({ error: "Unauthorized" }, 401);
@@ -335,5 +352,8 @@ authRoutes.get("/me", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
+  const isProduction = process.env.NODE_ENV === "production";
+  const domain = isProduction ? "; Domain=.aurawalls.site" : "";
+  c.header("Set-Cookie", `aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${domain}`);
   return c.json({ message: "Logged out successfully" });
 });

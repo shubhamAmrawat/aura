@@ -28,7 +28,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
   const [ripple, setRipple] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
 
-  const { user, token, likedIds, toggleLikedId } = useAuth();
+  const { user, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -39,7 +39,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
     e.preventDefault();
     e.stopPropagation();
 
-    if (!user || !token) {
+    if (!user) {
       router.push("/login");
       return;
     }
@@ -53,7 +53,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
     toggleLikedId(wallpaper.id);
 
     try {
-      const data = await toggleLike(wallpaper.id, token);
+      const data = await toggleLike(wallpaper.id);
       setLocalLiked(data.liked);
       if (data.liked !== newLiked) {
         toggleLikedId(wallpaper.id);

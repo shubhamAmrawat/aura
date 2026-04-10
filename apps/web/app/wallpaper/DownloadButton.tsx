@@ -27,6 +27,7 @@ const DownloadButton = ({
     try {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
         method: "POST",
+        credentials: "include",
       }).catch(() => {});
 
       const response = await fetch(fileUrl);

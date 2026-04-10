@@ -51,7 +51,7 @@ interface CollectionData {
 export default function CollectionPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const [collection, setCollection] = useState<CollectionData | null>(null);
@@ -72,7 +72,7 @@ export default function CollectionPage() {
 
   useEffect(() => {
     if (!id) return;
-    getCollection(token, id)
+    getCollection(id)
       .then(({ collection: col, wallpapers: walls }) => {
         setCollection(col);
         setWallpapers(walls);
@@ -85,13 +85,13 @@ export default function CollectionPage() {
         toast(err instanceof Error ? err.message : "Failed to load collection", "error");
       })
       .finally(() => setLoading(false));
-  }, [id, token, user]);
+  }, [id, user]);
 
   const handleSave = async () => {
-    if (!token || !collection) return;
+    if (!user || !collection) return;
     setSaving(true);
     try {
-      const updated = await updateCollection(token, collection.id, {
+      const updated = await updateCollection(collection.id, {
         title: editTitle.trim(),
         description: editDescription.trim() || undefined,
         isPublic: editIsPublic,
@@ -107,10 +107,10 @@ export default function CollectionPage() {
   };
 
   const handleDelete = async () => {
-    if (!token || !collection) return;
+    if (!user || !collection) return;
     setDeleting(true);
     try {
-      await deleteCollection(token, collection.id);
+      await deleteCollection(collection.id);
       toast("Collection deleted.");
       router.push("/profile");
     } catch (err) {
@@ -121,9 +121,9 @@ export default function CollectionPage() {
   };
 
   const handleRemoveWallpaper = async (wallpaperId: string) => {
-    if (!token || !collection) return;
+    if (!user || !collection) return;
     try {
-      await removeFromCollection(token, collection.id, wallpaperId);
+      await removeFromCollection(collection.id, wallpaperId);
       setWallpapers((prev) => prev.filter((w) => w.id !== wallpaperId));
       setCollection((prev) => prev ? { ...prev, wallpaperCount: prev.wallpaperCount - 1 } : prev);
       toast("Removed from collection.");
@@ -166,18 +166,18 @@ export default function CollectionPage() {
       <div className="max-w-6xl mx-auto px-8 py-8">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between mb-8">
-          <div className="flex items-center gap-4">
-            {/* <Link
-              href="/profile"
-              className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-60"
-              style={{ color: "var(--text-muted)" }}
-            >
-              ← Back
-            </Link> */}
-            {!editing && (
+        <header className="mb-8">
+          <Link
+            href="/profile"
+            className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-60 mb-4"
+            style={{ color: "var(--text-muted)" }}
+          >
+            ← Back to profile
+          </Link>
+          {!editing && (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <div className="flex items-center gap-3 mb-1">
+                <div className="flex items-center gap-3 mb-1 flex-wrap">
                   <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
                     {collection.title}
                   </h1>
@@ -199,29 +199,28 @@ export default function CollectionPage() {
                   {collection.wallpaperCount} wallpaper{collection.wallpaperCount !== 1 ? "s" : ""}
                 </p>
               </div>
-            )}
-          </div>
 
-          {/* owner actions */}
-          {isOwner && !editing && (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setEditing(true)}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setShowDelete(true)}
-                className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
-                style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
-              >
-                Delete
-              </button>
+              {isOwner && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setShowDelete(true)}
+                    className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80"
+                    style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.2)" }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </header>
 
         {/* ── Edit form ── */}
         {editing && (

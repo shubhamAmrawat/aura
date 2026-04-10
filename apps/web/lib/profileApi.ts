@@ -7,10 +7,9 @@ function getApiUrl(): string {
   return API_URL;
 }
 
-function authHeaders(token: string): HeadersInit {
+function jsonHeaders(): HeadersInit {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
   };
 }
 
@@ -57,39 +56,42 @@ async function parseJson<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-export async function getProfile(token: string): Promise<ProfileUser> {
+export async function getProfile(): Promise<ProfileUser> {
   const response = await fetch(`${getApiUrl()}/api/profile`, {
     method: "GET",
-    headers: authHeaders(token),
+    credentials: "include",
     cache: "no-store",
   });
   const data = await parseJson<{ user: ProfileUser }>(response);
   return data.user as ProfileUser;
 }
 
-export async function updateProfile(token: string, payload: UpdateProfilePayload): Promise<ProfileUser> {
+export async function updateProfile(payload: UpdateProfilePayload): Promise<ProfileUser> {
   const response = await fetch(`${getApiUrl()}/api/profile`, {
     method: "PUT",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify(payload),
   });
   const data = await parseJson<{ user: ProfileUser }>(response);
   return data.user as ProfileUser;
 }
 
-export async function getAvatarUploadUrl(token: string, fileType: string): Promise<UploadUrlResponse> {
+export async function getAvatarUploadUrl(fileType: string): Promise<UploadUrlResponse> {
   const response = await fetch(`${getApiUrl()}/api/profile/avatar/upload-url`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ fileType }),
   });
   return await parseJson<UploadUrlResponse>(response);
 }
 
-export async function confirmAvatarUpload(token: string, fileUrl: string, key: string): Promise<string> {
+export async function confirmAvatarUpload(fileUrl: string, key: string): Promise<string> {
   const response = await fetch(`${getApiUrl()}/api/profile/avatar`, {
     method: "PUT",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ fileUrl, key }),
   });
   const data = await parseJson<{ avatarUrl: string }>(response);
@@ -109,15 +111,13 @@ export async function uploadAvatarToSignedUrl(uploadUrl: string, file: File): Pr
   }
 }
 
-export async function uploadAvatarDirect(token: string, file: File): Promise<string> {
+export async function uploadAvatarDirect(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("avatar", file);
 
   const response = await fetch(`${getApiUrl()}/api/profile/avatar/direct`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    credentials: "include",
     body: formData,
   });
 
@@ -125,59 +125,64 @@ export async function uploadAvatarDirect(token: string, file: File): Promise<str
   return data.avatarUrl;
 }
 
-export async function verifyCurrentPassword(token: string, currentPassword: string): Promise<void> {
+export async function verifyCurrentPassword(currentPassword: string): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/profile/change-password/verify`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ currentPassword }),
   });
   await parseJson(response);
 }
 
-export async function confirmPasswordChange(token: string, otp: string, newPassword: string): Promise<void> {
+export async function confirmPasswordChange(otp: string, newPassword: string): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/profile/change-password/confirm`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ otp, newPassword }),
   });
   await parseJson(response);
 }
 
-export async function getCoverUploadUrl(token: string, fileType: string): Promise<UploadUrlResponse> {
+export async function getCoverUploadUrl(fileType: string): Promise<UploadUrlResponse> {
   const response = await fetch(`${getApiUrl()}/api/profile/cover/upload-url`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ fileType }),
   });
   return await parseJson<UploadUrlResponse>(response);
 }
 
-export async function confirmCoverUpload(token: string, fileUrl: string, key: string): Promise<string> {
+export async function confirmCoverUpload(fileUrl: string, key: string): Promise<string> {
   const response = await fetch(`${getApiUrl()}/api/profile/cover`, {
     method: "PUT",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ fileUrl, key }),
   });
   const data = await parseJson<{ coverUrl: string }>(response);
   return data.coverUrl;
 }
 
-export async function uploadCoverDirect(token: string, file: File): Promise<string> {
+export async function uploadCoverDirect(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("cover", file);
   const response = await fetch(`${getApiUrl()}/api/profile/cover/direct`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
     body: formData,
   });
   const data = await parseJson<{ coverUrl: string }>(response);
   return data.coverUrl;
 }
 
-export async function deleteAccount(token: string, password: string): Promise<void> {
+export async function deleteAccount(password: string): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/profile`, {
     method: "DELETE",
-    headers: authHeaders(token),
+    headers: jsonHeaders(),
+    credentials: "include",
     body: JSON.stringify({ password }),
   });
   await parseJson(response);

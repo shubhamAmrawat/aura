@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { db } from "@aura/db";
 import { collections, collectionWallpapers, wallpapers } from "@aura/db";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, getAuthTokenFromRequest } from "../middleware/auth";
+import { verifyToken } from "../lib/jwt";
 
 type Variables = {
   userId: string;
@@ -64,8 +65,7 @@ collectionsRoutes.get("/saved-ids", authMiddleware, async (c) => {
 collectionsRoutes.get("/:id", async (c) => {
   try {
     const id = c.req.param("id");
-    const authHeader = c.req.header("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const token = getAuthTokenFromRequest(c);
 
     // get collection
     const collectionRecord = await db
@@ -77,11 +77,15 @@ collectionsRoutes.get("/:id", async (c) => {
     const collection = collectionRecord[0];
     if (!collection) return c.json({ error: "Collection not found" }, 404);
 
-    // if private, only owner can view
+    // if private, only owner can view (cookie or Authorization, same as authMiddleware)
     if (!collection.isPublic) {
       if (!token) return c.json({ error: "Unauthorized" }, 401);
-      const { verifyToken } = await import("../lib/jwt");
-      const payload = verifyToken(token);
+      let payload;
+      try {
+        payload = verifyToken(token);
+      } catch {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
       if (payload.userId !== collection.userId) {
         return c.json({ error: "Unauthorized" }, 401);
       }
