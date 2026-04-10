@@ -12,7 +12,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://aura-web-red.vercel.app"),
+  metadataBase: new URL("https://www.aurawalls.site"),
   title: {
     default: "AURA — Premium Wallpaper Discovery",
     template: "%s | AURA",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     siteName: "AURA",
     title: "AURA — Premium Wallpaper Discovery",
     description: "Discover and download premium wallpapers for desktop and mobile.",
-    url: "https://aura-web-red.vercel.app",
+    url: "https://www.aurawalls.site",
   },
   twitter: {
     card: "summary_large_image",

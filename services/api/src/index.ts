@@ -12,9 +12,13 @@ import { collectionsRoutes } from "./routes/collections";
 const app = new Hono();
 
 app.use("*", logger());
-app.use("*", cors({
-  origin: "*",
-  credentials: false,
+app.use(cors({
+  origin: [
+    "https://www.aurawalls.site",
+    "https://aurawalls.site",
+    "http://localhost:3000", // keep for local dev
+  ],
+  credentials: true, // needed for cookies later
 }));
 
 app.get("/", (c) => {
