@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { toggleLike } from "@/lib/likesApi";
+import { useToast } from "@/lib/toast";
 
 interface LikeButtonProps {
   wallpaperId: string;
@@ -20,6 +21,7 @@ const LikeButton = ({
 }: LikeButtonProps) => {
   const { user, token, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [count, setCount] = useState(initialCount);
   const [loading, setLoading] = useState(false);
@@ -56,6 +58,7 @@ const LikeButton = ({
       setLocalLiked(!newLiked);
       setCount((prev) => newLiked ? prev - 1 : prev + 1);
       toggleLikedId(wallpaperId);
+      toast("Failed to update like. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -65,8 +68,10 @@ const LikeButton = ({
 
   return (
     <button
+      type="button"
       onClick={handleLike}
       disabled={loading}
+      aria-label={liked ? "Unlike wallpaper" : "Like wallpaper"}
       className="relative flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
       style={{ color: liked ? "#ef4444" : "var(--text-muted)" }}
       title={liked ? "Unlike" : "Like"}

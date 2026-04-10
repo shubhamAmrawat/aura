@@ -37,6 +37,7 @@ const SearchBar = ({ defaultValue = "" }: SearchBarProps) => {
       />
       <button
         type="submit"
+        aria-label="Search wallpapers"
         className="absolute right-4 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
         style={{ color: "var(--accent)" }}
       >

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 interface DownloadButtonProps {
   wallpaperId: string;
   fileUrl: string;
@@ -17,14 +19,16 @@ const DownloadButton = ({
   contrastColor,
   fullWidth = false,
 }: DownloadButtonProps) => {
+  const [downloading, setDownloading] = useState(false);
+
   const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
     try {
-      // track download
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
         method: "POST",
-      }).catch(() => {}); // fire and forget — don't block download
+      }).catch(() => {});
 
-      // download file
       const response = await fetch(fileUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -37,13 +41,18 @@ const DownloadButton = ({
       window.URL.revokeObjectURL(url);
     } catch {
       window.open(fileUrl, "_blank");
+    } finally {
+      setDownloading(false);
     }
   };
 
   return (
     <button
+      type="button"
       onClick={handleDownload}
-      className={`flex items-center justify-center gap-3 px-8 py-4 rounded-full text-sm font-medium tracking-wider transition-opacity hover:opacity-80 ${
+      disabled={downloading}
+      aria-label="Download wallpaper"
+      className={`flex items-center justify-center gap-3 px-8 py-4 rounded-full text-sm font-medium tracking-wider transition-opacity hover:opacity-80 disabled:opacity-70 ${
         fullWidth ? "w-full" : ""
       }`}
       style={{
@@ -51,21 +60,36 @@ const DownloadButton = ({
         color: contrastColor,
       }}
     >
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-        <polyline points="7 10 12 15 17 10" />
-        <line x1="12" y1="15" x2="12" y2="3" />
-      </svg>
-      Download Free
+      {downloading ? (
+        <div className="flex items-center gap-3">
+          <div
+            className="w-4 h-4 rounded-full border-2 animate-spin"
+            style={{
+              borderColor: `${contrastColor}40`,
+              borderTopColor: contrastColor,
+            }}
+          />
+          Downloading…
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download Free
+        </div>
+      )}
     </button>
   );
 };

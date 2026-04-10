@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/authContext";
 import { useRouter } from "next/navigation";
 import { toggleLike } from "@/lib/likesApi";
 import BookmarkButton from "@/app/components/BookmarkButton";
+import { useToast } from "@/lib/toast";
 
 interface WallpaperCardProps {
   wallpaper: Wallpaper;
@@ -29,6 +30,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
 
   const { user, token, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   // derive liked from local override or global context
   const liked = localLiked !== null ? localLiked : likedIds.has(wallpaper.id);
@@ -60,6 +62,7 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
       setLocalLiked(!newLiked);
       setLikeCount((prev) => newLiked ? prev - 1 : prev + 1);
       toggleLikedId(wallpaper.id);
+      toast("Failed to update like. Please try again.", "error");
     }
   };
 
@@ -97,7 +100,9 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
             />
   
           <button
+            type="button"
             onClick={handleLike}
+            aria-label={liked ? "Unlike wallpaper" : "Like wallpaper"}
             className="relative flex items-center justify-center w-8 h-8 rounded-full mt-1.5 cursor-pointer"
             style={{
               background: liked ? "rgba(239,68,68,0.9)" : "rgba(0,0,0,0.5)",

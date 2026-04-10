@@ -7,8 +7,10 @@ import { useAuth } from "@/lib/authContext";
 import { getCollection, deleteCollection, updateCollection, removeFromCollection } from "@/lib/collectionsApi";
 import { useToast } from "@/lib/toast";
 import WallpaperCard from "@/app/components/WallpaperCard";
+import type { Wallpaper } from "@aura/types";
 
-interface CollectionWallpaper {
+/** Minimal shape returned for wallpapers in a collection detail response */
+interface CollectionWallpaperRow {
   id: string;
   title: string;
   fileUrl: string;
@@ -18,6 +20,21 @@ interface CollectionWallpaper {
   height: number;
   likeCount: number;
   downloadCount: number;
+  addedAt?: string;
+}
+
+function wallpaperForCard(w: CollectionWallpaperRow): Wallpaper {
+  return {
+    ...w,
+    description: null,
+    palette: [],
+    tags: [],
+    fileSizeBytes: 0,
+    format: "jpeg",
+    createdAt: w.addedAt ?? new Date().toISOString(),
+    isPremium: false,
+    isFeatured: false,
+  };
 }
 
 interface CollectionData {
@@ -38,7 +55,7 @@ export default function CollectionPage() {
   const { toast } = useToast();
 
   const [collection, setCollection] = useState<CollectionData | null>(null);
-  const [wallpapers, setWallpapers] = useState<CollectionWallpaper[]>([]);
+  const [wallpapers, setWallpapers] = useState<CollectionWallpaperRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -292,7 +309,7 @@ export default function CollectionPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
             {wallpapers.map((w) => (
               <div key={w.id} className="relative group/item">
-                <WallpaperCard wallpaper={w as any} />
+                <WallpaperCard wallpaper={wallpaperForCard(w)} />
                 {/* remove button — owner only */}
                 {isOwner && (
                   <button

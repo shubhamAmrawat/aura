@@ -27,31 +27,35 @@ const BackButton = ({ wallpaper }: { wallpaper: Wallpaper }) => (
   </div>
 );
 
-const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => (
-  <div
-    className="px-8 md:px-12 py-16"
-    style={{ borderTop: "1px solid var(--border)" }}
-  >
-    <div className="max-w-[1400px] mx-auto">
-      <div className="mb-8">
-        <h2
-          className="text-base font-semibold tracking-[0.15em] uppercase"
-          style={{ color: "var(--text-primary)" }}
-        >
-          More Wallpapers
-        </h2>
-        <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-          You might also like
-        </p>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {wallpapers.map((w) => (
-          <WallpaperCard key={w.id} wallpaper={w} />
-        ))}
+const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => {
+  if (wallpapers.length === 0) return null;
+
+  return (
+    <div
+      className="px-8 md:px-12 py-16"
+      style={{ borderTop: "1px solid var(--border)" }}
+    >
+      <div className="max-w-[1400px] mx-auto">
+        <div className="mb-8">
+          <h2
+            className="text-base font-semibold tracking-[0.15em] uppercase"
+            style={{ color: "var(--text-primary)" }}
+          >
+            More Wallpapers
+          </h2>
+          <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+            You might also like
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {wallpapers.map((w) => (
+            <WallpaperCard key={w.id} wallpaper={w} />
+          ))}
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export async function generateMetadata({ params }: WallpaperPageProps) {
   const { id } = await params;
