@@ -41,6 +41,7 @@ const CategoryPill = ({
 
 const Navbar = () => {
   const [catOpen, setCatOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [catLoading, setCatLoading] = useState(true);
   const catRef = useRef<HTMLDivElement>(null);
@@ -72,6 +73,7 @@ const Navbar = () => {
   }, [catOpen]);
 
   return (
+  <>
     <nav
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-2 border-b backdrop-blur-md"
       style={{
@@ -170,14 +172,84 @@ const Navbar = () => {
         </Link>
       </div>
 
-      {/* Right: Search + Auth */}
-      <div className="flex items-center gap-4">
+      {/* Right: Search + Auth + Hamburger */}
+      <div className="flex items-center gap-3">
         <div className="hidden md:block">
           <SearchBar />
         </div>
         <NavbarAuth />
+        {/* hamburger — mobile only */}
+        <button
+          className="md:hidden flex p-1"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-primary)" }}>
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-primary)" }}>
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          )}
+        </button>
       </div>
     </nav>
+
+    {/* Mobile drawer — shown below navbar when hamburger is open */}
+    {mobileOpen && (
+      <div
+        className="fixed left-0 right-0 z-40 md:hidden px-6 py-5"
+        style={{
+          top: "57px",
+          background: "rgba(10,10,10,0.97)",
+          borderBottom: "1px solid var(--border)",
+          backdropFilter: "blur(16px)",
+        }}
+      >
+        {/* search */}
+        <div className="mb-4">
+          <SearchBar />
+        </div>
+
+        {/* categories */}
+        <p className="text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>
+          Categories
+        </p>
+        {catLoading ? (
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-8 rounded-full animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {categories.map((cat) => (
+              <CategoryPill
+                key={cat.id}
+                cat={cat}
+                onClose={() => setMobileOpen(false)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* divider */}
+        <div className="my-4" style={{ borderTop: "1px solid var(--border)" }} />
+
+        {/* trending */}
+        <Link
+          href="/trending"
+          onClick={() => setMobileOpen(false)}
+          className="flex items-center w-full py-2 text-sm font-medium tracking-widest uppercase transition-opacity hover:opacity-70"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Trending
+        </Link>
+      </div>
+    )}
+  </>
   );
 };
 

@@ -86,56 +86,41 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
       <BackButton wallpaper={wallpaper} />
 
       {isPortrait ? (
-        // portrait — side by side, fixed column widths
-        <div
-          className="flex pt-[72px] overflow-hidden"
-          style={{ minHeight: "100vh" }}
-        >
-          {/* left — wallpaper, fixed 55% */}
-          <div
-            className="relative flex items-center justify-center flex-shrink-0"
-            style={{
-              width: "55%",
-              minHeight: "calc(100vh - 72px)",
-              background: wallpaper.dominantColor,
-            }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{ background: "rgba(0,0,0,0.15)" }}
-            />
-            <div
-              className="relative"
-              style={{
-                height: "calc(100vh - 72px - 48px)",
-                aspectRatio: `${wallpaper.width} / ${wallpaper.height}`,
-                maxWidth: "85%",
-                maxHeight: "90%",
-              }}
-            >
-              <Image
-                src={wallpaper.fileUrl}
-                alt={wallpaper.title}
-                fill
-                sizes="55vw"
-                className="object-cover rounded-xl"
-                priority
-              />
-            </div>
-          </div>
+        <>
+          {/* mobile: stacked. md+: side-by-side (55 / 45 split) */}
+          <div className="flex flex-col md:flex-row pt-[72px] md:overflow-hidden md:min-h-screen">
 
-          {/* right — details, fixed 45%, scrollable */}
-          <div
-            className="flex-shrink-0 overflow-y-auto px-10 py-12"
-            style={{
-              width: "45%",
-              borderLeft: "1px solid var(--border)",
-              maxHeight: "calc(100vh - 72px)",
-            }}
-          >
-            <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" />
+            {/* image panel — full width on mobile, 55% on desktop */}
+            <div
+              className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[60vw] min-h-[320px] md:h-[calc(100vh-72px)]"
+              style={{ background: wallpaper.dominantColor }}
+            >
+              <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.15)" }} />
+              <div
+                className="relative w-full h-full flex items-center justify-center"
+                style={{ maxWidth: "85%", maxHeight: "90%" }}
+              >
+                <Image
+                  src={wallpaper.fileUrl}
+                  alt={wallpaper.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 55vw"
+                  className="object-contain rounded-xl"
+                  priority
+                />
+              </div>
+            </div>
+
+            {/* details panel — full width on mobile, 45% scrollable on desktop */}
+            <div
+              className="w-full md:w-[45%] md:shrink-0 md:overflow-y-auto px-6 py-8 md:px-10 md:py-12 md:max-h-[calc(100vh-72px)] border-t md:border-t-0 md:border-l"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" />
+            </div>
+
           </div>
-        </div>
+        </>
 
       ) : (
         // landscape — full bleed image, details below

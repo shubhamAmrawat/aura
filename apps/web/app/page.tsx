@@ -46,7 +46,7 @@ export default async function HomePage() {
         </div>
       )}
 
-      <div className="w-full py-8" style={{ padding: "32px 80px" }}>
+      <div className="w-full px-4 sm:px-8 md:px-12 py-8">
         <div className="mb-8">
           <h2
             className="text-base font-semibold tracking-[0.15em] uppercase"
