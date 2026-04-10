@@ -59,17 +59,19 @@ export default async function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {wallpapers.length > 0 ? (
-            wallpapers.map((wallpaper: Wallpaper) => (
-              <WallpaperCard key={wallpaper.id} wallpaper={wallpaper} />
-            ))
-          ) : (
-            <div className="col-span-5 py-20 text-center">
-              <p style={{ color: "var(--text-secondary)" }}>No wallpapers found</p>
-            </div>
-          )}
-        </div>
+        {wallpapers.length > 0 ? (
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+            {wallpapers.map((wallpaper: Wallpaper) => (
+              <div key={wallpaper.id} className="break-inside-avoid mb-4">
+                <WallpaperCard wallpaper={wallpaper} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-20 text-center">
+            <p style={{ color: "var(--text-secondary)" }}>No wallpapers found</p>
+          </div>
+        )}
       </div>
     </main>
   );

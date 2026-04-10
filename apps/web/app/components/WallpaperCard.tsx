@@ -69,16 +69,17 @@ const WallpaperCard = ({ wallpaper }: WallpaperCardProps) => {
   return (
     <Link href={`/wallpaper/${wallpaper.id}`}>
       <div
-        className="relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer group"
+        className="relative rounded-2xl overflow-hidden cursor-pointer group"
         style={{ backgroundColor: wallpaper.dominantColor }}
       >
         {/* image */}
         <Image
           src={wallpaper.fileUrl}
           alt={wallpaper.title}
-          fill
+          width={wallpaper.width}
+          height={wallpaper.height}
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
           loading="lazy"
         />
         

@@ -115,9 +115,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
         ) : (
           /* Results grid */
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {wallpapers.map((wallpaper) => (
-              <WallpaperCard key={wallpaper.id} wallpaper={wallpaper} />
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+            {wallpapers.map((w: Wallpaper) => (
+              <div key={w.id} className="break-inside-avoid mb-4">
+                <WallpaperCard wallpaper={w} />
+              </div>
             ))}
           </div>
         )}

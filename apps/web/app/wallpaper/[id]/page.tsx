@@ -47,9 +47,11 @@ const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => {
             You might also like
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
           {wallpapers.map((w) => (
-            <WallpaperCard key={w.id} wallpaper={w} />
+            <div key={w.id} className="break-inside-avoid mb-4">
+              <WallpaperCard wallpaper={w} />
+            </div>
           ))}
         </div>
       </div>

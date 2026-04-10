@@ -306,26 +306,28 @@ export default function CollectionPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
             {wallpapers.map((w) => (
-              <div key={w.id} className="relative group/item">
-                <WallpaperCard wallpaper={wallpaperForCard(w)} />
-                {/* remove button — owner only */}
-                {isOwner && (
-                  <button
-                    onClick={() => handleRemoveWallpaper(w.id)}
-                    className="absolute top-2 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-full opacity-0 group-hover/item:opacity-100 transition-all duration-200"
-                    style={{
-                      background: "rgba(239,68,68,0.85)",
-                      backdropFilter: "blur(8px)",
-                    }}
-                    title="Remove from collection"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-                )}
+              <div key={w.id} className="break-inside-avoid mb-4">
+                <div className="relative group/item">
+                  <WallpaperCard wallpaper={wallpaperForCard(w)} />
+                  {/* remove button — owner only */}
+                  {isOwner && (
+                    <button
+                      onClick={() => handleRemoveWallpaper(w.id)}
+                      className="absolute top-2 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-full opacity-0 group-hover/item:opacity-100 transition-all duration-200"
+                      style={{
+                        background: "rgba(239,68,68,0.85)",
+                        backdropFilter: "blur(8px)",
+                      }}
+                      title="Remove from collection"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

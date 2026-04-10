@@ -92,9 +92,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {wallpapers.map((wallpaper) => (
-              <WallpaperCard key={wallpaper.id} wallpaper={wallpaper} />
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+            {wallpapers.map((wallpaper: Wallpaper) => (
+              <div key={wallpaper.id} className="break-inside-avoid mb-4">
+                <WallpaperCard wallpaper={wallpaper} />
+              </div>
             ))}
           </div>
         )}
