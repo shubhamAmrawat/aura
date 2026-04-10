@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { User } from "@aura/types";
-import { getToken } from "@/lib/token";
+import { getToken, clearToken } from "@/lib/token";
 import { me } from "@/lib/authApi";
 import { getLikedWallpaperIds } from "@/lib/likesApi";
 import { getSavedWallpaperIds } from "@/lib/collectionsApi";
@@ -61,10 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData.user ?? null);
       setLikedIds(ids);
       setSavedIds(saved);
-    } catch {
-      setUser(null);
-      setLikedIds(new Set());
-      setSavedIds(new Set());
+    } catch (err) {
+      // Only clear the session on a genuine 401 (expired/invalid token).
+      // Network errors or API blips (cold starts, timeouts) must not log the user out.
+      if (err instanceof Error && err.message.toLowerCase().includes("unauthorized")) {
+        clearToken();
+        setToken(null);
+        setUser(null);
+        setLikedIds(new Set());
+        setSavedIds(new Set());
+      }
     } finally {
       setLoaded(true);
     }

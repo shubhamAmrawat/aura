@@ -229,7 +229,6 @@ export default function ProfilePage() {
   const [likedWallpapers, setLikedWallpapers] = useState<any[]>([]);
   const [likedLoading, setLikedLoading] = useState(false);
   const [visibleRows, setVisibleRows] = useState(2);
-  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
   const inputStyleBase: React.CSSProperties = {
@@ -618,23 +617,21 @@ export default function ProfilePage() {
                   className="flex flex-col border-t lg:border-t-0 lg:border-l"
                   style={{ borderColor: "var(--border)" }}
                 >
-                  {/* 2FA toggle */}
+                  {/* 2FA — coming soon */}
                   <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
                     <div className="flex items-center gap-3">
                       <IcShield />
                       <div>
                         <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Two-factor authentication</p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Add an extra layer of security</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Coming soon — extra security for your account</p>
                       </div>
                     </div>
-                    <button
-                      onClick={() => { setTwoFaEnabled(!twoFaEnabled); toast(twoFaEnabled ? "2FA disabled." : "2FA enabled."); }}
-                      aria-label="Toggle two-factor authentication"
-                      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200"
-                      style={{ background: twoFaEnabled ? "var(--accent)" : "var(--border)" }}
+                    <span
+                      className="text-[10px] tracking-widest uppercase px-2.5 py-1 rounded-full"
+                      style={{ background: "var(--bg-primary)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
                     >
-                      <span className="inline-block h-4 w-4 rounded-full shadow-sm transition-transform duration-200" style={{ background: "#fff", transform: twoFaEnabled ? "translateX(22px)" : "translateX(4px)" }} />
-                    </button>
+                      Soon
+                    </span>
                   </div>
 
                   {/* Password */}

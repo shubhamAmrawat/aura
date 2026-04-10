@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getWallpaperById, getWallpapers } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
-import WallpaperDetails from "@/app//wallpaper/WallpaperDetails";
+import WallpaperDetails from "@/app/wallpaper/WallpaperDetails";
 import { getContrastColor } from "@/lib/color";
 
 interface WallpaperPageProps {
@@ -56,28 +56,22 @@ const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => (
 export default async function WallpaperPage({ params }: WallpaperPageProps) {
   const { id } = await params;
 
-  const [wallpaper, similarWallpapers] = await Promise.all([
+  const [wallpaperResult, similarResult] = await Promise.allSettled([
     getWallpaperById(id),
-    getWallpapers(),
+    getWallpapers({ limit: 6 }),
   ]);
+
+  const wallpaper = wallpaperResult.status === "fulfilled" ? wallpaperResult.value : null;
+  const similarWallpapers = similarResult.status === "fulfilled" ? similarResult.value : [];
 
   if (!wallpaper) {
     return (
-      <main
-        className="min-h-screen pt-20 flex items-center justify-center"
+      <div
+        className="min-h-screen flex items-center justify-center"
         style={{ background: "var(--bg-primary)" }}
       >
-        <div className="text-center">
-          <p style={{ color: "var(--text-secondary)" }}>Wallpaper not found</p>
-          <Link
-            href="/"
-            style={{ color: "var(--accent)" }}
-            className="text-sm mt-4 block"
-          >
-            ← Back to home
-          </Link>
-        </div>
-      </main>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Wallpaper not found.</p>
+      </div>
     );
   }
 

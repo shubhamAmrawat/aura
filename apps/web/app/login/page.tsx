@@ -8,7 +8,7 @@ import Logo from "@/app/components/Logo";
 import Link from "next/link";
 import Image from "next/image";
 import { saveToken } from "@/lib/token";
-
+import { useAuth } from "@/lib/authContext";
 const EyeIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -46,7 +46,7 @@ export default function LoginPage() {
     confirmPassword.length > 0 &&
     !passwordsMatch &&
     (confirmTouched || confirmPassword.length >= password.length);
-
+  const { refreshUser } = useAuth();
   const handleSendOTP = async () => {
     setLoading(true);
     setError("");
@@ -93,10 +93,10 @@ export default function LoginPage() {
     try {
       const data=await signup({ email, username, displayName, password });
       saveToken(data.token);
+      await refreshUser();
       queueToast("Account created! Welcome to AURA", "success");
       setNavigating(true);
-      router.push("/");
-      router.refresh();
+      router.push("/"); 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -110,10 +110,10 @@ export default function LoginPage() {
     try {
       const data = await login({ email });
       saveToken(data.token); // save to localStorage
+      await refreshUser();
       queueToast("Welcome back!", "success");
       setNavigating(true);
       router.push("/");
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);

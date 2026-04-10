@@ -13,11 +13,10 @@ const SearchBar = ({ defaultValue = "" }: SearchBarProps) => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim()) {
-      router.push(`/?q=${encodeURIComponent(value.trim())}`);
-    } else {
-      router.push("/");
-    }
+    const q = value.trim();
+    if (!q) return;
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+    setValue("");
   };
 
   return (
@@ -27,7 +26,7 @@ const SearchBar = ({ defaultValue = "" }: SearchBarProps) => {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search wallpapers..."
-        className="w-full px-5 py-3 rounded-full text-sm outline-none transition-all"
+        className="w-full px-5 py-2 rounded-[5px] text-sm outline-none transition-all"
         style={{
           background: "var(--bg-elevated)",
           color: "var(--text-primary)",
