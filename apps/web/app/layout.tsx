@@ -12,8 +12,25 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "AURA | Premium Wallpapers",
-  description: "Discover and download stunning wallpapers curated for every mood.",
+  metadataBase: new URL("https://aura-web-red.vercel.app"),
+  title: {
+    default: "AURA — Premium Wallpaper Discovery",
+    template: "%s | AURA",
+  },
+  description: "Discover and download premium wallpapers for desktop and mobile. Curated collections, high resolution, free to use.",
+  keywords: ["wallpapers", "4K wallpapers", "desktop wallpapers", "mobile wallpapers", "free wallpapers"],
+  openGraph: {
+    type: "website",
+    siteName: "AURA",
+    title: "AURA — Premium Wallpaper Discovery",
+    description: "Discover and download premium wallpapers for desktop and mobile.",
+    url: "https://aura-web-red.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AURA — Premium Wallpaper Discovery",
+    description: "Discover and download premium wallpapers for desktop and mobile.",
+  },
   icons: {
     icon: "/4.png"
   }

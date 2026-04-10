@@ -53,6 +53,38 @@ const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => (
   </div>
 );
 
+export async function generateMetadata({ params }: WallpaperPageProps) {
+  const { id } = await params;
+  try {
+    const wallpaper = await getWallpaperById(id);
+    if (!wallpaper) return { title: "Wallpaper Not Found" };
+
+    return {
+      title: wallpaper.title,
+      description: wallpaper.description || `Download ${wallpaper.title} — ${wallpaper.width}×${wallpaper.height} wallpaper`,
+      openGraph: {
+        title: wallpaper.title,
+        description: wallpaper.description || `${wallpaper.width}×${wallpaper.height} wallpaper`,
+        images: [
+          {
+            url: wallpaper.fileUrl,
+            width: wallpaper.width,
+            height: wallpaper.height,
+            alt: wallpaper.title,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: wallpaper.title,
+        images: [wallpaper.fileUrl],
+      },
+    };
+  } catch {
+    return { title: "Wallpaper" };
+  }
+}
+
 export default async function WallpaperPage({ params }: WallpaperPageProps) {
   const { id } = await params;
 
