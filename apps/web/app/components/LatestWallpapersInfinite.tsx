@@ -89,12 +89,12 @@ export default function LatestWallpapersInfinite({
     return () => observer.disconnect();
   }, [loadMore]);
 
-  const subtitle =
-    items.length === 0 && !isLoading
-      ? "Browse the gallery"
-      : `${items.length} wallpaper${items.length !== 1 ? "s" : ""} loaded${
-          hasMore ? " — scroll for more" : ""
-        }`;
+  // const subtitle =
+  //   items.length === 0 && !isLoading
+  //     ? "Browse the gallery"
+  //     : `${items.length} wallpaper${items.length !== 1 ? "s" : ""} loaded${
+  //         hasMore ? " — scroll for more" : ""
+  //       }`;
 
   const showEmptyState = items.length === 0 && !isLoading;
 
@@ -107,10 +107,10 @@ export default function LatestWallpapersInfinite({
         >
           Explore 
         </h2>
-        <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-          {/* {subtitle} */}
-          Dive into the vast collections of high-quality artworks
-        </p>
+        <div className="text-xs mt-1 space-y-0.5" style={{ color: "var(--text-secondary)" }}>
+          <p>Dive into the vast collections of high-quality artworks</p>
+          {/* <p className="opacity-90">{subtitle}</p> */}
+        </div>
       </div>
 
       {showEmptyState ? (
