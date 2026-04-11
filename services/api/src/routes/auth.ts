@@ -357,3 +357,54 @@ authRoutes.post("/logout", async (c) => {
   c.header("Set-Cookie", `aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${domain}`);
   return c.json({ message: "Logged out successfully" });
 });
+
+
+// PUT /api/auth/become-creator
+authRoutes.put("/become-creator", async (c) => {
+  try {
+    const cookieHeader = c.req.header("Cookie") ?? "";
+    const cookieToken = cookieHeader
+      .split(";")
+      .map(s => s.trim())
+      .find(s => s.startsWith("aura_token="))
+      ?.split("=")[1];
+
+    const authHeader = c.req.header("Authorization");
+    const headerToken = authHeader?.replace("Bearer ", "");
+    const token = cookieToken || headerToken;
+
+    if (!token) return c.json({ error: "Unauthorized" }, 401);
+
+    const payload = verifyToken(token);
+
+    await db
+      .update(users)
+      .set({ isCreator: true })
+      .where(eq(users.id, payload.userId));
+
+    const updated = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, payload.userId))
+      .limit(1);
+
+    const u = updated[0];
+    if (!u) return c.json({ error: "User not found" }, 404);
+
+    return c.json({
+      message: "You are now a creator!",
+      user: {
+        id: u.id,
+        email: u.email,
+        username: u.username,
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl,
+        coverUrl: u.coverUrl,
+        isCreator: u.isCreator,
+        isPro: u.isPro,
+      },
+    });
+  } catch {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+});

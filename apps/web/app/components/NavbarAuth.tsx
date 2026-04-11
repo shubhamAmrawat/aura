@@ -36,7 +36,24 @@ const NavbarAuth = () => {
   }
 
   return (
-    <div className="relative">
+    <div className="flex items-center gap-2">
+      {user?.isCreator && (
+        <Link
+          href="/upload"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+          style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+          title="Upload wallpaper"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5"
+            strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span className="hidden sm:inline">Upload</span>
+        </Link>
+      )}
+      <div className="relative">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
@@ -154,6 +171,7 @@ const NavbarAuth = () => {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 };

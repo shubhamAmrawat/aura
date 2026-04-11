@@ -83,7 +83,7 @@ const Navbar = () => {
     >
       <Logo size="sm" />
 
-      {/* Centre: Categories dropdown + Trending */}
+      {/* Centre: Categories dropdown + Latest + Trending */}
       <div className="hidden md:flex items-center gap-8">
 
         {/* Categories dropdown trigger + panel */}
@@ -162,7 +162,14 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Trending */}
+        {/* Latest + Trending */}
+        <Link
+          href="/latest"
+          className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Latest
+        </Link>
         <Link
           href="/trending"
           className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
@@ -238,7 +245,15 @@ const Navbar = () => {
         {/* divider */}
         <div className="my-4" style={{ borderTop: "1px solid var(--border)" }} />
 
-        {/* trending */}
+        {/* latest + trending */}
+        <Link
+          href="/latest"
+          onClick={() => setMobileOpen(false)}
+          className="flex items-center w-full py-2 text-sm font-medium tracking-widest uppercase transition-opacity hover:opacity-70"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          Latest
+        </Link>
         <Link
           href="/trending"
           onClick={() => setMobileOpen(false)}

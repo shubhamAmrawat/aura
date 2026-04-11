@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 import { getLikedWallpapers } from "@/lib/likesApi";
+import { becomeCreator } from "@/lib/api";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -223,6 +224,7 @@ export default function ProfilePage() {
   const [delPw, setDelPw] = useState("");
   const [delConfirm, setDelConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [becomingCreator, setBecomingCreator] = useState(false);
 
   // liked wallpapers
   const [likedWallpapers, setLikedWallpapers] = useState<any[]>([]);
@@ -414,6 +416,21 @@ export default function ProfilePage() {
       setPwLoading(false);
     }
   }
+
+  const handleBecomeCreator = async () => {
+    if (!authUser) return;
+    setBecomingCreator(true);
+    try {
+      await becomeCreator();
+      setAuthUser({ ...authUser, isCreator: true });
+      setProfile((prev) => (prev ? { ...prev, isCreator: true } : prev));
+      toast("You are now a creator! Upload button is now visible in the navbar.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to become creator", "error");
+    } finally {
+      setBecomingCreator(false);
+    }
+  };
 
   async function handleDeleteAccount() {
     if (delConfirm !== "DELETE") { toast('Type "DELETE" to confirm.', "error"); return; }
@@ -688,6 +705,46 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {!profile.isCreator && (
+            <div
+              className="rounded-2xl p-6 mb-6 mt-3"
+              style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}
+            >
+              <div className="flex items-start justify-between gap-6">
+                <div className="flex-1">
+                  <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                    Become a Creator
+                  </h2>
+                  <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
+                    Share your wallpapers with the AURA community. Upload your best work and grow your audience.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    {["Upload wallpapers", "Creator badge", "Download analytics"].map((benefit) => (
+                      <div key={benefit} className="flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                          {benefit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleBecomeCreator}
+                  disabled={becomingCreator}
+                  className="flex-shrink-0 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40"
+                  style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                >
+                  {becomingCreator ? "Activating…" : "Get started →"}
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Liked Wallpapers + Collections ──────────────────── */}
           <div

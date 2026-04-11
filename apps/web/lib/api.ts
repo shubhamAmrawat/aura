@@ -84,3 +84,53 @@ export async function getCategories(): Promise<Category[]> {
   const { data } = await fetchJsonOrThrow<{ data: Category[] }>(`${getApiUrl()}/api/categories`, { cache: "force-cache" });
   return data; 
 }
+
+
+export async function getUploadUrl(fileType: string): Promise<{
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+}> {
+  const res = await fetch(`${getApiUrl()}/api/wallpapers/upload-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ fileType }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to get upload URL");
+  return data;
+}
+
+export async function submitWallpaper(payload: {
+  title: string;
+  description: string;
+  categoryId: string;
+  tags: string[];
+  fileUrl: string;
+  key: string;
+  width: number;
+  height: number;
+  fileSizeBytes: number;
+  fileType: string;
+}): Promise<{ wallpaper: any; moderationStatus: string; message: string }> {
+  const res = await fetch(`${getApiUrl()}/api/wallpapers/upload`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to upload wallpaper");
+  return data;
+}
+
+export async function becomeCreator(): Promise<{ user: any }> {
+  const res = await fetch(`${getApiUrl()}/api/auth/become-creator`, {
+    method: "PUT",
+    credentials: "include",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed");
+  return data;
+}

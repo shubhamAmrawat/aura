@@ -1,0 +1,598 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/authContext";
+import { getCategories, getUploadUrl, submitWallpaper } from "@/lib/api";
+
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const MAX_BYTES = 25 * 1024 * 1024;
+const MIN_IMAGE_DIMENSION = 200;
+
+function meetsMinImageSize(width: number, height: number): boolean {
+  return width >= MIN_IMAGE_DIMENSION && height >= MIN_IMAGE_DIMENSION;
+}
+
+type Progress = "idle" | "uploading" | "moderating" | "saving" | "done";
+
+type Category = { id: string; name: string; slug: string };
+
+function normalizeTag(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+function loadImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement("img");
+    el.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: el.naturalWidth, height: el.naturalHeight });
+    };
+    el.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read image dimensions"));
+    };
+    el.src = url;
+  });
+}
+
+async function validateImageFile(
+  file: File
+): Promise<{ error: string | null; dims?: { width: number; height: number } }> {
+  if (!ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
+    return { error: "Only JPEG, PNG, or WebP images are allowed." };
+  }
+  if (file.size > MAX_BYTES) {
+    return { error: "File must be 25 MB or smaller." };
+  }
+  try {
+    const { width, height } = await loadImageDimensions(file);
+    if (!meetsMinImageSize(width, height)) {
+      return {
+        error: `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels (this file is ${width}×${height}).`,
+      };
+    }
+    return { error: null, dims: { width, height } };
+  } catch {
+    return { error: "Could not read this image. Try another file." };
+  }
+}
+
+const inputBorder = (focused: boolean): CSSProperties => ({
+  border: `1px solid ${focused ? "var(--accent)" : "var(--border)"}`,
+  background: "var(--bg-elevated)",
+  color: "var(--text-primary)",
+  borderRadius: "0.75rem",
+  outline: "none",
+});
+
+const PROGRESS_LABEL: Record<Progress, string> = {
+  idle: "",
+  uploading: "Uploading to storage…",
+  moderating: "Checking content safety…",
+  saving: "Saving wallpaper…",
+  done: "Done!",
+};
+
+/** DevTools: filter by `[AURA upload]` to trace presign → R2 PUT → submit. */
+function uploadLog(...args: unknown[]) {
+  console.log("[AURA upload]", ...args);
+}
+
+function uploadWarn(...args: unknown[]) {
+  console.warn("[AURA upload]", ...args);
+}
+
+function safeUrlHost(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "(unparseable URL)";
+  }
+}
+
+type UploadPhase = "presign" | "storage_put" | "submit";
+
+function uploadFailureMessage(phase: UploadPhase, err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const isNetwork = raw === "Failed to fetch" || raw === "Load failed" || raw === "NetworkError when attempting to fetch resource.";
+
+  if (!isNetwork) return raw;
+
+  if (phase === "presign") {
+    return `${raw} — could not reach the API for a presigned URL. Confirm NEXT_PUBLIC_API_URL and that the API is running (see Network tab for /api/wallpapers/upload-url).`;
+  }
+  if (phase === "storage_put") {
+    return `${raw} — browser could not PUT the file to object storage. This is usually R2/S3 CORS: the bucket must allow PUT (and OPTIONS) from your site origin (e.g. http://localhost:3000). The failing request host in Network tab should be your R2 endpoint, not your API.`;
+  }
+  return `${raw} — could not reach the API to save wallpaper metadata (see Network tab for /api/wallpapers/upload).`;
+}
+
+export default function UploadPage() {
+  const router = useRouter();
+  const { user, loaded } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+
+  const [focusField, setFocusField] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Progress>("idle");
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!user.isCreator) {
+      router.replace("/profile");
+    }
+  }, [loaded, user, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getCategories();
+        if (!cancelled) setCategories(data);
+      } catch {
+        if (!cancelled) setCategories([]);
+      } finally {
+        if (!cancelled) setCategoriesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const clearFile = useCallback(() => {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setFile(null);
+    setDims(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const applyValidFile = useCallback(async (next: File) => {
+    setError(null);
+    const { error: validationError, dims: nextDims } = await validateImageFile(next);
+    if (validationError || !nextDims) {
+      setError(validationError);
+      return;
+    }
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(next);
+    });
+    setFile(next);
+    setDims(nextDims);
+  }, []);
+
+  const onFileChosen = useCallback(
+    async (f: File | undefined) => {
+      if (!f) return;
+      await applyValidFile(f);
+    },
+    [applyValidFile]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragOver(false);
+      const f = e.dataTransfer.files?.[0];
+      void onFileChosen(f);
+    },
+    [onFileChosen]
+  );
+
+  const addTagsFromString = useCallback(
+    (raw: string) => {
+      const parts = raw.split(",").map((p) => normalizeTag(p)).filter(Boolean);
+      if (parts.length === 0) return;
+      setTags((prev) => {
+        const next = [...prev];
+        for (const p of parts) {
+          if (next.length >= 10) break;
+          if (!next.includes(p)) next.push(p);
+        }
+        return next;
+      });
+      setTagInput("");
+    },
+    []
+  );
+
+  const onTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addTagsFromString(tagInput);
+      return;
+    }
+    if (e.key === ",") {
+      e.preventDefault();
+      addTagsFromString(tagInput);
+    }
+  };
+
+  const removeTag = (t: string) => {
+    setTags((prev) => prev.filter((x) => x !== t));
+  };
+
+  const busy = progress !== "idle";
+  const canSubmit =
+    !busy &&
+    !pendingMessage &&
+    Boolean(file) &&
+    title.trim().length > 0 &&
+    Boolean(categoryId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file || !dims) return;
+    if (!title.trim() || !categoryId) return;
+
+    setError(null);
+    setPendingMessage(null);
+    setProgress("uploading");
+
+    let phase: UploadPhase = "presign";
+
+    try {
+      uploadLog("step 1/3 presign: requesting upload-url", { fileType: file.type, size: file.size });
+      const { uploadUrl, fileUrl, key } = await getUploadUrl(file.type);
+      uploadLog("step 1/3 presign: OK", {
+        key,
+        fileUrlHost: safeUrlHost(fileUrl),
+        putHost: safeUrlHost(uploadUrl),
+      });
+
+      phase = "storage_put";
+      uploadLog("step 2/3 storage: PUT file to presigned URL", {
+        host: safeUrlHost(uploadUrl),
+        contentType: file.type,
+      });
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      uploadLog("step 2/3 storage: response", { ok: putRes.ok, status: putRes.status, statusText: putRes.statusText });
+      if (!putRes.ok) {
+        const bodySnippet = await putRes.text().catch(() => "");
+        uploadWarn("step 2/3 storage: non-OK body (truncated)", bodySnippet.slice(0, 500));
+        throw new Error(`Upload to storage failed (${putRes.status}).`);
+      }
+      uploadLog("step 2/3 storage: OK");
+
+      setProgress("moderating");
+      phase = "submit";
+      uploadLog("step 3/3 submit: POST /api/wallpapers/upload", { key, fileUrlHost: safeUrlHost(fileUrl) });
+      const result = await submitWallpaper({
+        title: title.trim().slice(0, 100),
+        description: description.trim().slice(0, 500),
+        categoryId,
+        tags,
+        fileUrl,
+        key,
+        width: dims.width,
+        height: dims.height,
+        fileSizeBytes: file.size,
+        fileType: file.type,
+      });
+      uploadLog("step 3/3 submit: OK", {
+        moderationStatus: result.moderationStatus,
+        wallpaperId: result.wallpaper?.id,
+      });
+
+      setProgress("saving");
+      await new Promise((r) => setTimeout(r, 220));
+
+      if (result.moderationStatus === "approved") {
+        const id = result.wallpaper?.id as string | undefined;
+        setProgress("done");
+        uploadLog("complete: approved, redirect", { id });
+        if (id) router.push(`/wallpaper/${id}`);
+        else router.push("/");
+        return;
+      }
+
+      if (result.moderationStatus === "pending") {
+        setProgress("idle");
+        uploadLog("complete: pending, redirect to profile in 2s");
+        setPendingMessage(
+          result.message || "Your wallpaper is under review. You will be redirected to your profile."
+        );
+        setTimeout(() => {
+          router.push("/profile");
+        }, 2000);
+        return;
+      }
+
+      setError("Unexpected response from server.");
+      setProgress("idle");
+    } catch (err) {
+      console.error("[AURA upload] FAILED", { phase, err });
+      setProgress("idle");
+      setError(uploadFailureMessage(phase, err));
+    }
+  };
+
+  if (!loaded || !user || !user.isCreator) {
+    return (
+      <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
+        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
+      </main>
+    );
+  }
+
+  return (
+    <main
+      className="min-h-screen pt-24 px-4 sm:px-8 md:px-12 pb-16"
+      style={{ background: "var(--bg-primary)" }}
+    >
+      <div className="max-w-5xl mx-auto">
+        <Link
+          href="/"
+          className="text-xs tracking-widest uppercase inline-block mb-8 transition-opacity hover:opacity-70"
+          style={{ color: "var(--accent)" }}
+        >
+          ← Home
+        </Link>
+
+        <h1 className="text-2xl font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+          Upload wallpaper
+        </h1>
+        <p className="text-sm mb-8 max-w-xl" style={{ color: "var(--text-muted)" }}>
+          Add a high-resolution image, details, and tags. Files are scanned for safety before publishing.
+        </p>
+
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+          {/* Left: dropzone / preview */}
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ALLOWED_TYPES.join(",")}
+              className="hidden"
+              aria-label="Choose wallpaper image file"
+              onChange={(e) => void onFileChosen(e.target.files?.[0])}
+            />
+
+            {!previewUrl ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                className="w-full min-h-[360px] rounded-2xl flex flex-col items-center justify-center gap-3 px-6 py-10 transition-colors"
+                style={{
+                  border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
+                  background: "var(--bg-elevated)",
+                }}
+              >
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                  Drop an image here or click to browse
+                </p>
+                <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-muted)" }}>
+                  JPEG, PNG, or WebP · max 25 MB · min {MIN_IMAGE_DIMENSION}×{MIN_IMAGE_DIMENSION}px
+                </p>
+              </button>
+            ) : (
+              <div className="rounded-2xl overflow-hidden relative" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
+                <div className="relative w-full aspect-[16/10] max-h-[420px]">
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    fill
+                    className="object-contain"
+                    unoptimized
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                  />
+                </div>
+                {dims && (
+                  <div
+                    className="absolute top-3 right-3 text-[10px] font-medium px-2 py-1 rounded-md"
+                    style={{ background: "var(--bg-primary)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+                  >
+                    {dims.width} × {dims.height}
+                  </div>
+                )}
+                <div className="p-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>
+                  <button
+                    type="button"
+                    onClick={clearFile}
+                    disabled={busy}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40"
+                    style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                  >
+                    Remove file
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: form */}
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Title <span style={{ color: "var(--accent)" }}>*</span>
+              </label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value.slice(0, 100))}
+                onFocus={() => setFocusField("title")}
+                onBlur={() => setFocusField(null)}
+                maxLength={100}
+                placeholder="A short, descriptive title"
+                className="w-full px-3 py-2.5 text-sm transition-colors"
+                style={inputBorder(focusField === "title")}
+              />
+              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{title.length}/100</p>
+            </div>
+
+            <div>
+              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
+                onFocus={() => setFocusField("desc")}
+                onBlur={() => setFocusField(null)}
+                rows={4}
+                placeholder="Optional — tools used, mood, or story behind the piece"
+                className="w-full px-3 py-2.5 text-sm resize-y min-h-[100px] transition-colors"
+                style={inputBorder(focusField === "desc")}
+              />
+              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{description.length}/500</p>
+            </div>
+
+            <div>
+              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Category <span style={{ color: "var(--accent)" }}>*</span>
+              </label>
+              <select
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                onFocus={() => setFocusField("cat")}
+                onBlur={() => setFocusField(null)}
+                disabled={categoriesLoading}
+                aria-label="Wallpaper category"
+                className="w-full px-3 py-2.5 text-sm transition-colors"
+                style={inputBorder(focusField === "cat")}
+              >
+                <option value="">{categoriesLoading ? "Loading categories…" : "Select a category"}</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
+                Tags (max 10)
+              </label>
+              <input
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={onTagKeyDown}
+                onFocus={() => setFocusField("tags")}
+                onBlur={() => setFocusField(null)}
+                disabled={tags.length >= 10}
+                placeholder={tags.length >= 10 ? "Maximum tags reached" : "Type and press Enter or comma"}
+                className="w-full px-3 py-2.5 text-sm transition-colors"
+                style={inputBorder(focusField === "tags")}
+              />
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {tags.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                    >
+                      {t}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(t)}
+                        className="p-0.5 rounded-full leading-none transition-opacity hover:opacity-70"
+                        style={{ color: "var(--text-muted)" }}
+                        aria-label={`Remove tag ${t}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div
+                className="rounded-xl px-4 py-3 text-sm"
+                style={{
+                  border: "1px solid #ef4444",
+                  background: "rgba(239, 68, 68, 0.08)",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            {pendingMessage && (
+              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{pendingMessage}</p>
+            )}
+
+            {progress !== "idle" && (
+              <div className="flex items-center gap-3 py-1">
+                <div
+                  className="w-5 h-5 rounded-full border-2 animate-spin flex-shrink-0"
+                  style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
+                />
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  {PROGRESS_LABEL[progress]}
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="px-6 py-2.5 rounded-full text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 disabled:opacity-40"
+                style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+              >
+                {progress === "done" ? "Done!" : "Upload Wallpaper"}
+              </button>
+              <Link
+                href="/"
+                className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+              >
+                Cancel
+              </Link>
+            </div>
+          </div>
+        </form>
+
+        <p className="text-xs max-w-2xl mt-12 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          Content policy: uploads are automatically checked for safety. Images that violate community guidelines are
+          rejected and removed from storage. By uploading, you confirm you own or have rights to distribute this work.
+        </p>
+      </div>
+    </main>
+  );
+}
