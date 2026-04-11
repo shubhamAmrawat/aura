@@ -161,9 +161,9 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
               </div>
             </ContextMenuBlock>
 
-            {/* details panel — full width on mobile, 45% scrollable on desktop */}
+            {/* details panel — md+: flex column + max height; inner scroll keeps actions visible */}
             <div
-              className="w-full md:w-[45%] md:shrink-0 md:overflow-y-auto px-6 py-8 md:px-10 md:py-12 md:max-h-[calc(100vh-72px)] border-t md:border-t-0 md:border-l"
+              className="w-full md:w-[45%] md:shrink-0 md:flex md:h-[calc(100vh-72px)] md:min-h-0 md:flex-col md:overflow-hidden px-6 py-8 md:px-5 md:py-4 lg:px-8 lg:py-6 xl:px-10 xl:py-8 border-t md:border-t-0 md:border-l"
               style={{ borderColor: "var(--border)" }}
             >
               <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" />

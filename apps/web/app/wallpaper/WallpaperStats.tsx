@@ -48,7 +48,7 @@ const WallpaperStats = ({
   if (layout === "grid") {
     return (
       <div
-        className="grid grid-cols-2 gap-6 py-8"
+        className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 md:gap-x-5 md:gap-y-4 md:py-5 lg:py-6"
         style={{
           borderTop: "1px solid var(--border)",
           borderBottom: "1px solid var(--border)",
