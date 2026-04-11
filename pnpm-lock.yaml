@@ -20,6 +20,9 @@ importers:
       '@aura/types':
         specifier: workspace:*
         version: link:../../packages/types
+      blurhash:
+        specifier: ^2.0.5
+        version: 2.0.5
       next:
         specifier: 16.2.1
         version: 16.2.1(@babel/core@7.29.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1788,6 +1791,9 @@ packages:
   bcryptjs@3.0.3:
     resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
     hasBin: true
+
+  blurhash@2.0.5:
+    resolution: {integrity: sha512-cRygWd7kGBQO3VEhPiTgq4Wc43ctsM+o46urrmPOiuAe+07fzlSB9OJVdpgDL0jPqXUVQ9ht7aq7kxOeJHRK+w==}
 
   bowser@2.14.1:
     resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
@@ -4933,6 +4939,8 @@ snapshots:
   baseline-browser-mapping@2.10.10: {}
 
   bcryptjs@3.0.3: {}
+
+  blurhash@2.0.5: {}
 
   bowser@2.14.1: {}
 

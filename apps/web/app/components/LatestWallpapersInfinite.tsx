@@ -100,15 +100,16 @@ export default function LatestWallpapersInfinite({
 
   return (
     <>
-      <div className="mb-8">
+      <div className="mb-5">
         <h2
           className="text-base font-semibold tracking-[0.15em] uppercase"
           style={{ color: "var(--text-primary)" }}
         >
-          Latest Wallpapers
+          Explore 
         </h2>
         <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-          {subtitle}
+          {/* {subtitle} */}
+          Dive into the vast collections of high-quality artworks
         </p>
       </div>
 
@@ -117,18 +118,26 @@ export default function LatestWallpapersInfinite({
           <p style={{ color: "var(--text-secondary)" }}>No wallpapers found</p>
         </div>
       ) : (
-        <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
-          {items.map((wallpaper) => (
-            <div key={wallpaper.id} className="break-inside-avoid mb-4">
-              <WallpaperCard wallpaper={wallpaper} />
+        <>
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+            {items.map((wallpaper, index) => (
+              <div key={wallpaper.id} className="break-inside-avoid mb-4">
+                <WallpaperCard wallpaper={wallpaper} priority={index === 0} />
+              </div>
+            ))}
+          </div>
+          {isLoading ? (
+            <div
+              className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5"
+              aria-busy="true"
+              aria-label="Loading more wallpapers"
+            >
+              {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+                <WallpaperCardSkeleton key={`loading-${i}`} uniform />
+              ))}
             </div>
-          ))}
-          {isLoading
-            ? Array.from({ length: SKELETON_COUNT }, (_, i) => (
-                <WallpaperCardSkeleton key={`loading-${i}`} index={i} />
-              ))
-            : null}
-        </div>
+          ) : null}
+        </>
       )}
 
       {/* Invisible sentinel — keeps layout stable and avoids scroll-linked layout thrash */}

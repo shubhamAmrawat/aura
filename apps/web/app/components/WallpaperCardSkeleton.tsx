@@ -9,15 +9,22 @@ const ASPECT_RATIOS = [
 
 interface WallpaperCardSkeletonProps {
   index?: number;
+  /** Even grid (e.g. infinite-scroll loading row); avoids multicol clustering on one side. */
+  uniform?: boolean;
 }
 
 /**
- * Masonry-friendly placeholder; aspect varies by index to mimic a natural grid.
+ * Masonry-friendly placeholder when `uniform` is false (aspect varies by index).
+ * When `uniform` is true, uses one aspect ratio for a stable CSS Grid loading band.
  */
-export default function WallpaperCardSkeleton({ index = 0 }: WallpaperCardSkeletonProps) {
-  const aspect = ASPECT_RATIOS[index % ASPECT_RATIOS.length];
+export default function WallpaperCardSkeleton({
+  index = 0,
+  uniform = false,
+}: WallpaperCardSkeletonProps) {
+  const aspect = uniform ? "aspect-[4/5]" : ASPECT_RATIOS[index % ASPECT_RATIOS.length];
+  const layoutClass = uniform ? "w-full" : "break-inside-avoid mb-4 w-full";
   return (
-    <div className={`break-inside-avoid mb-4 ${aspect} w-full rounded-2xl overflow-hidden`}>
+    <div className={`${layoutClass} ${aspect} rounded-2xl overflow-hidden`}>
       <div
         className="h-full w-full animate-pulse rounded-2xl"
         style={{ backgroundColor: "var(--bg-elevated)" }}
