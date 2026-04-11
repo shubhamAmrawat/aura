@@ -22,7 +22,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "images.pexels.com",
+      },
+      {
+        protocol: "https",
         hostname: "w.wallhaven.cc",
+      },
+      {
+        protocol: "https",
+        hostname: "images-assets.nasa.gov",
       },
       {
         protocol: "https",
