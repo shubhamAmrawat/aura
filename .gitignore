@@ -1,11 +1,9 @@
-code .gitignore
-```
-
-Type this:
-```
 node_modules
 .turbo
 .env
 .env.local
 dist
 .next
+
+# Local-only seed script (API keys / one-off data); do not commit
+packages/db/src/seed.ts
