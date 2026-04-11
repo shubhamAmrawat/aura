@@ -72,8 +72,12 @@ const LikeButton = ({
       onClick={handleLike}
       disabled={loading}
       aria-label={liked ? "Unlike wallpaper" : "Like wallpaper"}
-      className="relative flex items-center gap-2 transition-all duration-200 disabled:opacity-50"
-      style={{ color: liked ? "#ef4444" : "var(--text-muted)" }}
+      className="relative flex items-center gap-2 rounded-full px-2 py-1.5 transition-all duration-200 disabled:opacity-50"
+      style={{
+        color: "#ef4444",
+        border: liked ? "1px solid rgba(239, 68, 68, 0.45)" : "1px solid rgba(239, 68, 68, 0.9)",
+        background: liked ? "rgba(239, 68, 68, 0.12)" : "transparent",
+      }}
       title={liked ? "Unlike" : "Like"}
     >
       {/* ripple */}

@@ -491,8 +491,16 @@ const BookmarkButton = ({
       <button
         ref={buttonRef}
         onClick={handleClick}
-        className="flex items-center gap-2 transition-all duration-200 hover:opacity-70"
-        style={{ color: isSaved ? "var(--accent)" : "var(--text-muted)" }}
+        className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-all duration-200 hover:opacity-90"
+        style={{
+          color: "var(--accent)",
+          border: isSaved
+            ? "1px solid color-mix(in srgb, var(--accent) 45%, transparent)"
+            : "1px solid color-mix(in srgb, var(--accent) 92%, transparent)",
+          background: isSaved
+            ? "color-mix(in srgb, var(--accent) 14%, transparent)"
+            : "transparent",
+        }}
         title="Save to collection"
       >
         <svg
