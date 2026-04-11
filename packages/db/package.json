@@ -9,9 +9,11 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
-    "db:seed": "tsx --env-file=../../.env src/seed.ts"
+    "db:seed": "tsx --env-file=../../.env src/seed.ts",
+    "db:migrate-r2": "tsx --env-file=../../.env src/migrate-to-r2.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1021.0",
     "dotenv": "^17.3.1",
     "drizzle-orm": "*",
     "postgres": "*"

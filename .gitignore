@@ -5,5 +5,6 @@ node_modules
 dist
 .next
 
-# Local-only seed script (API keys / one-off data); do not commit
+# Local-only DB scripts (credentials / one-off); do not commit
 packages/db/src/seed.ts
+packages/db/src/migrate-to-r2.ts
