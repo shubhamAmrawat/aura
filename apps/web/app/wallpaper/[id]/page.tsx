@@ -4,6 +4,7 @@ import { getWallpaperById, getWallpapers } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import WallpaperDetails from "@/app/wallpaper/WallpaperDetails";
+import { ContextMenuBlock } from "@/app/wallpaper/ContextMenuBlock";
 import { getContrastColor } from "@/lib/color";
 
 interface WallpaperPageProps {
@@ -130,9 +131,8 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
           <div className="flex flex-col md:flex-row pt-[72px] md:overflow-hidden md:min-h-screen">
 
             {/* image panel — full width on mobile, 55% on desktop */}
-            <div
+            <ContextMenuBlock
               className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[60vw] min-h-[320px] md:h-[calc(100vh-72px)] overflow-hidden"
-
             >
               {/* blurred background — same image, heavily blurred */}
               <Image
@@ -159,7 +159,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
                   priority
                 />
               </div>
-            </div>
+            </ContextMenuBlock>
 
             {/* details panel — full width on mobile, 45% scrollable on desktop */}
             <div
@@ -175,7 +175,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
       ) : (
         // landscape — full bleed image, details below
         <>
-          <div className="relative w-full pt-[72px]" style={{ height: "85vh" }}>
+          <ContextMenuBlock className="relative w-full pt-[72px]" style={{ height: "85vh" }}>
             <Image
               src={wallpaper.fileUrl}
               alt={wallpaper.title}
@@ -191,7 +191,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
                   "linear-gradient(to top, rgba(10,10,10,0.9) 0%, transparent 0.5%)",
               }}
             /> */}
-          </div>
+          </ContextMenuBlock>
 
           {/* details — title left, download top right */}
           <div

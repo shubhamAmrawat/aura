@@ -735,7 +735,11 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-3 gap-3">
                     {likedWallpapers.slice(0, visibleCount).map((w) => (
                       <Link key={w.id} href={`/wallpaper/${w.id}`}>
-                        <div className="relative aspect-[3/4] rounded-xl overflow-hidden group" style={{ backgroundColor: w.dominantColor }}>
+                        <div
+                          className="relative aspect-[3/4] rounded-xl overflow-hidden group"
+                          style={{ backgroundColor: w.dominantColor }}
+                          onContextMenu={(e) => e.preventDefault()}
+                        >
                           <Image
                             src={w.fileUrl}
                             alt={w.title}

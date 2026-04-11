@@ -1,7 +1,7 @@
 "use client";
 
 import { Wallpaper } from "@aura/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getContrastColor } from "@/lib/color";
@@ -10,11 +10,17 @@ interface HeroProps {
   wallpapers: Wallpaper[];
 }
 
+const SWIPE_MIN_PX = 50;
+const SWIPE_CLICK_GUARD_MS = 450;
+
 const Hero = ({ wallpapers }: HeroProps) => {
   const [current, setCurrent] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastHorizontalSwipeAt = useRef(0);
 
   useEffect(() => {
+    if (wallpapers.length === 0) return;
     const timer = setInterval(() => {
       setCurrent((prev) => (prev + 1) % wallpapers.length);
     }, 7000);
@@ -25,17 +31,53 @@ const Hero = ({ wallpapers }: HeroProps) => {
 
   if (!wallpaper) return null;
 
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0];
+    if (!t) return;
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  }
+
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || wallpapers.length < 2) return;
+
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absX < SWIPE_MIN_PX || absX <= absY) return;
+
+    lastHorizontalSwipeAt.current = Date.now();
+    if (dx < 0) setCurrent((c) => (c + 1) % wallpapers.length);
+    else setCurrent((c) => (c - 1 + wallpapers.length) % wallpapers.length);
+  }
+
+  function onSlideLinkClick(ev: React.MouseEvent<HTMLAnchorElement>) {
+    if (Date.now() - lastHorizontalSwipeAt.current < SWIPE_CLICK_GUARD_MS) {
+      ev.preventDefault();
+    }
+  }
+
   return (
     <div
       className="relative w-full h-[90vh] overflow-hidden cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {wallpapers.map((w, i) => (
-        <div
+        <Link
           key={w.id}
-          className={`absolute inset-0 transition-opacity duration-[2000ms] ease-in-out ${
-            i === current ? "opacity-100" : "opacity-0"
+          href={`/wallpaper/${w.id}`}
+          onClick={onSlideLinkClick}
+          className={`absolute inset-0 block transition-opacity duration-[2000ms] ease-in-out ${
+            i === current
+              ? "z-[2] opacity-100 pointer-events-auto"
+              : "z-[1] opacity-0 pointer-events-none"
           }`}
         >
           <Image
@@ -48,12 +90,12 @@ const Hero = ({ wallpapers }: HeroProps) => {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/0 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-l from-[#0a0a0a]/10 to-transparent" />
-        </div>
+        </Link>
       ))}
 
       {/* bottom right details */}
       <div
-        className={`absolute bottom-16 right-12 z-10 max-w-sm text-right transition-all duration-500 ${
+        className={`pointer-events-none absolute bottom-16 right-12 z-10 max-w-sm text-right transition-all duration-500 ${
           hovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
@@ -82,7 +124,7 @@ const Hero = ({ wallpapers }: HeroProps) => {
         </div>
         <Link
           href={`/wallpaper/${wallpaper.id}`}
-          className="mt-2 inline-flex items-center justify-center px-6 py-2.5 text-sm rounded-full border border-white/10 transition-opacity hover:opacity-90 cursor-pointer"
+          className="pointer-events-auto mt-2 inline-flex items-center justify-center px-6 py-2.5 text-sm rounded-full border border-white/10 transition-opacity hover:opacity-90 cursor-pointer"
           style={{
             backgroundColor: wallpaper.dominantColor,
             color: getContrastColor(wallpaper.dominantColor),

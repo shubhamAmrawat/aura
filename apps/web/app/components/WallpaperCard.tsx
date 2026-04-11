@@ -102,6 +102,7 @@ const WallpaperCard = ({ wallpaper, priority = false }: WallpaperCardProps) => {
         style={{ backgroundColor: wallpaper.dominantColor || "#1a1a1a" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onContextMenu={(e) => e.preventDefault()}
       >
         {/* aspect ratio container — reserves exact space before image loads */}
         <div style={{ paddingBottom: `${(1 / aspectRatio) * 100}%`, position: "relative" }}>
@@ -122,8 +123,13 @@ const WallpaperCard = ({ wallpaper, priority = false }: WallpaperCardProps) => {
             alt={wallpaper.title}
             fill
             sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-            className="object-cover transition-all duration-700 group-hover:scale-105"
-            style={{ opacity: loaded ? 1 : 0, transition: "opacity 0.4s ease, transform 0.7s ease" }}
+            className="object-cover group-hover:scale-105"
+            style={{
+              opacity: loaded ? 1 : 0,
+              transitionProperty: "opacity, transform, scale",
+              transitionDuration: "0.4s, 0.75s, 0.75s",
+              transitionTimingFunction: "ease, cubic-bezier(0.22, 1, 0.36, 1), cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
             loading={priority ? "eager" : "lazy"}
             priority={priority}
             onLoad={() => setLoaded(true)}
