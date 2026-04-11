@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default async function TrendingPage() {
   let wallpapers: Wallpaper[] = [];
   try {
-    wallpapers = await getWallpapers({ limit: 50 });
+    wallpapers = (await getWallpapers({ limit: 50 })).data;
   } catch {
     // render empty state on API error
   }

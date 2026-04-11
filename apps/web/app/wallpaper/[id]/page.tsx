@@ -100,7 +100,8 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
   ]);
 
   const wallpaper = wallpaperResult.status === "fulfilled" ? wallpaperResult.value : null;
-  const similarWallpapers = similarResult.status === "fulfilled" ? similarResult.value : [];
+  const similarWallpapers =
+    similarResult.status === "fulfilled" ? similarResult.value.data : [];
 
   if (!wallpaper) {
     return (

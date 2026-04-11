@@ -9,7 +9,6 @@ wallpaperRoutes.get("/", async (c) => {
   try {
     const featured = c.req.query("featured");
     const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
 
     let limit: number;
     if (limitParam === undefined || limitParam === "") {
@@ -19,13 +18,10 @@ wallpaperRoutes.get("/", async (c) => {
       limit = Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), 100) : 30;
     }
 
-    const offset =
-      offsetParam !== undefined && offsetParam !== ""
-        ? Math.max(0, Math.floor(Number(offsetParam)) || 0)
-        : 0;
-
     const categorySlug = c.req.query("category")?.trim();
     const q = c.req.query("q")?.trim();
+
+    const offset = Number(c.req.query("offset")) || 0;
 
     const conditions = [eq(wallpapers.status, "approved")];
     if (featured === "true") {
@@ -61,15 +57,14 @@ wallpaperRoutes.get("/", async (c) => {
       .from(wallpapers)
       .where(and(...conditions))
       .orderBy(desc(wallpapers.createdAt))
-      .limit(limit + 1)
+      .limit(limit)
       .offset(offset);
 
-    const hasMore = result.length > limit;
-    const data = hasMore ? result.slice(0, limit) : result;
+    const hasMore = result.length === limit;
 
     return c.json({
-      data,
-      count: data.length,
+      data: result,
+      count: result.length,
       hasMore,
     });
   } catch (error) {

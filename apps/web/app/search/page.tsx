@@ -40,7 +40,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   let wallpapers: Wallpaper[] = [];
   if (query) {
-    wallpapers = await getWallpapers({ q: query, limit: 100 }).catch(() => []);
+    const res = await getWallpapers({ q: query, limit: 100 }).catch(() => ({
+      data: [] as Wallpaper[],
+      hasMore: false,
+    }));
+    wallpapers = res.data;
   }
 
   // ── No query state ────────────────────────────────────────
