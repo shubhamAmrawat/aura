@@ -271,9 +271,13 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       return c.json({ error: "Invalid file key" }, 400);
     }
 
-    // run content moderation
-    console.log(`Running moderation for ${fileUrl}`);
-    const moderation = await checkImageSafety(fileUrl);
+  
+    // run moderation + metadata extraction in parallel — saves 3-4s
+    console.log("Running moderation + metadata extraction in parallel...");
+    const [moderation, metadata] = await Promise.all([
+      checkImageSafety(fileUrl),
+      extractImageMetadata(fileUrl),
+    ]);
 
     if (moderation.status === "rejected") {
       // delete the uploaded file from R2
@@ -288,8 +292,8 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       : fileType === "image/webp" ? "webp"
         : "jpeg";
 
-    console.log("Extracting image metadata...");
-    const metadata = await extractImageMetadata(fileUrl);
+    // console.log("Extracting image metadata...");
+    // const metadata = await extractImageMetadata(fileUrl);
     const finalWidth = metadata.width || clientW;
     const finalHeight = metadata.height || clientH;
 
@@ -443,9 +447,9 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
       tagList.length === 0
         ? sql`ARRAY[]::text[]`
         : sql`ARRAY[${sql.join(
-            tagList.map((t) => sql`${t}`),
-            sql`, `
-          )}]::text[]`;
+          tagList.map((t) => sql`${t}`),
+          sql`, `
+        )}]::text[]`;
 
     const categoryBonusSql =
       src.categoryId == null

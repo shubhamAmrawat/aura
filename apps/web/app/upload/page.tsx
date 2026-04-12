@@ -15,7 +15,50 @@ function meetsMinImageSize(width: number, height: number): boolean {
   return width >= MIN_IMAGE_DIMENSION && height >= MIN_IMAGE_DIMENSION;
 }
 
-type Progress = "idle" | "uploading" | "processing" | "done";
+type Progress = "idle" | "uploading" | "moderating" | "saving" | "done";
+
+const PROGRESS_STEPS: {
+  key: Progress;
+  label: string;
+  sublabel: string;
+}[] = [
+  {
+    key: "uploading",
+    label: "Uploading image",
+    sublabel: "Sending your wallpaper to secure storage",
+  },
+  {
+    key: "moderating",
+    label: "Safety check",
+    sublabel: "AI is reviewing your image for content policy",
+  },
+  {
+    key: "saving",
+    label: "Finalizing",
+    sublabel: "Extracting metadata and generating visual index",
+  },
+  {
+    key: "done",
+    label: "Complete",
+    sublabel: "Your wallpaper is live",
+  },
+];
+
+const STEP_INDEX: Record<Progress, number> = {
+  idle: -1,
+  uploading: 0,
+  moderating: 1,
+  saving: 2,
+  done: 3,
+};
+
+const PROGRESS_WIDTH: Record<Progress, string> = {
+  idle: "0%",
+  uploading: "20%",
+  moderating: "50%",
+  saving: "80%",
+  done: "100%",
+};
 
 type Category = { id: string; name: string; slug: string };
 
@@ -68,14 +111,6 @@ const inputBorder = (focused: boolean): CSSProperties => ({
   borderRadius: "0.75rem",
   outline: "none",
 });
-
-const PROGRESS_LABEL: Record<Progress, string> = {
-  idle: "",
-  uploading: "Uploading to storage…",
-  processing:
-    "Checking content, saving details, and building similarity search (this can take a little while)…",
-  done: "Done!",
-};
 
 /** DevTools: filter by `[AURA upload]` to trace presign → R2 PUT → submit. */
 function uploadLog(...args: unknown[]) {
@@ -361,14 +396,6 @@ export default function UploadPage() {
   };
 
   const busy = progress !== "idle";
-  const progressFillPct =
-    progress === "idle"
-      ? 0
-      : progress === "uploading"
-        ? 38
-        : progress === "processing"
-          ? 88
-          : 100;
 
   const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? null;
 
@@ -418,7 +445,7 @@ export default function UploadPage() {
       }
       uploadLog("step 2/3 storage: OK");
 
-      setProgress("processing");
+      setProgress("moderating");
       phase = "submit";
       uploadLog("step 3/3 submit: POST /api/wallpapers/upload", { key, fileUrlHost: safeUrlHost(fileUrl) });
       const result = await submitWallpaper({
@@ -784,22 +811,123 @@ export default function UploadPage() {
             )}
 
             {progress !== "idle" && (
-              <div className="space-y-2 py-1">
-                <div
-                  className="h-2 rounded-full overflow-hidden"
-                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
-                >
+              <div
+                className="rounded-2xl overflow-hidden mt-2"
+                style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}
+              >
+                {/* animated progress bar at top */}
+                <div className="h-0.5 w-full" style={{ background: "var(--bg-primary)" }}>
                   <div
-                    className="h-full rounded-full transition-[width] duration-500 ease-out"
+                    className="h-full"
                     style={{
-                      width: `${progressFillPct}%`,
-                      background: "var(--accent)",
+                      background: "linear-gradient(90deg, var(--accent), rgba(64,192,87,0.6))",
+                      width: PROGRESS_WIDTH[progress],
+                      transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
                     }}
                   />
                 </div>
-                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  {PROGRESS_LABEL[progress]}
-                </p>
+
+                {/* steps */}
+                <div className="p-4 flex flex-col gap-2.5">
+                  {PROGRESS_STEPS.map((step, i) => {
+                    const activeIndex = STEP_INDEX[progress];
+                    const isActive = i === activeIndex;
+                    const isCompleted = progress === "done" || i < activeIndex;
+                    const isPending = !isActive && !isCompleted;
+
+                    return (
+                      <div
+                        key={step.key}
+                        className="flex items-center gap-3 transition-all duration-300"
+                        style={{ opacity: isPending ? 0.35 : 1 }}
+                      >
+                        {/* step indicator */}
+                        <div
+                          className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                          style={{
+                            background: isCompleted
+                              ? "var(--accent)"
+                              : isActive
+                                ? "transparent"
+                                : "transparent",
+                            border: isCompleted
+                              ? "none"
+                              : isActive
+                                ? "1.5px solid var(--accent)"
+                                : "1.5px solid var(--border)",
+                          }}
+                        >
+                          {isCompleted ? (
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="var(--bg-primary)"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : isActive ? (
+                            <div
+                              className="w-2.5 h-2.5 rounded-full border-2 animate-spin"
+                              style={{
+                                borderColor: "rgba(64,192,87,0.25)",
+                                borderTopColor: "var(--accent)",
+                              }}
+                            />
+                          ) : (
+                            <span
+                              className="text-[9px] font-semibold"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {i + 1}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* text */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-xs font-medium"
+                              style={{
+                                color: isCompleted
+                                  ? "var(--accent)"
+                                  : isActive
+                                    ? "var(--text-primary)"
+                                    : "var(--text-muted)",
+                              }}
+                            >
+                              {step.label}
+                            </span>
+                            {isActive && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded-full"
+                                style={{
+                                  background: "rgba(64,192,87,0.12)",
+                                  color: "var(--accent)",
+                                }}
+                              >
+                                in progress
+                              </span>
+                            )}
+                          </div>
+                          {isActive && (
+                            <p
+                              className="text-[10px] mt-0.5 leading-relaxed"
+                              style={{ color: "var(--text-muted)" }}
+                            >
+                              {step.sublabel}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -810,7 +938,7 @@ export default function UploadPage() {
                 className="px-6 py-2.5 rounded-[5px] text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 disabled:opacity-40"
                 style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
               >
-                {progress === "done" ? "Done!" : "Upload Wallpaper"}
+                {busy ? (progress === "done" ? "Done!" : "Processing…") : "Upload Wallpaper"}
               </button>
             </div>
           </div>
