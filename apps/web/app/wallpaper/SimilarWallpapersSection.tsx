@@ -156,14 +156,14 @@ export function SimilarWallpapersSection({
             Similar Vibes
           </h2>
           <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-            Visually similar wallpapers · powered by AI
+            Visually similar wallpapers from our collection
           </p>
         </div>
 
-        <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
+        {/* <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
           {rows.length} wallpaper{rows.length !== 1 ? "s" : ""} loaded
           {hasMore ? " — more available" : ""}
-        </p>
+        </p> */}
 
         <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
           {mapped.map((w, index) => (
