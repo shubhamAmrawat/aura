@@ -131,6 +131,12 @@ export default function UploadPage() {
 
   const [focusField, setFocusField] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [categoryHighlightIndex, setCategoryHighlightIndex] = useState(0);
+  const categoryMenuRef = useRef<HTMLDivElement>(null);
+  const categoryTriggerRef = useRef<HTMLButtonElement>(null);
+  const categoryListboxRef = useRef<HTMLDivElement>(null);
+  const categoryOpenIntentRef = useRef<"default" | "last">("default");
 
   const [error, setError] = useState<string | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -163,6 +169,120 @@ export default function UploadPage() {
       cancelled = true;
     };
   }, []);
+
+  const closeCategoryMenu = useCallback((opts?: { focusTrigger?: boolean }) => {
+    setCategoryMenuOpen(false);
+    setCategoryHighlightIndex(0);
+    if (opts?.focusTrigger) categoryTriggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!categoryMenuOpen || categoriesLoading || categories.length === 0) return;
+    const intent = categoryOpenIntentRef.current;
+    categoryOpenIntentRef.current = "default";
+    let idx = categories.findIndex((c) => c.id === categoryId);
+    if (intent === "last") idx = categories.length - 1;
+    else if (idx < 0) idx = 0;
+    setCategoryHighlightIndex(idx);
+  }, [categoryMenuOpen, categoriesLoading, categories, categoryId]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen || categoriesLoading || categories.length === 0) return;
+    categoryListboxRef.current?.focus({ preventScroll: true });
+  }, [categoryMenuOpen, categoriesLoading, categories.length]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen || categories.length === 0) return;
+    const idx = Math.min(Math.max(0, categoryHighlightIndex), categories.length - 1);
+    const id = categories[idx]?.id;
+    if (!id) return;
+    document.getElementById(`upload-cat-option-${id}`)?.scrollIntoView({ block: "nearest" });
+  }, [categoryMenuOpen, categoryHighlightIndex, categories]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const root = categoryMenuRef.current;
+      if (root && !root.contains(e.target as Node)) closeCategoryMenu();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (categoryListboxRef.current?.contains(document.activeElement)) return;
+      closeCategoryMenu();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [categoryMenuOpen, closeCategoryMenu]);
+
+  const onCategoryTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (categoriesLoading || busy || categories.length === 0) return;
+    if (e.key === "ArrowDown" && !categoryMenuOpen) {
+      e.preventDefault();
+      categoryOpenIntentRef.current = "default";
+      setCategoryMenuOpen(true);
+      return;
+    }
+    if (e.key === "ArrowUp" && !categoryMenuOpen) {
+      e.preventDefault();
+      categoryOpenIntentRef.current = "last";
+      setCategoryMenuOpen(true);
+    }
+  };
+
+  const onCategoryListboxKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (categories.length === 0) return;
+    const last = categories.length - 1;
+
+    switch (e.key) {
+      case "ArrowDown": {
+        e.preventDefault();
+        setCategoryHighlightIndex((i) => Math.min(last, i + 1));
+        break;
+      }
+      case "ArrowUp": {
+        e.preventDefault();
+        setCategoryHighlightIndex((i) => Math.max(0, i - 1));
+        break;
+      }
+      case "Home": {
+        e.preventDefault();
+        setCategoryHighlightIndex(0);
+        break;
+      }
+      case "End": {
+        e.preventDefault();
+        setCategoryHighlightIndex(last);
+        break;
+      }
+      case "Enter":
+      case " ": {
+        e.preventDefault();
+        const idx = Math.min(Math.max(0, categoryHighlightIndex), last);
+        const c = categories[idx];
+        if (c) {
+          setCategoryId(c.id);
+          closeCategoryMenu({ focusTrigger: true });
+        }
+        break;
+      }
+      case "Escape": {
+        e.preventDefault();
+        e.stopPropagation();
+        closeCategoryMenu({ focusTrigger: true });
+        break;
+      }
+      case "Tab": {
+        closeCategoryMenu();
+        break;
+      }
+      default:
+        break;
+    }
+  };
 
   const clearFile = useCallback(() => {
     setPreviewUrl((prev) => {
@@ -241,6 +361,19 @@ export default function UploadPage() {
   };
 
   const busy = progress !== "idle";
+  const progressFillPct =
+    progress === "idle"
+      ? 0
+      : progress === "uploading"
+        ? 38
+        : progress === "moderating"
+          ? 72
+          : progress === "saving"
+            ? 92
+            : 100;
+
+  const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? null;
+
   const canSubmit =
     !busy &&
     !pendingMessage &&
@@ -255,6 +388,7 @@ export default function UploadPage() {
 
     setError(null);
     setPendingMessage(null);
+    closeCategoryMenu();
     setProgress("uploading");
 
     let phase: UploadPhase = "presign";
@@ -341,8 +475,19 @@ export default function UploadPage() {
 
   if (!loaded || !user || !user.isCreator) {
     return (
-      <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
-        <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }} />
+      <main className="min-h-screen flex flex-col items-center justify-center gap-4 px-6" style={{ background: "var(--bg-primary)" }}>
+        <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+          Loading
+        </p>
+        <div
+          className="w-full max-w-[200px] h-1 rounded-full overflow-hidden"
+          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+        >
+          <div
+            className="h-full rounded-full w-[35%] animate-[upload-bar-indeterminate_1.1s_ease-in-out_infinite]"
+            style={{ background: "var(--accent)" }}
+          />
+        </div>
       </main>
     );
   }
@@ -479,25 +624,112 @@ export default function UploadPage() {
               <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{description.length}/500</p>
             </div>
 
-            <div>
+            <div ref={categoryMenuRef} className="relative">
               <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
                 Category <span style={{ color: "var(--accent)" }}>*</span>
               </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+              <button
+                ref={categoryTriggerRef}
+                type="button"
+                id="upload-category-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={categoryMenuOpen ? "true" : "false"}
+                aria-controls="upload-category-listbox"
+                disabled={categoriesLoading || busy}
+                onClick={() => {
+                  setCategoryMenuOpen((open) => {
+                    if (open) {
+                      setCategoryHighlightIndex(0);
+                      return false;
+                    }
+                    categoryOpenIntentRef.current = "default";
+                    return true;
+                  });
+                }}
+                onKeyDown={onCategoryTriggerKeyDown}
                 onFocus={() => setFocusField("cat")}
                 onBlur={() => setFocusField(null)}
-                disabled={categoriesLoading}
-                aria-label="Wallpaper category"
-                className="w-full px-3 py-2.5 text-sm transition-colors"
-                style={inputBorder(focusField === "cat")}
+                className="w-full px-3 py-2.5 text-sm text-left flex items-center justify-between gap-2 transition-colors disabled:opacity-50"
+                style={inputBorder(focusField === "cat" || categoryMenuOpen)}
               >
-                <option value="">{categoriesLoading ? "Loading categories…" : "Select a category"}</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                <span style={{ color: selectedCategoryName ? "var(--text-primary)" : "var(--text-muted)" }}>
+                  {categoriesLoading ? "Loading categories…" : selectedCategoryName ?? "Select a category"}
+                </span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--text-muted)"
+                  strokeWidth="2"
+                  className={`shrink-0 transition-transform ${categoryMenuOpen ? "rotate-180" : ""}`}
+                  aria-hidden
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {categoryMenuOpen && !categoriesLoading && (
+                <div
+                  ref={categoryListboxRef}
+                  id="upload-category-listbox"
+                  role="listbox"
+                  tabIndex={-1}
+                  aria-labelledby="upload-category-trigger"
+                  aria-activedescendant={
+                    categories.length > 0
+                      ? `upload-cat-option-${categories[Math.min(categoryHighlightIndex, categories.length - 1)]!.id}`
+                      : undefined
+                  }
+                  onKeyDown={onCategoryListboxKeyDown}
+                  className="absolute z-50 left-0 right-0 mt-1 py-1 rounded-xl shadow-lg overflow-y-auto upload-category-scroll outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
+                  style={{
+                    maxHeight: "min(16rem, calc(100vh - 12rem))",
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+                  }}
+                >
+                  {categories.length === 0 ? (
+                    <div
+                      role="option"
+                      aria-selected="false"
+                      aria-disabled="true"
+                      className="px-3 py-2.5 text-sm cursor-default"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      No categories available
+                    </div>
+                  ) : (
+                    categories.map((c, i) => {
+                      const selected = c.id === categoryId;
+                      const hi = Math.min(Math.max(0, categoryHighlightIndex), categories.length - 1);
+                      const activeDesc = i === hi;
+                      return (
+                        <div
+                          key={c.id}
+                          id={`upload-cat-option-${c.id}`}
+                          role="option"
+                          aria-selected={selected ? "true" : "false"}
+                          className="w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer hover:bg-white/[0.04]"
+                          style={{
+                            background: selected ? "var(--accent-muted)" : "transparent",
+                            color: "var(--text-primary)",
+                            boxShadow: activeDesc ? "inset 0 0 0 1px var(--accent)" : undefined,
+                          }}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() => setCategoryHighlightIndex(i)}
+                          onClick={() => {
+                            setCategoryId(c.id);
+                            closeCategoryMenu();
+                          }}
+                        >
+                          {c.name}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -557,33 +789,34 @@ export default function UploadPage() {
             )}
 
             {progress !== "idle" && (
-              <div className="flex items-center gap-3 py-1">
+              <div className="space-y-2 py-1">
                 <div
-                  className="w-5 h-5 rounded-full border-2 animate-spin flex-shrink-0"
-                  style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
-                />
-                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  className="h-2 rounded-full overflow-hidden"
+                  style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500 ease-out"
+                    style={{
+                      width: `${progressFillPct}%`,
+                      background: "var(--accent)",
+                    }}
+                  />
+                </div>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {PROGRESS_LABEL[progress]}
-                </span>
+                </p>
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3 pt-2">
+            <div className="pt-2">
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="px-6 py-2.5 rounded-full text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 disabled:opacity-40"
+                className="px-6 py-2.5 rounded-[5px] text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 disabled:opacity-40"
                 style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
               >
                 {progress === "done" ? "Done!" : "Upload Wallpaper"}
               </button>
-              <Link
-                href="/"
-                className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
-                style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-              >
-                Cancel
-              </Link>
             </div>
           </div>
         </form>

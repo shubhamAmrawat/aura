@@ -10,7 +10,7 @@
   /* text */
   --text-primary: #f5f0eb;
   --text-secondary: #888888;
-  --text-muted: #444444;
+  --text-muted: #727070;
 
   /* accent — change this one line to switch the whole app */
   --accent: #40C057;
@@ -89,6 +89,26 @@ body {
   100% {
     transform: translateX(400%);
   }
+}
+
+@keyframes upload-bar-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.upload-category-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.upload-category-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 img {

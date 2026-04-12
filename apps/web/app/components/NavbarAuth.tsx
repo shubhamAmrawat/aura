@@ -40,7 +40,7 @@ const NavbarAuth = () => {
       {user?.isCreator && (
         <Link
           href="/upload"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:opacity-80"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-all hover:opacity-80"
           style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
           title="Upload wallpaper"
         >
