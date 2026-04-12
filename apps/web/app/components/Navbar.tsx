@@ -12,6 +12,44 @@ interface Category {
   slug: string;
 }
 
+/** Shared stroke icon shell — matches NavbarAuth / existing nav SVG style */
+const navIconSvgProps = {
+  width: 20,
+  height: 20,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.75,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+};
+
+const IconLayoutGrid = () => (
+  <svg {...navIconSvgProps} aria-hidden>
+    <rect width="7" height="7" x="3" y="3" rx="1" />
+    <rect width="7" height="7" x="14" y="3" rx="1" />
+    <rect width="7" height="7" x="14" y="14" rx="1" />
+    <rect width="7" height="7" x="3" y="14" rx="1" />
+  </svg>
+);
+
+const IconClock = () => (
+  <svg {...navIconSvgProps} aria-hidden>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const IconTrendingUp = () => (
+  <svg {...navIconSvgProps} aria-hidden>
+    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+    <polyline points="16 7 22 7 22 13" />
+  </svg>
+);
+
+const navIconBtnClass =
+  "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(10,10,10,0.92)]";
+
 // Extracted pill so hover state is tracked per item without inline handlers
 const CategoryPill = ({
   cat,
@@ -43,16 +81,15 @@ const Navbar = () => {
   const [catOpen, setCatOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [catLoading, setCatLoading] = useState(true);
+  const [catLoading, setCatLoading] = useState(() =>
+    Boolean(process.env.NEXT_PUBLIC_API_URL),
+  );
   const catRef = useRef<HTMLDivElement>(null);
 
   // Fetch categories immediately on mount so the dropdown is ready when opened
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) {
-      setCatLoading(false);
-      return;
-    }
+    if (!apiUrl) return;
     fetch(`${apiUrl}/api/categories`, { credentials: "include" })
       .then((r) => r.json())
       .then((json) => setCategories(json.data ?? []))
@@ -83,30 +120,38 @@ const Navbar = () => {
     >
       <Logo size="sm" />
 
-      {/* Centre: Categories dropdown + Latest + Trending */}
-      <div className="hidden md:flex items-center gap-8">
+      {/* True viewport center — absolute so uneven left/right widths don't pull the cluster left */}
+      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 hidden -translate-x-1/2 md:flex md:items-center">
+        <div className="pointer-events-auto flex items-center gap-1">
 
         {/* Categories dropdown trigger + panel */}
         <div ref={catRef} className="relative">
           <button
+            type="button"
             onClick={() => setCatOpen((v) => !v)}
             aria-expanded={catOpen}
-            aria-label="Toggle categories menu"
-            className="flex items-center gap-1.5 text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
-            style={{ color: catOpen ? "var(--accent)" : "var(--text-secondary)" }}
+            aria-label="Categories"
+            title="Categories"
+            className={`${navIconBtnClass} gap-0.5 px-1.5 w-auto min-w-10 hover:text-white ${
+              catOpen ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
+            }`}
           >
-            Categories
+            <IconLayoutGrid />
             <svg
-              width="12"
-              height="12"
+              width="10"
+              height="10"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="opacity-70 shrink-0"
               style={{
                 transition: "transform 0.2s ease",
                 transform: catOpen ? "rotate(180deg)" : "rotate(0deg)",
               }}
+              aria-hidden
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
@@ -131,7 +176,6 @@ const Navbar = () => {
             }}
           >
             {catLoading ? (
-              // Skeleton pills while fetching
               <div className="grid grid-cols-3 gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
@@ -162,21 +206,23 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Latest + Trending */}
         <Link
           href="/latest"
-          className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
-          style={{ color: "var(--text-secondary)" }}
+          aria-label="Latest wallpapers"
+          title="Latest"
+          className={`${navIconBtnClass} text-[var(--text-secondary)]`}
         >
-          Latest
+          <IconClock />
         </Link>
         <Link
           href="/trending"
-          className="text-sm font-medium tracking-widest uppercase transition-colors duration-200 hover:text-white"
-          style={{ color: "var(--text-secondary)" }}
+          aria-label="Trending wallpapers"
+          title="Trending"
+          className={`${navIconBtnClass} text-[var(--text-secondary)]`}
         >
-          Trending
+          <IconTrendingUp />
         </Link>
+        </div>
       </div>
 
       {/* Right: Search + Auth + Hamburger */}
@@ -245,23 +291,26 @@ const Navbar = () => {
         {/* divider */}
         <div className="my-4" style={{ borderTop: "1px solid var(--border)" }} />
 
-        {/* latest + trending */}
-        <Link
-          href="/latest"
-          onClick={() => setMobileOpen(false)}
-          className="flex items-center w-full py-2 text-sm font-medium tracking-widest uppercase transition-opacity hover:opacity-70"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          Latest
-        </Link>
-        <Link
-          href="/trending"
-          onClick={() => setMobileOpen(false)}
-          className="flex items-center w-full py-2 text-sm font-medium tracking-widest uppercase transition-opacity hover:opacity-70"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          Trending
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/latest"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Latest wallpapers"
+            title="Latest"
+            className={`${navIconBtnClass} text-[var(--text-secondary)]`}
+          >
+            <IconClock />
+          </Link>
+          <Link
+            href="/trending"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Trending wallpapers"
+            title="Trending"
+            className={`${navIconBtnClass} text-[var(--text-secondary)]`}
+          >
+            <IconTrendingUp />
+          </Link>
+        </div>
       </div>
     )}
   </>
