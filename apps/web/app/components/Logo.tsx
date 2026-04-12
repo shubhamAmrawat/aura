@@ -2,19 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 
 interface LogoProps {
-  size?: "sm" | "md" | "lg";
   href?: string;
   showTagline?: boolean;
 }
 
-// const sizes = {
-//   sm: "text-md tracking-[0.25em]",
-//   md: "text-2xl tracking-[0.3em]",
-//   lg: "text-4xl tracking-[0.35em]",
-// };
-
-
-const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
+const Logo = ({ href = "/", showTagline = false }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
       <Image
@@ -25,12 +17,6 @@ const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
         className="shrink-0"
         priority
       />
-      {/* <span
-        className={`font-bold ${sizes[size]}`}
-        style={{ color: 'var(--accent)' }}
-      >
-        AURA
-      </span> */}
       {showTagline && (
         <span
           className="text-[10px] tracking-[0.4em] uppercase mt-0.5"

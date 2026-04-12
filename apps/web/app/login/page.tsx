@@ -146,7 +146,7 @@ export default function LoginPage() {
           }}
         />
         <div className="absolute inset-0 flex flex-col justify-between p-12 z-10">
-          <Logo size="md" href="/" />
+          <Logo href="/" />
           <div className="max-w-xs">
             <p
               className="text-xl font-light leading-relaxed mb-3"
@@ -173,7 +173,7 @@ export default function LoginPage() {
         {/* top bar — back link */}
         <div className="flex items-center justify-between px-10 py-5">
           <div className="lg:hidden">
-            <Logo size="sm" href="/" />
+            <Logo href="/" />
           </div>
           <div className="lg:ml-auto">
             <Link
@@ -464,7 +464,7 @@ export default function LoginPage() {
           className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6"
           style={{ background: "var(--bg-primary)" }}
         >
-          <Logo size="md" href="/" />
+          <Logo href="/" />
 
           {/* sliding accent bar */}
           <div
