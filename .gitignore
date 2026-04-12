@@ -9,3 +9,8 @@ dist
 packages/db/src/seed.ts
 packages/db/src/migrate-to-r2.ts
 packages/db/src/generate-embeddings.ts
+
+# Xenova / @xenova/transformers model cache (large ONNX weights — never commit)
+.cache/
+packages/db/.cache/
+services/api/.cache/
