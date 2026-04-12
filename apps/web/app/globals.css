@@ -100,6 +100,17 @@ body {
   }
 }
 
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .upload-category-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -109,6 +120,15 @@ body {
   display: none;
   width: 0;
   height: 0;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 img {

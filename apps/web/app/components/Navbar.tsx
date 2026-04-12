@@ -65,7 +65,7 @@ const CategoryPill = ({
       onClick={onClose}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="text-xs px-4 py-2 rounded-full text-center border transition-all duration-150"
+      className="text-xs px-5 py-2 rounded-full text-center border transition-all duration-150 flex-shrink-0 whitespace-nowrap"
       style={{
         background: hovered ? "var(--accent)" : "transparent",
         color: hovered ? "var(--bg-primary)" : "var(--text-secondary)",
@@ -84,7 +84,9 @@ const Navbar = () => {
   const [catLoading, setCatLoading] = useState(() =>
     Boolean(process.env.NEXT_PUBLIC_API_URL),
   );
+  const [megaScrolled, setMegaScrolled] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
+  const megaMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch categories immediately on mount so the dropdown is ready when opened
   useEffect(() => {
@@ -97,16 +99,35 @@ const Navbar = () => {
       .finally(() => setCatLoading(false));
   }, []);
 
-  // Close dropdown when clicking outside the trigger + panel
+  // Close mega menu when clicking outside the trigger + panel, or on Escape
   useEffect(() => {
     if (!catOpen) return;
     const handler = (e: MouseEvent) => {
-      if (catRef.current && !catRef.current.contains(e.target as Node)) {
-        setCatOpen(false);
-      }
+      const t = e.target as Node;
+      if (catRef.current?.contains(t)) return;
+      if (megaMenuRef.current?.contains(t)) return;
+      setCatOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCatOpen(false);
     };
     document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [catOpen]);
+
+  useEffect(() => {
+    if (!catOpen) return;
+    const onScroll = () => setMegaScrolled(window.scrollY > 12);
+    const raf = requestAnimationFrame(() => onScroll());
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [catOpen]);
 
   return (
@@ -156,54 +177,6 @@ const Navbar = () => {
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
-
-          {/* Dropdown panel — absolute, anchored to the button */}
-          <div
-            className="absolute top-full mt-4 w-[560px] max-w-[90vw] rounded-2xl p-5"
-            style={{
-              left: "50%",
-              background: "rgba(16,16,16,0.97)",
-              border: "1px solid var(--border)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
-              backdropFilter: "blur(24px)",
-              opacity: catOpen ? 1 : 0,
-              transform: catOpen
-                ? "translateX(-50%) translateY(0)"
-                : "translateX(-50%) translateY(-8px)",
-              transition: "opacity 0.18s ease, transform 0.18s ease",
-              pointerEvents: catOpen ? "auto" : "none",
-              zIndex: 50,
-            }}
-          >
-            {catLoading ? (
-              <div className="grid grid-cols-3 gap-2">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-8 rounded-full animate-pulse"
-                    style={{ background: "var(--bg-elevated)" }}
-                  />
-                ))}
-              </div>
-            ) : categories.length === 0 ? (
-              <p
-                className="text-xs text-center py-3"
-                style={{ color: "var(--text-muted)" }}
-              >
-                No categories available.
-              </p>
-            ) : (
-              <div className="grid grid-cols-3 lg:grid-cols-4 gap-2">
-                {categories.map((cat) => (
-                  <CategoryPill
-                    key={cat.id}
-                    cat={cat}
-                    onClose={() => setCatOpen(false)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <Link
@@ -249,6 +222,60 @@ const Navbar = () => {
         </button>
       </div>
     </nav>
+
+    {catOpen && (
+      <div className="hidden md:block">
+        <div
+          className="fixed inset-0 z-30"
+          onClick={() => setCatOpen(false)}
+        />
+        <div
+          ref={megaMenuRef}
+          className="fixed inset-x-0 top-[50px] z-40 w-full border-b border-[var(--border)] backdrop-blur-md transition-[background,box-shadow] duration-200 ease-out"
+          style={{
+            marginTop: "-1px",
+            background: megaScrolled
+              ? "rgba(10,10,10,0.78)"
+              : "rgba(10,10,10,0.92)",
+            boxShadow: megaScrolled
+              ? "0 4px 24px rgba(0,0,0,0.25)"
+              : "0 8px 32px rgba(0,0,0,0.35)",
+            animation: "slideDown 0.18s ease forwards",
+          }}
+        >
+          <div className="w-full px-12 pb-3 pt-2">
+            <p
+              className="text-[10px] tracking-widest uppercase mb-2"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Browse by category
+            </p>
+
+            {catLoading ? (
+              <div className="flex w-full flex-wrap gap-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-8 w-24 shrink-0 rounded-full animate-pulse"
+                    style={{ background: "var(--bg-elevated)" }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex w-full flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <CategoryPill
+                    key={cat.id}
+                    cat={cat}
+                    onClose={() => setCatOpen(false)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* Mobile drawer — shown below navbar when hamburger is open */}
     {mobileOpen && (
