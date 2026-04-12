@@ -421,43 +421,75 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
     const offset = Math.max(0, Math.floor(Number(c.req.query("offset")) || 0));
     const fetchCount = pageLimit + 1;
 
-    // get the source wallpaper's embedding
     const source = await db
-      .select({
-        id: wallpapers.id,
-        embedding: wallpapers.embedding,
-      })
+      .select()
       .from(wallpapers)
       .where(eq(wallpapers.id, id))
       .limit(1);
 
-    if (!source[0]) {
-      return c.json({ error: "Wallpaper not found" }, 404);
-    }
+    if (!source[0]) return c.json({ error: "Wallpaper not found" }, 404);
 
-    if (!source[0].embedding) {
+    const src = source[0];
+
+    if (!src.embedding) {
       return c.json({ data: [], hasMore: false });
     }
 
-    const embeddingStr = `[${source[0].embedding.join(",")}]`;
+    const embeddingStr = `[${src.embedding.join(",")}]`;
 
-    // <=> is pgvector cosine distance; fetch one extra row to compute hasMore
-    const raw = await db.execute(sql`
+    // JS string[] must become SQL text[] — binding ${src.tags} alone sends a scalar string (22P02).
+    const tagList = src.tags ?? [];
+    const sourceTagsSql =
+      tagList.length === 0
+        ? sql`ARRAY[]::text[]`
+        : sql`ARRAY[${sql.join(
+            tagList.map((t) => sql`${t}`),
+            sql`, `
+          )}]::text[]`;
+
+    const categoryBonusSql =
+      src.categoryId == null
+        ? sql`0`
+        : sql`CASE WHEN category_id = ${src.categoryId}::uuid THEN 0.15 ELSE 0 END`;
+
+    // hybrid scoring: CLIP similarity + category bonus + tag overlap
+    const similar = await db.execute(sql`
       SELECT 
         id, title, file_url, blurhash, dominant_color,
         width, height, like_count, download_count,
-        1 - (embedding <=> ${embeddingStr}::vector) AS similarity
+        category_id, tags,
+        (1 - (embedding <=> ${embeddingStr}::vector)) AS clip_score,
+        ${categoryBonusSql} AS category_bonus,
+        (
+          (1 - (embedding <=> ${embeddingStr}::vector)) * 0.75 +
+          ${categoryBonusSql} +
+          (
+            CARDINALITY(ARRAY(
+              SELECT UNNEST(tags::text[])
+              INTERSECT
+              SELECT UNNEST(${sourceTagsSql})
+            ))::float /
+            GREATEST(
+              CARDINALITY(ARRAY(
+                SELECT UNNEST(tags::text[])
+                UNION
+                SELECT UNNEST(${sourceTagsSql})
+              )),
+              1
+            )
+          ) * 0.10
+        ) AS hybrid_score
       FROM wallpapers
       WHERE 
         status = 'approved'
         AND id != ${id}
         AND embedding IS NOT NULL
-      ORDER BY embedding <=> ${embeddingStr}::vector
+      ORDER BY hybrid_score DESC
       LIMIT ${fetchCount}
       OFFSET ${offset}
     `);
 
-    const rows = [...raw];
+    const rows = [...similar];
     const hasMore = rows.length > pageLimit;
     const data = hasMore ? rows.slice(0, pageLimit) : rows;
 
