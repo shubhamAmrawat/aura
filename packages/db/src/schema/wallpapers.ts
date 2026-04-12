@@ -7,8 +7,10 @@ import {
   timestamp,
   pgEnum,
   jsonb,
+  real,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
+
 
 export const wallpaperStatusEnum = pgEnum("wallpaper_status", [
   "pending",
@@ -54,6 +56,7 @@ export const wallpapers = pgTable("wallpapers", {
   downloadCount: integer("download_count").notNull().default(0),
   likeCount: integer("like_count").notNull().default(0),
   viewCount: integer("view_count").notNull().default(0),
+  trendingScore: real("trending_score").notNull().default(0),
   status: wallpaperStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

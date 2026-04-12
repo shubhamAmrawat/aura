@@ -325,6 +325,54 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
     return c.json({ error: "Failed to upload wallpaper" }, 500);
   }
 });
+wallpaperRoutes.get("/trending", async (c) => {
+  try {
+    const limit = Math.min(Number(c.req.query("limit")) || 50, 100);
+    const offset = Number(c.req.query("offset")) || 0;
+
+    const result = await db
+      .select()
+      .from(wallpapers)
+      .where(eq(wallpapers.status, "approved"))
+      .orderBy(desc(wallpapers.trendingScore))
+      .limit(limit)
+      .offset(offset);
+
+    const hasMore = result.length === limit;
+
+    return c.json({
+      data: result,
+      count: result.length,
+      hasMore,
+    });
+  } catch (error) {
+    console.error("Trending error:", error);
+    return c.json({ error: "Failed to fetch trending wallpapers" }, 500);
+  }
+});
+
+// POST /api/wallpapers/trending/recalculate — manual trigger
+wallpaperRoutes.post("/trending/recalculate", async (c) => {
+  try {
+    // simple secret check — not full auth, just protection
+    const secret = c.req.header("X-Admin-Secret");
+    if (secret !== process.env.ADMIN_SECRET) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { recalculateTrendingScores } = await import("../lib/trending");
+    const result = await recalculateTrendingScores();
+
+    return c.json({
+      message: "Trending scores recalculated",
+      ...result,
+    });
+  } catch (error) {
+    console.error("Recalculate error:", error);
+    return c.json({ error: "Failed to recalculate" }, 500);
+  }
+});
+
 // GET /api/wallpapers/:id — get single wallpaper
 wallpaperRoutes.get("/:id", async (c) => {
   try {

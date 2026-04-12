@@ -8,6 +8,7 @@ import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profile";
 import { likesRoutes } from "./routes/likes";
 import { collectionsRoutes } from "./routes/collections";
+import { startScheduler } from "./lib/scheduler";
 
 const app = new Hono();
 
@@ -45,4 +46,6 @@ serve({
   hostname: "0.0.0.0",
 }, (info) => {
   console.log(`API running at http://0.0.0.0:${info.port}`);
+  
+  startScheduler(); // start trending score scheduler
 });

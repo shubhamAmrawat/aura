@@ -134,3 +134,18 @@ export async function becomeCreator(): Promise<{ user: any }> {
   if (!res.ok) throw new Error(data.error || "Failed");
   return data;
 }
+
+export async function getTrendingWallpapers(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: Wallpaper[]; hasMore: boolean }> {
+  const url = new URL(`${getApiUrl()}/api/wallpapers/trending`);
+  if (params?.limit) url.searchParams.set("limit", String(params.limit));
+  if (params?.offset) url.searchParams.set("offset", String(params.offset));
+
+  const json = await fetchJsonOrThrow<{ data: Wallpaper[]; hasMore?: boolean }>(
+    url.toString(),
+    { cache: "no-store" }
+  );
+  return { data: json.data, hasMore: Boolean(json.hasMore) };
+}

@@ -8,5 +8,10 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "src/seed.ts",
+    "src/migrate-to-r2.ts",
+    "dist"
+  ]
 }
