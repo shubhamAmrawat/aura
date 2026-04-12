@@ -7,11 +7,11 @@ interface LogoProps {
   showTagline?: boolean;
 }
 
-const sizes = {
-  sm: "text-md tracking-[0.25em]",
-  md: "text-2xl tracking-[0.3em]",
-  lg: "text-4xl tracking-[0.35em]",
-};
+// const sizes = {
+//   sm: "text-md tracking-[0.25em]",
+//   md: "text-2xl tracking-[0.3em]",
+//   lg: "text-4xl tracking-[0.35em]",
+// };
 
 
 const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
