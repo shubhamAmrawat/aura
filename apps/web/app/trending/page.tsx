@@ -1,6 +1,4 @@
 import { getTrendingWallpapers } from "@/lib/api";
-import { Wallpaper } from "@aura/types";
-import Link from "next/link";
 import TrendingGrid from "./TrendingGrid";
 
 export default async function TrendingPage() {
