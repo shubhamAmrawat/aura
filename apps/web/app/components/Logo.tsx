@@ -18,7 +18,7 @@ const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
       <Image
-        src="/1.png"
+        src="/logo_122.png"
         alt="AURA"
         width={30}
         height={30}
