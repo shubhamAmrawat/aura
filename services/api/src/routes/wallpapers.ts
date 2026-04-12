@@ -8,6 +8,29 @@ import { generateUploadUrl, deleteFile } from "../lib/r2";
 import { authMiddleware } from "../middleware/auth";
 
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
+// define reusable column selection for list views
+const wallpaperListSelect = {
+  id: wallpapers.id,
+  title: wallpapers.title,
+  fileUrl: wallpapers.fileUrl,
+  blurhash: wallpapers.blurhash,
+  dominantColor: wallpapers.dominantColor,
+  palette: wallpapers.palette,
+  width: wallpapers.width,
+  height: wallpapers.height,
+  likeCount: wallpapers.likeCount,
+  downloadCount: wallpapers.downloadCount,
+  viewCount: wallpapers.viewCount,
+  trendingScore: wallpapers.trendingScore,
+  isFeatured: wallpapers.isFeatured,
+  isPremium: wallpapers.isPremium,
+  tags: wallpapers.tags,
+  categoryId: wallpapers.categoryId,
+  status: wallpapers.status,
+  createdAt: wallpapers.createdAt,
+  format: wallpapers.format,
+  fileSizeBytes: wallpapers.fileSizeBytes,
+};
 
 async function extractImageMetadata(fileUrl: string): Promise<{
   dominantColor: string;
@@ -160,7 +183,7 @@ wallpaperRoutes.get("/", async (c) => {
     }
 
     const result = await db
-      .select()
+      .select(wallpaperListSelect)
       .from(wallpapers)
       .where(and(...conditions))
       .orderBy(desc(wallpapers.createdAt))
@@ -331,7 +354,7 @@ wallpaperRoutes.get("/trending", async (c) => {
     const offset = Number(c.req.query("offset")) || 0;
 
     const result = await db
-      .select()
+      .select(wallpaperListSelect)
       .from(wallpapers)
       .where(eq(wallpapers.status, "approved"))
       .orderBy(desc(wallpapers.trendingScore))
