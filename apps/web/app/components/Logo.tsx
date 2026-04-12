@@ -12,7 +12,7 @@ const Logo = ({ href = "/", showTagline = false }: LogoProps) => {
       <Image
         src="/logo_222.png"
         alt="AURA"
-        width={100}
+        width={85}
         height={60}
         className="shrink-0"
         priority
