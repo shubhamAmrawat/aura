@@ -6,7 +6,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { checkImageSafety } from "../lib/vision";
 import { generateUploadUrl, deleteFile } from "../lib/r2";
 import { authMiddleware } from "../middleware/auth";
-
+import { generateImageEmbedding } from "../lib/embeddings";
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
 // define reusable column selection for list views
 const wallpaperListSelect = {
@@ -277,7 +277,7 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
 
     if (moderation.status === "rejected") {
       // delete the uploaded file from R2
-      await deleteFile(key).catch(() => {});
+      await deleteFile(key).catch(() => { });
       return c.json({
         error: moderation.reason || "Image violates content policy",
         moderationStatus: "rejected",
@@ -286,7 +286,7 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
 
     const format = fileType === "image/png" ? "png"
       : fileType === "image/webp" ? "webp"
-      : "jpeg";
+        : "jpeg";
 
     console.log("Extracting image metadata...");
     const metadata = await extractImageMetadata(fileUrl);
@@ -295,7 +295,7 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
 
     const MIN_IMAGE_DIMENSION = 200;
     if (finalWidth < MIN_IMAGE_DIMENSION || finalHeight < MIN_IMAGE_DIMENSION) {
-      await deleteFile(key).catch(() => {});
+      await deleteFile(key).catch(() => { });
       return c.json({
         error: `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels.`,
       }, 400);
@@ -336,6 +336,23 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       .set({ totalUploads: sql`${users.totalUploads} + 1` })
       .where(eq(users.id, userId));
 
+    // wait for embedding so detail page / similar search work immediately after redirect
+    if (created) {
+      try {
+        const embedding = await generateImageEmbedding(fileUrl);
+        if (embedding) {
+          await db
+            .update(wallpapers)
+            .set({ embedding })
+            .where(eq(wallpapers.id, created.id));
+          console.log(`[embedding] Saved for wallpaper ${created.id}`);
+        } else {
+          console.warn(`[embedding] No vector produced for wallpaper ${created.id}`);
+        }
+      } catch (err) {
+        console.error("[embedding] Failed:", err);
+      }
+    }
     return c.json({
       wallpaper: created,
       moderationStatus: moderation.status,
@@ -396,6 +413,60 @@ wallpaperRoutes.post("/trending/recalculate", async (c) => {
   }
 });
 
+// GET /api/wallpapers/:id/similar — visual similarity search (paginated like /trending)
+wallpaperRoutes.get("/:id/similar", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const pageLimit = Math.min(Number(c.req.query("limit")) || 24, 50);
+    const offset = Math.max(0, Math.floor(Number(c.req.query("offset")) || 0));
+    const fetchCount = pageLimit + 1;
+
+    // get the source wallpaper's embedding
+    const source = await db
+      .select({
+        id: wallpapers.id,
+        embedding: wallpapers.embedding,
+      })
+      .from(wallpapers)
+      .where(eq(wallpapers.id, id))
+      .limit(1);
+
+    if (!source[0]) {
+      return c.json({ error: "Wallpaper not found" }, 404);
+    }
+
+    if (!source[0].embedding) {
+      return c.json({ data: [], hasMore: false });
+    }
+
+    const embeddingStr = `[${source[0].embedding.join(",")}]`;
+
+    // <=> is pgvector cosine distance; fetch one extra row to compute hasMore
+    const raw = await db.execute(sql`
+      SELECT 
+        id, title, file_url, blurhash, dominant_color,
+        width, height, like_count, download_count,
+        1 - (embedding <=> ${embeddingStr}::vector) AS similarity
+      FROM wallpapers
+      WHERE 
+        status = 'approved'
+        AND id != ${id}
+        AND embedding IS NOT NULL
+      ORDER BY embedding <=> ${embeddingStr}::vector
+      LIMIT ${fetchCount}
+      OFFSET ${offset}
+    `);
+
+    const rows = [...raw];
+    const hasMore = rows.length > pageLimit;
+    const data = hasMore ? rows.slice(0, pageLimit) : rows;
+
+    return c.json({ data, hasMore });
+  } catch (error) {
+    console.error("Similar wallpapers error:", error);
+    return c.json({ error: "Failed to fetch similar wallpapers" }, 500);
+  }
+});
 // GET /api/wallpapers/:id — get single wallpaper
 wallpaperRoutes.get("/:id", async (c) => {
   try {

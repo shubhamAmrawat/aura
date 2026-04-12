@@ -8,3 +8,4 @@ dist
 # Local-only DB scripts (credentials / one-off); do not commit
 packages/db/src/seed.ts
 packages/db/src/migrate-to-r2.ts
+packages/db/src/generate-embeddings.ts

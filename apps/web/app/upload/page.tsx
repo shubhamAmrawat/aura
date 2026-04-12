@@ -15,7 +15,7 @@ function meetsMinImageSize(width: number, height: number): boolean {
   return width >= MIN_IMAGE_DIMENSION && height >= MIN_IMAGE_DIMENSION;
 }
 
-type Progress = "idle" | "uploading" | "moderating" | "saving" | "done";
+type Progress = "idle" | "uploading" | "processing" | "done";
 
 type Category = { id: string; name: string; slug: string };
 
@@ -72,8 +72,8 @@ const inputBorder = (focused: boolean): CSSProperties => ({
 const PROGRESS_LABEL: Record<Progress, string> = {
   idle: "",
   uploading: "Uploading to storage…",
-  moderating: "Checking content safety…",
-  saving: "Saving wallpaper…",
+  processing:
+    "Checking content, saving details, and building similarity search (this can take a little while)…",
   done: "Done!",
 };
 
@@ -366,11 +366,9 @@ export default function UploadPage() {
       ? 0
       : progress === "uploading"
         ? 38
-        : progress === "moderating"
-          ? 72
-          : progress === "saving"
-            ? 92
-            : 100;
+        : progress === "processing"
+          ? 88
+          : 100;
 
   const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? null;
 
@@ -420,7 +418,7 @@ export default function UploadPage() {
       }
       uploadLog("step 2/3 storage: OK");
 
-      setProgress("moderating");
+      setProgress("processing");
       phase = "submit";
       uploadLog("step 3/3 submit: POST /api/wallpapers/upload", { key, fileUrlHost: safeUrlHost(fileUrl) });
       const result = await submitWallpaper({
@@ -439,9 +437,6 @@ export default function UploadPage() {
         moderationStatus: result.moderationStatus,
         wallpaperId: result.wallpaper?.id,
       });
-
-      setProgress("saving");
-      await new Promise((r) => setTimeout(r, 220));
 
       if (result.moderationStatus === "approved") {
         const id = result.wallpaper?.id as string | undefined;

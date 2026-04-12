@@ -10,6 +10,7 @@ import {
   real,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
+import { customType } from "drizzle-orm/pg-core";
 
 
 export const wallpaperStatusEnum = pgEnum("wallpaper_status", [
@@ -24,6 +25,27 @@ export const wallpaperFormatEnum = pgEnum("wallpaper_format", [
   "webp",
   "avif",
 ]);
+
+// define vector type for pgvector
+const vector = (name: string, dimensions: number) =>
+  customType<{ data: number[] }>({
+    dataType() {
+      return `vector(${dimensions})`;
+    },
+    toDriver(value: number[]): string {
+      return `[${value.join(",")}]`;
+    },
+    fromDriver(value: unknown): number[] {
+      if (typeof value === "string") {
+        return value
+          .replace("[", "")
+          .replace("]", "")
+          .split(",")
+          .map(Number);
+      }
+      return value as number[];
+    },
+  })(name, {});
 
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -60,4 +82,5 @@ export const wallpapers = pgTable("wallpapers", {
   status: wallpaperStatusEnum("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  embedding: vector("embedding", 512),
 });

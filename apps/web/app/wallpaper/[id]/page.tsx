@@ -1,9 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getWallpaperById, getWallpapers } from "@/lib/api";
+import { getWallpaperById, getSimilarWallpapersPage } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
-import WallpaperCard from "@/app/components/WallpaperCard";
 import WallpaperDetails from "@/app/wallpaper/WallpaperDetails";
+import {
+  SimilarWallpapersSection,
+  type SimilarSqlRow,
+} from "@/app/wallpaper/SimilarWallpapersSection";
 import { ContextMenuBlock } from "@/app/wallpaper/ContextMenuBlock";
 import { getContrastColor } from "@/lib/color";
 
@@ -27,38 +30,6 @@ const BackButton = ({ wallpaper }: { wallpaper: Wallpaper }) => (
     </Link>
   </div>
 );
-
-const SimilarWallpapers = ({ wallpapers }: { wallpapers: Wallpaper[] }) => {
-  if (wallpapers.length === 0) return null;
-
-  return (
-    <div
-      className="px-8 md:px-12 py-16"
-      style={{ borderTop: "1px solid var(--border)" }}
-    >
-      <div className="max-w-[1400px] mx-auto">
-        <div className="mb-8">
-          <h2
-            className="text-base font-semibold tracking-[0.15em] uppercase"
-            style={{ color: "var(--text-primary)" }}
-          >
-            More Wallpapers
-          </h2>
-          <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
-            You might also like
-          </p>
-        </div>
-        <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
-          {wallpapers.map((w) => (
-            <div key={w.id} className="break-inside-avoid mb-4">
-              <WallpaperCard wallpaper={w} />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export async function generateMetadata({ params }: WallpaperPageProps) {
   const { id } = await params;
@@ -97,12 +68,16 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
   const [wallpaperResult, similarResult] = await Promise.allSettled([
     getWallpaperById(id),
-    getWallpapers({ limit: 20 }),
+    getSimilarWallpapersPage(id, { limit: 24, offset: 0 }),
   ]);
 
   const wallpaper = wallpaperResult.status === "fulfilled" ? wallpaperResult.value : null;
-  const similarWallpapers =
-    similarResult.status === "fulfilled" ? similarResult.value.data : [];
+  const similarPayload =
+    similarResult.status === "fulfilled" ? similarResult.value : null;
+  const others: SimilarSqlRow[] = similarPayload
+    ? (similarPayload.data as SimilarSqlRow[])
+    : [];
+  const similarHasMore = similarPayload?.hasMore ?? false;
 
   if (!wallpaper) {
     return (
@@ -114,10 +89,6 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
       </div>
     );
   }
-
-  const others = similarWallpapers
-    ?.filter((w: Wallpaper) => w.id !== id)
-    .slice(0, 19) ?? [];
 
   const isPortrait = wallpaper.height > wallpaper.width;
 
@@ -208,7 +179,12 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
         </>
       )}
 
-      <SimilarWallpapers wallpapers={others} />
+      <SimilarWallpapersSection
+        key={id}
+        wallpaperId={id}
+        initialWallpapers={others}
+        initialHasMore={similarHasMore}
+      />
     </main>
   );
 }

@@ -80,6 +80,27 @@ export async function getWallpaperById(id:string): Promise<Wallpaper> {
   return data; 
 }
 
+const SIMILAR_PAGE_DEFAULT = 24;
+
+/** Visual similarity (snake_case rows). Paginated like trending/latest. */
+export async function getSimilarWallpapersPage(
+  id: string,
+  params?: { limit?: number; offset?: number }
+): Promise<{ data: Record<string, unknown>[]; hasMore: boolean }> {
+  const limit = params?.limit ?? SIMILAR_PAGE_DEFAULT;
+  const offset = params?.offset ?? 0;
+  const qs = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const url = `${getApiUrl()}/api/wallpapers/${encodeURIComponent(id)}/similar?${qs}`;
+  const json = await fetchJsonOrThrow<{
+    data: Record<string, unknown>[];
+    hasMore?: boolean;
+  }>(url, { cache: "no-store" });
+  return { data: json.data ?? [], hasMore: Boolean(json.hasMore) };
+}
+
 export async function getCategories(): Promise<Category[]> {
   const { data } = await fetchJsonOrThrow<{ data: Category[] }>(`${getApiUrl()}/api/categories`, { cache: "force-cache" });
   return data; 
