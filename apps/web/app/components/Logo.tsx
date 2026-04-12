@@ -18,19 +18,19 @@ const Logo = ({ size = "md", href = "/", showTagline = false }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
       <Image
-        src="/logo_122.png"
+        src="/logo_222.png"
         alt="AURA"
-        width={30}
-        height={30}
+        width={100}
+        height={60}
         className="shrink-0"
         priority
       />
-      <span
+      {/* <span
         className={`font-bold ${sizes[size]}`}
         style={{ color: 'var(--accent)' }}
       >
         AURA
-      </span>
+      </span> */}
       {showTagline && (
         <span
           className="text-[10px] tracking-[0.4em] uppercase mt-0.5"

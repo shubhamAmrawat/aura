@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     description: "Discover and download premium wallpapers for desktop and mobile.",
   },
   icons: {
-    icon: "/4.png"
+    icon: "/logo_1266.png"
   }
 };
 
