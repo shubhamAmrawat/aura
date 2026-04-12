@@ -9,6 +9,8 @@ import { profileRoutes } from "./routes/profile";
 import { likesRoutes } from "./routes/likes";
 import { collectionsRoutes } from "./routes/collections";
 import { startScheduler } from "./lib/scheduler";
+import { searchRoutes } from "./routes/search";
+import { generateTextEmbedding } from "./lib/embeddings";
 
 const app = new Hono();
 
@@ -82,6 +84,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/profile", profileRoutes);
 app.route("/api/likes", likesRoutes);
 app.route("/api/collections", collectionsRoutes);
+app.route("/api/search", searchRoutes);
 const port = parseInt(process.env.PORT ?? "3001", 10);
 
 console.log(`Starting server on port ${port}`);
@@ -94,4 +97,11 @@ serve({
   console.log(`API running at http://0.0.0.0:${info.port}`);
   
   startScheduler(); // start trending score scheduler
+   // warm up CLIP text model at startup so first search is instant
+   console.log("[warmup] Loading CLIP text model...");
+   generateTextEmbedding("warmup").then(() => {
+     console.log("[warmup] CLIP text model ready ✅");
+   }).catch((err: any) => {
+     console.error("[warmup] Failed:", err);
+   });
 });

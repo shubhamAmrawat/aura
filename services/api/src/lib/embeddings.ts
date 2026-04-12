@@ -3,16 +3,24 @@ export type ModerationResult = {
   reason: string | null;
 };
 
-let extractor: any = null;
+/** Must match DB `embedding` dimension (512) and image pipeline model. */
+const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32";
 
+function l2Normalize(data: Float32Array): number[] {
+  const out = Array.from(data);
+  let sumSq = 0;
+  for (const x of out) sumSq += x * x;
+  const n = Math.sqrt(sumSq) || 1;
+  for (let i = 0; i < out.length; i++) out[i]! /= n;
+  return out;
+}
+
+let extractor: any = null;
 async function getExtractor() {
   if (!extractor) {
     const { pipeline, env } = await import("@xenova/transformers");
     env.cacheDir = "./.cache";
-    extractor = await pipeline(
-      "image-feature-extraction",
-      "Xenova/clip-vit-base-patch32"
-    );
+    extractor = await pipeline("image-feature-extraction", CLIP_MODEL_ID);
   }
   return extractor;
 }
@@ -26,6 +34,41 @@ export async function generateImageEmbedding(
     return Array.from(output.data) as number[];
   } catch (err) {
     console.error("Embedding generation failed:", err);
+    return null;
+  }
+}
+
+let clipTokenizer: any = null;
+let clipTextModel: any = null;
+
+/**
+ * CLIP text embeddings must use the text tower + projection.
+ * `pipeline("feature-extraction", clip)` targets the vision encoder and expects
+ * `pixel_values`, which causes "Missing the following inputs: pixel_values".
+ */
+async function getClipTextStack() {
+  if (!clipTokenizer || !clipTextModel) {
+    const { env, AutoTokenizer, CLIPTextModelWithProjection } = await import(
+      "@xenova/transformers"
+    );
+    env.cacheDir = "./.cache";
+    clipTokenizer = await AutoTokenizer.from_pretrained(CLIP_MODEL_ID);
+    clipTextModel = await CLIPTextModelWithProjection.from_pretrained(CLIP_MODEL_ID);
+  }
+  return { tokenizer: clipTokenizer, textModel: clipTextModel };
+}
+
+export async function generateTextEmbedding(
+  text: string
+): Promise<number[] | null> {
+  try {
+    const { tokenizer, textModel } = await getClipTextStack();
+    const inputs = await tokenizer(text, { padding: true, truncation: true });
+    const { text_embeds } = await textModel(inputs);
+    if (!text_embeds?.data?.length) return null;
+    return l2Normalize(text_embeds.data);
+  } catch (err) {
+    console.error("Text embedding failed:", err);
     return null;
   }
 }

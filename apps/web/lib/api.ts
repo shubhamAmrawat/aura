@@ -1,4 +1,4 @@
-import { Wallpaper } from "@aura/types";
+import { User, Wallpaper } from "@aura/types";
 
 /** Keep server initial fetch and client infinite scroll in sync. */
 export const WALLPAPERS_FEED_PAGE_SIZE = 24;
@@ -134,7 +134,7 @@ export async function submitWallpaper(payload: {
   height: number;
   fileSizeBytes: number;
   fileType: string;
-}): Promise<{ wallpaper: any; moderationStatus: string; message: string }> {
+}): Promise<{ wallpaper: Wallpaper; moderationStatus: string; message: string }> {
   const res = await fetch(`${getApiUrl()}/api/wallpapers/upload`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -146,7 +146,7 @@ export async function submitWallpaper(payload: {
   return data;
 }
 
-export async function becomeCreator(): Promise<{ user: any }> {
+export async function becomeCreator(): Promise<{ user: User }> {
   const res = await fetch(`${getApiUrl()}/api/auth/become-creator`, {
     method: "PUT",
     credentials: "include",
@@ -169,4 +169,27 @@ export async function getTrendingWallpapers(params?: {
     { cache: "no-store" }
   );
   return { data: json.data, hasMore: Boolean(json.hasMore) };
+}
+
+export type SearchApiMode = "semantic" | "keyword" | "hybrid" | "none";
+
+export async function semanticSearch(params: {
+  q: string;
+  limit?: number;
+  offset?: number;
+  mode?: "semantic" | "keyword" | "hybrid";
+}): Promise<{ data: Record<string, unknown>[]; hasMore: boolean; mode: SearchApiMode }> {
+  const url = new URL(`${getApiUrl()}/api/search`);
+  url.searchParams.set("q", params.q);
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+  if (params.offset) url.searchParams.set("offset", String(params.offset));
+  url.searchParams.set("mode", params.mode ?? "hybrid");
+
+  const res = await fetchJsonOrThrow<{
+    data: Record<string, unknown>[];
+    hasMore: boolean;
+    mode: SearchApiMode;
+  }>(url.toString(), { cache: "no-store" });
+
+  return res;
 }
