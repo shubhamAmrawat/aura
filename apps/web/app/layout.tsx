@@ -7,7 +7,7 @@ import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
 import { ToastProvider } from "@/lib/toast";
 import { AuthProvider } from "@/lib/authContext";
-import Script from "next/script";
+
 
 const geist = Geist({
   subsets: ["latin"],
