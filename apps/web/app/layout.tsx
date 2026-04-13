@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     description: "Discover and download premium wallpapers for desktop and mobile.",
   },
   verification: {
-    google: "9suXfIJh1lSuADwaJEhrw7mzObWQ2K_uferWeqaauDw",
+    google: "YOOLGUwpRkHS7YCgE1_lseYDOh2BnilnWFIoI_50KuI",
   },
   icons: {
     icon: SITE_LOGO_URL,

@@ -9,8 +9,8 @@ interface LogoProps {
   size?: number;
   priority?: boolean;
   /**
-   * Use the file from /public directly (no /_next/image). Prefer this for small
-   * footer marks when lazy + the optimizer misbehaves behind some CDNs or blockers.
+   * Skip `/_next/image` and load `src` directly. Default true for the Cloudinary logo
+   * so production doesn’t depend on the optimizer fetching remote URLs (navbar/footer behave the same).
    */
   unoptimized?: boolean;
 }
@@ -20,7 +20,7 @@ const Logo = ({
   showTagline = false,
   size = 35,
   priority = true,
-  unoptimized = false,
+  unoptimized = true,
 }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
