@@ -4,18 +4,26 @@ import Image from "next/image";
 interface LogoProps {
   href?: string;
   showTagline?: boolean;
+  /** Icon size in px (navbar default 35). */
+  size?: number;
+  priority?: boolean;
 }
 
-const Logo = ({ href = "/", showTagline = false }: LogoProps) => {
+const Logo = ({
+  href = "/",
+  showTagline = false,
+  size = 35,
+  priority = true,
+}: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
       <Image
         src="/logo_1266.png"
         alt="AURA"
-        width={35}
-        height={35}
+        width={size}
+        height={size}
         className="shrink-0"
-        priority
+        priority={priority}
       />
       {showTagline && (
         <span
