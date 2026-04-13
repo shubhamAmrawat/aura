@@ -7,6 +7,7 @@ import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
 import { ToastProvider } from "@/lib/toast";
 import { AuthProvider } from "@/lib/authContext";
+import Script from "next/script";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -63,6 +64,12 @@ export default function RootLayout({
             <Footer />
           </ToastProvider>
         </AuthProvider>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
