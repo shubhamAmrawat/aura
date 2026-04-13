@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/app/components/Navbar";
+import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
 import { ToastProvider } from "@/lib/toast";
 import { AuthProvider } from "@/lib/authContext";
@@ -58,6 +59,7 @@ export default function RootLayout({
               <Navbar />
             </ConditionalNavbar>
             {children}
+            <Footer />
           </ToastProvider>
         </AuthProvider>
       </body>
