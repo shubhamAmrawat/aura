@@ -6,6 +6,12 @@ export type ModerationResult = {
 /** Must match DB `embedding` dimension (512) and image pipeline model. */
 const CLIP_MODEL_ID = "Xenova/clip-vit-base-patch32";
 
+/** When true, upload handler skips CLIP image embedding (saves a lot of RAM). Use on small hosts (e.g. Render512MB) or run a backfill job elsewhere. */
+export function isImageEmbeddingSkippedOnUpload(): boolean {
+  const v = (process.env.SKIP_IMAGE_EMBEDDING_ON_UPLOAD ?? "").toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 function l2Normalize(data: Float32Array): number[] {
   const out = Array.from(data);
   let sumSq = 0;
