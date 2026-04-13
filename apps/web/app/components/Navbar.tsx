@@ -139,7 +139,7 @@ const Navbar = () => {
         borderColor: "var(--border)",
       }}
     >
-      <Logo />
+      <Logo size={33} priority />
 
       {/* True viewport center — absolute so uneven left/right widths don't pull the cluster left */}
       <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 hidden -translate-x-1/2 md:flex md:items-center">
