@@ -15,7 +15,7 @@ export default function Footer() {
     >
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-x-6 gap-y-2">
         <div className="flex items-center gap-2">
-          <Logo href="/" size={28} priority={false} />
+          <Logo href="/" size={28} priority unoptimized />
           <span
             className="text-[10px] tracking-[0.1em] uppercase"
             style={{ color: "var(--text-muted)" }}

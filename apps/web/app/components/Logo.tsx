@@ -7,6 +7,11 @@ interface LogoProps {
   /** Icon size in px (navbar default 35). */
   size?: number;
   priority?: boolean;
+  /**
+   * Use the file from /public directly (no /_next/image). Prefer this for small
+   * footer marks when lazy + the optimizer misbehaves behind some CDNs or blockers.
+   */
+  unoptimized?: boolean;
 }
 
 const Logo = ({
@@ -14,6 +19,7 @@ const Logo = ({
   showTagline = false,
   size = 35,
   priority = true,
+  unoptimized = false,
 }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
@@ -23,7 +29,9 @@ const Logo = ({
         width={size}
         height={size}
         className="shrink-0"
+        sizes={`${size}px`}
         priority={priority}
+        unoptimized={unoptimized}
       />
       {showTagline && (
         <span
