@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | AURA",
-  description: "Privacy policy for AURA wallpaper platform.",
+  title: "Privacy Policy | Aurora",
+  description: "Privacy policy for Aurora wallpaper platform.",
 };
 
 export default function PrivacyPage() {
@@ -20,7 +20,7 @@ export default function PrivacyPage() {
           className="text-xs tracking-widest uppercase transition-opacity hover:opacity-60 mb-8 inline-block"
           style={{ color: "var(--text-muted)" }}
         >
-          ← Back to AURA
+          ← Back to Aurora
         </Link>
 
         <h1
@@ -40,9 +40,9 @@ export default function PrivacyPage() {
               1. Introduction
             </h2>
             <p className="text-sm leading-relaxed">
-              AURA (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) operates aurawalls.site. This Privacy Policy explains
+              Aurora (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) operates https://www.aurora-walls.com. This Privacy Policy explains
               how we collect, use, and protect your information when you use our platform.
-              By using AURA, you agree to the practices described in this policy.
+              By using Aurora, you agree to the practices described in this policy.
             </p>
           </section>
 
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
               3. How We Use Your Information
             </h2>
             <ul className="text-sm leading-relaxed space-y-2 list-disc list-inside">
-              <li>To provide and improve the AURA platform</li>
+              <li>To provide and improve the Aurora platform</li>
               <li>To authenticate your account via email OTP</li>
               <li>To personalize your wallpaper discovery experience</li>
               <li>To track download counts and platform analytics</li>
@@ -82,13 +82,13 @@ export default function PrivacyPage() {
               4. Advertising
             </h2>
             <p className="text-sm leading-relaxed mb-3">
-              AURA uses Google AdSense to display advertisements. Google AdSense may use
+              Aurora uses Google AdSense to display advertisements. Google AdSense may use
               cookies and similar technologies to show you personalized ads based on your
               interests and browsing behavior.
             </p>
             <p className="text-sm leading-relaxed mb-3">
               Google&apos;s use of advertising cookies enables it and its partners to serve ads
-              based on your visits to AURA and other websites. You can opt out of
+              based on your visits to Aurora and other websites. You can opt out of
               personalized advertising by visiting{" "}
               <a
                 href="https://www.google.com/settings/ads"
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
               5. Cookies
             </h2>
             <p className="text-sm leading-relaxed">
-              AURA uses cookies for authentication (httpOnly session cookie) and analytics.
+              Aurora uses cookies for authentication (httpOnly session cookie) and analytics.
               Third-party services like Google AdSense may also set cookies on your device.
               You can control cookie preferences through your browser settings.
             </p>
@@ -168,7 +168,7 @@ export default function PrivacyPage() {
               9. Children&apos;s Privacy
             </h2>
             <p className="text-sm leading-relaxed">
-              AURA is not directed at children under 13. We do not knowingly collect
+              Aurora is not directed at children under 13. We do not knowingly collect
               personal information from children under 13. If you believe a child has
               provided us with personal information, please contact us.
             </p>

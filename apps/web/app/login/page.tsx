@@ -94,7 +94,7 @@ function LoginContent() {
     try {
       await signup({ email, username, displayName, password });
       await refreshUser();
-      queueToast("Account created! Welcome to AURA", "success");
+      queueToast("Account created! Welcome to Aurora", "success");
       setNavigating(true);
       router.push(next ? decodeURIComponent(next) : "/");
     } catch (err) {
@@ -135,7 +135,7 @@ function LoginContent() {
       <div className="hidden lg:block relative w-[55%] flex-shrink-0">
         <Image
           src="/wallhaven-zpoxyj.png"
-          alt="AURA wallpaper"
+          alt="Aurora wallpaper"
           fill
           className="object-cover"
           priority
@@ -183,7 +183,7 @@ function LoginContent() {
               className="text-xs tracking-widest uppercase transition-opacity hover:opacity-60"
               style={{ color: "var(--text-muted)" }}
             >
-              ← Back to AURA
+              ← Back to Aurora
             </Link>
           </div>
         </div>
@@ -213,7 +213,7 @@ function LoginContent() {
                 className="text-[28px] font-bold leading-tight mb-1.5"
                 style={{ color: "var(--text-primary)" }}
               >
-                {step === 1 && (mode === "login" ? "Welcome back" : "Join AURA")}
+                {step === 1 && (mode === "login" ? "Welcome back" : "Join Aurora")}
                 {step === 2 && "Check your inbox"}
                 {step === 3 && "Almost there"}
               </h2>
@@ -478,7 +478,7 @@ function LoginContent() {
               style={{
                 width: "40%",
                 background: "var(--accent)",
-                animation: "aura-slide 1.2s ease-in-out infinite",
+                animation: "aurora-slide 1.2s ease-in-out infinite",
               }}
             />
           </div>
@@ -487,7 +487,7 @@ function LoginContent() {
             className="text-xs tracking-[0.3em] uppercase"
             style={{ color: "var(--text-muted)" }}
           >
-            Entering AURA
+            Entering Aurora
           </p>
         </div>
       )}

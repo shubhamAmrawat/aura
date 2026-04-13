@@ -13,8 +13,8 @@ export async function generateMetadata({
 }: SearchPageProps): Promise<Metadata> {
   const { q } = await searchParams;
   return q
-    ? { title: `"${q}" — Search | AURA`, description: `AURA wallpaper search results for "${q}".` }
-    : { title: "Search | AURA", description: "Search for wallpapers on AURA." };
+    ? { title: `"${q}" — Search | Aurora`, description: `Aurora wallpaper search results for "${q}".` }
+    : { title: "Search | Aurora", description: "Search for wallpapers on Aurora." };
 }
 
 const SearchIcon = ({ size = 48 }: { size?: number }) => (
@@ -66,7 +66,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <div className="flex flex-col items-center text-center gap-4">
             <SearchIcon size={52} />
             <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-              Search AURA
+              Search Aurora
             </h1>
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               Discover wallpapers by keyword, mood, or style

@@ -112,13 +112,13 @@ const inputBorder = (focused: boolean): CSSProperties => ({
   outline: "none",
 });
 
-/** DevTools: filter by `[AURA upload]` to trace presign → R2 PUT → submit. */
+/** DevTools: filter by `[Aurora upload]` to trace presign → R2 PUT → submit. */
 function uploadLog(...args: unknown[]) {
-  console.log("[AURA upload]", ...args);
+  console.log("[Aurora upload]", ...args);
 }
 
 function uploadWarn(...args: unknown[]) {
-  console.warn("[AURA upload]", ...args);
+  console.warn("[Aurora upload]", ...args);
 }
 
 function safeUrlHost(url: string): string {
@@ -489,7 +489,7 @@ export default function UploadPage() {
       setError("Unexpected response from server.");
       setProgress("idle");
     } catch (err) {
-      console.error("[AURA upload] FAILED", { phase, err });
+      console.error("[Aurora upload] FAILED", { phase, err });
       setProgress("idle");
       setError(uploadFailureMessage(phase, err));
     }

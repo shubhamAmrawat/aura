@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-  import { Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import "./globals.css";
+import { SITE_LOGO_URL } from "@/lib/site";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
@@ -15,8 +16,8 @@ const geist = Geist({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.aurora-walls.com"),
   title: {
-    default: "AURA — Premium Wallpaper Discovery",
-    template: "%s | AURA",
+    default: "Aurora | Premium Wallpaper Discovery",
+    template: "%s | Aurora",
   },
   description: "Discover and download premium wallpapers for desktop and mobile. Curated collections, high resolution, free to use.",
   keywords: [
@@ -27,22 +28,22 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    siteName: "AURA",
-    title: "AURA — Premium Wallpaper Discovery",
+    siteName: "Aurora",
+    title: "Aurora — Premium Wallpaper Discovery",
     description: "Discover and download premium wallpapers for desktop and mobile.",
     url: "https://www.aurora-walls.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AURA — Premium Wallpaper Discovery",
+    title: "Aurora — Premium Wallpaper Discovery",
     description: "Discover and download premium wallpapers for desktop and mobile.",
   },
   verification: {
     google: "9suXfIJh1lSuADwaJEhrw7mzObWQ2K_uferWeqaauDw",
   },
   icons: {
-    icon: "/logo_1266.png"
-  }
+    icon: SITE_LOGO_URL,
+  },
 };
 
 export default function RootLayout({

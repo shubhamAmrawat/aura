@@ -44,7 +44,7 @@ export default function Footer() {
             className="text-[10px] tracking-[0.04em] whitespace-nowrap"
             style={{ color: "var(--text-muted)" }}
           >
-            © {new Date().getFullYear()} AURA
+            © {new Date().getFullYear()} Aurora
           </p>
         </div>
       </div>

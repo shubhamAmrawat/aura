@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { SITE_LOGO_URL } from "@/lib/site";
 
 interface LogoProps {
   href?: string;
@@ -24,8 +25,8 @@ const Logo = ({
   const content = (
     <div className="flex items-center gap-2">
       <Image
-        src="/logo_1266.png"
-        alt="AURA"
+        src={SITE_LOGO_URL}
+        alt="Aurora"
         width={size}
         height={size}
         className="shrink-0"

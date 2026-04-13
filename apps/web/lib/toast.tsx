@@ -32,7 +32,7 @@ export function useToast() {
 }
 
 export function queueToast(message: string, type: ToastType = "success") {
-  sessionStorage.setItem("aura_toast", JSON.stringify({ message, type }));
+  sessionStorage.setItem("aurora_toast", JSON.stringify({ message, type }));
 }
 
 const DURATION = 4000;
@@ -138,9 +138,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("aura_toast");
+      const raw = sessionStorage.getItem("aurora_toast");
       if (!raw) return;
-      sessionStorage.removeItem("aura_toast");
+      sessionStorage.removeItem("aurora_toast");
       const { message, type } = JSON.parse(raw);
       setTimeout(() => addToast(message, type), 200);
     } catch {}

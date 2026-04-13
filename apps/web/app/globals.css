@@ -82,7 +82,7 @@ body {
   }
 }
 
-@keyframes aura-slide {
+@keyframes aurora-slide {
   0% {
     transform: translateX(-250%);
   }

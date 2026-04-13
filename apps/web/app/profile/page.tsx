@@ -616,7 +616,7 @@ export default function ProfilePage() {
                   <div>
                     <p className="text-[10px] tracking-widest uppercase mb-1.5" style={{ color: "var(--text-muted)" }}>Bio</p>
                     {isEditing ? (
-                      <textarea value={draftBio} onChange={(e) => setDraftBio(e.target.value)} placeholder="Tell people what you create on AURA…" rows={3} style={{ ...inputStyleBase, resize: "vertical" }} />
+                      <textarea value={draftBio} onChange={(e) => setDraftBio(e.target.value)} placeholder="Tell people what you create on Aurora…" rows={3} style={{ ...inputStyleBase, resize: "vertical" }} />
                     ) : (
                       <p className="text-sm leading-relaxed" style={{ color: profile.bio ? "var(--text-secondary)" : "var(--text-muted)" }}>
                         {profile.bio || "No bio yet."}
@@ -717,7 +717,7 @@ export default function ProfilePage() {
                     Become a Creator
                   </h2>
                   <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
-                    Share your wallpapers with the AURA community. Upload your best work and grow your audience.
+                    Share your wallpapers with the Aurora community. Upload your best work and grow your audience.
                   </p>
                   <div className="flex flex-wrap items-center gap-4">
                     {["Upload wallpapers", "Creator badge", "Download analytics"].map((benefit) => (

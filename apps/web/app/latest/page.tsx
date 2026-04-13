@@ -3,7 +3,7 @@ import { getWallpapers } from "@/lib/api";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Latest | AURA",
+  title: "Latest | Aurora",
   description: "Freshest wallpapers from our creators.",
 };
 

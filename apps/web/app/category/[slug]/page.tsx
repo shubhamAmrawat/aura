@@ -15,8 +15,8 @@ export async function generateMetadata({
   const cat = categories.find((c) => c.slug === slug);
   const name = cat?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
   return {
-    title: `${name} Wallpapers | AURA`,
-    description: `Browse ${name} wallpapers curated on AURA.`,
+    title: `${name} Wallpapers | Aurora`,
+    description: `Browse ${name} wallpapers curated on Aurora.`,
   };
 }
 
