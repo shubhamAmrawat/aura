@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 
-const BASE_URL = "https://www.aurawalls.site";
+const BASE_URL = "https://www.aurora-walls.com";
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

@@ -63,8 +63,8 @@ app.use("/api/wallpapers/upload*", async (c, next) => {
 app.use("*", logger());
 app.use(cors({
   origin: [
-    "https://www.aurawalls.site",
-    "https://aurawalls.site",
+    "https://www.aurora-walls.com",
+    "https://aurora-walls.com",
     "http://localhost:3000", // keep for local dev
   ],
   credentials: true, // needed for cookies later

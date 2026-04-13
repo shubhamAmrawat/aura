@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/profile", "/upload", "/login"],
     },
-    sitemap: "https://www.aurawalls.site/sitemap.xml",
+    sitemap: "https://www.aurora-walls.com/sitemap.xml",
   };
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+  import { Geist } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
@@ -13,7 +13,7 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.aurawalls.site"),
+  metadataBase: new URL("https://www.aurora-walls.com"),
   title: {
     default: "AURA — Premium Wallpaper Discovery",
     template: "%s | AURA",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     siteName: "AURA",
     title: "AURA — Premium Wallpaper Discovery",
     description: "Discover and download premium wallpapers for desktop and mobile.",
-    url: "https://www.aurawalls.site",
+    url: "https://www.aurora-walls.com",
   },
   twitter: {
     card: "summary_large_image",

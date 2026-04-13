@@ -201,7 +201,7 @@ authRoutes.post("/signup", async (c) => {
     });
     const isProduction = process.env.NODE_ENV === "production";
     const cookieOptions = isProduction
-      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurawalls.site; Secure`
+      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurora-walls.com; Secure`
       : `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
     c.header("Set-Cookie", `aura_token=${token}; ${cookieOptions}`);
@@ -272,7 +272,7 @@ authRoutes.post("/login", async (c) => {
 
     const isProduction = process.env.NODE_ENV === "production";
     const cookieOptions = isProduction
-      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurawalls.site; Secure`
+      ? `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax; Domain=.aurora-walls.com; Secure`
       : `HttpOnly; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
     c.header("Set-Cookie", `aura_token=${token}; ${cookieOptions}`);
@@ -353,7 +353,7 @@ authRoutes.get("/me", async (c) => {
 
 authRoutes.post("/logout", async (c) => {
   const isProduction = process.env.NODE_ENV === "production";
-  const domain = isProduction ? "; Domain=.aurawalls.site" : "";
+  const domain = isProduction ? "; Domain=.aurora-walls.com" : "";
   c.header("Set-Cookie", `aura_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${domain}`);
   return c.json({ message: "Logged out successfully" });
 });

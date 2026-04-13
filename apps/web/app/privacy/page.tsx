@@ -181,10 +181,10 @@ export default function PrivacyPage() {
             <p className="text-sm leading-relaxed">
               For privacy-related questions or data requests, contact us at{" "}
               <a
-                href="mailto:privacy@aurawalls.site"
+                href="mailto:privacy@aurora-walls.com"
                 style={{ color: "var(--accent)" }}
               >
-                privacy@aurawalls.site
+                privacy@aurora-walls.com
               </a>
             </p>
           </section>
