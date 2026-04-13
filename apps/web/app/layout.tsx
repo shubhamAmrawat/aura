@@ -18,7 +18,12 @@ export const metadata: Metadata = {
     template: "%s | AURA",
   },
   description: "Discover and download premium wallpapers for desktop and mobile. Curated collections, high resolution, free to use.",
-  keywords: ["wallpapers", "4K wallpapers", "desktop wallpapers", "mobile wallpapers", "free wallpapers"],
+  keywords: [
+    "wallpapers", "4K wallpapers", "desktop wallpapers", 
+    "mobile wallpapers", "free wallpapers", "HD wallpapers",
+    "anime wallpapers", "dark wallpapers", "nature wallpapers",
+    "minimal wallpapers", "aesthetic wallpapers", "phone wallpapers"
+  ],
   openGraph: {
     type: "website",
     siteName: "AURA",
@@ -30,6 +35,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AURA — Premium Wallpaper Discovery",
     description: "Discover and download premium wallpapers for desktop and mobile.",
+  },
+  verification: {
+    google: "9suXfIJh1lSuADwaJEhrw7mzObWQ2K_uferWeqaauDw",
   },
   icons: {
     icon: "/logo_1266.png"
