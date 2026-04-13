@@ -26,7 +26,7 @@ const SearchBar = ({ defaultValue = "" }: SearchBarProps) => {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search wallpapers..."
-        className="w-full px-5 py-1.5 rounded-[4px] text-xs outline-none transition-all"
+        className="w-full px-4 py-1.5 rounded-[4px] text-xs outline-none transition-all"
         style={{
           background: "var(--bg-elevated)",
           color: "var(--text-primary)",

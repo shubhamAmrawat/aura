@@ -29,12 +29,13 @@ const NavbarAuth = () => {
         href="/login"
         title="Sign in"
         aria-label="Sign in"
-        className="flex items-center gap-2 text-sm font-medium px-5 py-2 rounded-xl border transition-all duration-200 hover:bg-white/4 tracking-wide"
+        className="flex items-center gap-2 text-xs font-medium px-4 py-1.5 rounded-[4px] border transition-all duration-200 hover:bg-white/4 tracking-wide"
         style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
       >
+       
         <svg
-          width="18"
-          height="18"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -43,9 +44,8 @@ const NavbarAuth = () => {
           strokeLinejoin="round"
           aria-hidden
         >
-          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-          <polyline points="10 17 15 12 10 7" />
-          <line x1="15" y1="12" x2="3" y2="12" />
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
         </svg>
         <span className="hidden sm:inline">Sign in</span>
       </Link>
