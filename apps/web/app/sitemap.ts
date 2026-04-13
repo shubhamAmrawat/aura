@@ -23,19 +23,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch {}
 
-  // wallpapers
+  // wallpapers — fetch all in batches
   let wallpaperPages: MetadataRoute.Sitemap = [];
   try {
-    const res = await fetch(`${API_URL}/api/wallpapers?limit=100&offset=0`, {
-      cache: "no-store",
-    });
-    const { data } = await res.json();
-    wallpaperPages = data.map((w: { id: string; updatedAt?: string; createdAt: string }) => ({
-      url: `${BASE_URL}/wallpaper/${w.id}`,
-      lastModified: new Date(w.updatedAt ?? w.createdAt),
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-    }));
+    let allWallpapers: any[] = [];
+    let offset = 0;
+    const batchSize = 100;
+
+    while (true) {
+      const res = await fetch(
+        `${API_URL}/api/wallpapers?limit=${batchSize}&offset=${offset}`,
+        { cache: "no-store" }
+      );
+      const { data, hasMore } = await res.json();
+      allWallpapers = [...allWallpapers, ...data];
+      if (!hasMore || data.length === 0) break;
+      offset += batchSize;
+    }
+
+    wallpaperPages = allWallpapers.map(
+      (w: { id: string; updatedAt?: string; createdAt: string }) => ({
+        url: `${BASE_URL}/wallpaper/${w.id}`,
+        lastModified: new Date(w.updatedAt ?? w.createdAt),
+        changeFrequency: "monthly" as const,
+        priority: 0.6,
+      })
+    );
   } catch {}
 
   return [...staticPages, ...categoryPages, ...wallpaperPages];

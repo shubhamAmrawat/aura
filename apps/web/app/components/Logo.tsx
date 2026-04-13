@@ -10,10 +10,10 @@ const Logo = ({ href = "/", showTagline = false }: LogoProps) => {
   const content = (
     <div className="flex items-center gap-2">
       <Image
-        src="/logo_222.png"
+        src="/logo_1266.png"
         alt="AURA"
-        width={85}
-        height={60}
+        width={35}
+        height={35}
         className="shrink-0"
         priority
       />
