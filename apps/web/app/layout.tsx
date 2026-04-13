@@ -54,6 +54,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={geist.variable}>
+      <head>
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <AuthProvider>
           <ToastProvider>
@@ -64,12 +71,6 @@ export default function RootLayout({
             <Footer />
           </ToastProvider>
         </AuthProvider>
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );
