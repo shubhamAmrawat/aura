@@ -7,16 +7,12 @@ interface CategoryPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: CategoryPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const categories = await getCategories().catch(() => []);
-  const cat = categories.find((c) => c.slug === slug);
-  const name = cat?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
+  const name = slug.charAt(0).toUpperCase() + slug.slice(1);
   return {
-    title: `${name} Wallpapers | Aurora`,
-    description: `Browse ${name} wallpapers curated on Aurora.`,
+    title: `${name} Wallpapers — Free 4K Download`,
+    description: `Browse and download free ${name.toLowerCase()} wallpapers in 4K resolution. Updated daily with new high-quality wallpapers for mobile and desktop.`,
   };
 }
 

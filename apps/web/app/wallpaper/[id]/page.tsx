@@ -37,12 +37,16 @@ export async function generateMetadata({ params }: WallpaperPageProps) {
     const wallpaper = await getWallpaperById(id);
     if (!wallpaper) return { title: "Wallpaper Not Found" };
 
+    const resolution = `${wallpaper.width}×${wallpaper.height}`;
+    const orientation = wallpaper.height > wallpaper.width ? "Mobile" : "Desktop";
+
     return {
-      title: wallpaper.title,
-      description: wallpaper.description || `Download ${wallpaper.title} — ${wallpaper.width}×${wallpaper.height} wallpaper`,
+      title: `${wallpaper.title} — Free ${orientation} Wallpaper ${resolution}`,
+      description: wallpaper.description ||
+        `Download ${wallpaper.title} wallpaper in ${resolution} resolution. Free high-quality ${orientation.toLowerCase()} wallpaper.`,
       openGraph: {
         title: wallpaper.title,
-        description: wallpaper.description || `${wallpaper.width}×${wallpaper.height} wallpaper`,
+        description: `${resolution} • Free Download`,
         images: [
           {
             url: wallpaper.fileUrl,
