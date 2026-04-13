@@ -5,6 +5,9 @@ node_modules
 dist
 .next
 
+# Local audit / notes (may contain sensitive detail); keep out of repo
+TECHNICAL_AUDIT.md
+
 # Local-only DB scripts (credentials / one-off); do not commit
 packages/db/src/seed.ts
 packages/db/src/migrate-to-r2.ts
