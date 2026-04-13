@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getWallpapers, getCategories } from "@/lib/api";
 import { CategoryWallpaperGrid } from "@/app/components/CategoryWallpaperGrid";
-import type { Metadata } from "next";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
