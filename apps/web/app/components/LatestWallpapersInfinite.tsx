@@ -6,8 +6,10 @@ import WallpaperCard from "./WallpaperCard";
 import WallpaperCardSkeleton from "./WallpaperCardSkeleton";
 import { getWallpapersPage, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
 const SKELETON_COUNT = 16;
-/** Load the next page before the user hits the bottom to keep scrolling continuous. */
-const ROOT_MARGIN = "400px 0px";
+/** Expand the viewport’s intersection box downward so loads start well before the footer. */
+const ROOT_MARGIN = "0px 0px 1200px 0px";
+/** If IO misses (e.g. stuck at max scroll with footer visible), still fetch when this close to the bottom. */
+const SCROLL_PX_FROM_BOTTOM = 720;
 
 interface LatestWallpapersInfiniteProps {
   initialWallpapers: Wallpaper[];
@@ -71,6 +73,13 @@ export default function LatestWallpapersInfinite({
     }
   }, []);
 
+  const maybeLoadFromScrollPosition = useCallback(() => {
+    if (!hasMoreRef.current || loadingRef.current) return;
+    const root = document.scrollingElement ?? document.documentElement;
+    const fromBottom = root.scrollHeight - root.scrollTop - root.clientHeight;
+    if (fromBottom <= SCROLL_PX_FROM_BOTTOM) void loadMore();
+  }, [loadMore]);
+
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -88,6 +97,23 @@ export default function LatestWallpapersInfinite({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [loadMore]);
+
+  useEffect(() => {
+    const onScroll = () => maybeLoadFromScrollPosition();
+    maybeLoadFromScrollPosition();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [maybeLoadFromScrollPosition]);
+
+  useEffect(() => {
+    if (!hasMore || isLoading) return;
+    const id = requestAnimationFrame(() => maybeLoadFromScrollPosition());
+    return () => cancelAnimationFrame(id);
+  }, [hasMore, isLoading, items.length, maybeLoadFromScrollPosition]);
 
   // const subtitle =
   //   items.length === 0 && !isLoading
