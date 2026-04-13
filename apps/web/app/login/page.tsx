@@ -3,11 +3,12 @@
 import { login, sendOtp, signup, verifyOtp } from "@/lib/authApi";
 import { queueToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Logo from "@/app/components/Logo";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/authContext";
+import { useSearchParams } from "next/navigation";
 const EyeIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -22,9 +23,10 @@ const EyeOffIcon = () => (
   </svg>
 );
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
-
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -94,7 +96,7 @@ export default function LoginPage() {
       await refreshUser();
       queueToast("Account created! Welcome to AURA", "success");
       setNavigating(true);
-      router.push("/");
+      router.push(next ? decodeURIComponent(next) : "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -110,7 +112,7 @@ export default function LoginPage() {
       await refreshUser();
       queueToast("Welcome back!", "success");
       setNavigating(true);
-      router.push("/");
+      router.push(next ? decodeURIComponent(next) : "/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -490,5 +492,13 @@ export default function LoginPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }
