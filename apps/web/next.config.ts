@@ -15,8 +15,7 @@ const nextConfig: NextConfig = {
     root: "../../",
   },
   images: {
-    loader: "custom",
-    loaderFile: "./lib/imageLoader.ts",
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
