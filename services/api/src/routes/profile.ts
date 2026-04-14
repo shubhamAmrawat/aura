@@ -1,13 +1,12 @@
 import { Hono } from "hono";
 import { db } from "@aura/db";
-import { users } from "@aura/db";
-import { eq } from "drizzle-orm";
+import { users, wallpapers } from "@aura/db";
+import { eq, and, desc, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { generateUploadUrl, deleteFile, buildObjectKey, uploadFileToKey } from "../lib/r2";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../lib/otp";
 import { sendOTPEmail } from "../lib/email";
 import { otps } from "@aura/db";
-import { and } from "drizzle-orm";
 import { authMiddleware } from "../middleware/auth";
 
 type Variables = {
@@ -521,4 +520,151 @@ profileRoutes.delete("/", async (c) => {
   await db.delete(users).where(eq(users.id, user.id));
 
   return c.json({ message: "Account deleted successfully." });
+});
+
+// ─── UPLOADS MANAGEMENT ────────────────────────────────────
+
+// GET /api/profile/uploads — paginated list of caller's own wallpapers
+profileRoutes.get("/uploads", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const limit = Math.min(Number(c.req.query("limit")) || 24, 50);
+    const offset = Math.max(0, Number(c.req.query("offset")) || 0);
+
+    const rows = await db
+      .select({
+        id: wallpapers.id,
+        title: wallpapers.title,
+        description: wallpapers.description,
+        fileUrl: wallpapers.fileUrl,
+        blurhash: wallpapers.blurhash,
+        dominantColor: wallpapers.dominantColor,
+        width: wallpapers.width,
+        height: wallpapers.height,
+        tags: wallpapers.tags,
+        categoryId: wallpapers.categoryId,
+        status: wallpapers.status,
+        likeCount: wallpapers.likeCount,
+        downloadCount: wallpapers.downloadCount,
+        createdAt: wallpapers.createdAt,
+        format: wallpapers.format,
+      })
+      .from(wallpapers)
+      .where(eq(wallpapers.uploaderId, userId))
+      .orderBy(desc(wallpapers.createdAt))
+      .limit(limit + 1)
+      .offset(offset);
+
+    const hasMore = rows.length > limit;
+    return c.json({ data: hasMore ? rows.slice(0, limit) : rows, hasMore });
+  } catch (err) {
+    console.error("Get uploads error:", err);
+    return c.json({ error: "Failed to fetch uploads" }, 500);
+  }
+});
+
+// PUT /api/profile/uploads/:id — edit wallpaper metadata (title, description, tags, category)
+profileRoutes.put("/uploads/:id", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const wallpaperId = c.req.param("id");
+    const { title, description, tags, categoryId } = await c.req.json();
+
+    if (!title?.trim()) return c.json({ error: "Title is required" }, 400);
+
+    const existing = await db
+      .select({ id: wallpapers.id, uploaderId: wallpapers.uploaderId })
+      .from(wallpapers)
+      .where(eq(wallpapers.id, wallpaperId))
+      .limit(1);
+
+    if (!existing[0]) return c.json({ error: "Wallpaper not found" }, 404);
+    if (existing[0].uploaderId !== userId) return c.json({ error: "Not authorized" }, 403);
+
+    const updated = await db
+      .update(wallpapers)
+      .set({
+        title: title.trim(),
+        description: description?.trim() || null,
+        tags: Array.isArray(tags) ? tags.map((t: string) => t.trim()).filter(Boolean) : [],
+        categoryId: categoryId || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallpapers.id, wallpaperId))
+      .returning();
+
+    const row = updated[0];
+
+    // Re-embed with updated metadata in background (no vision re-run needed)
+    if (row) {
+      setImmediate(() => {
+        import("../lib/embeddings")
+          .then(({ generateWallpaperTextEmbedding }) =>
+            generateWallpaperTextEmbedding({
+              title: row.title,
+              description: row.description,
+              tags: row.tags,
+            })
+          )
+          .then((textEmbedding) => {
+            if (!textEmbedding) return;
+            return db
+              .update(wallpapers)
+              .set({ textEmbedding })
+              .where(eq(wallpapers.id, row.id));
+          })
+          .catch((e) => console.error("[embedding] Re-embed on edit failed:", e));
+      });
+    }
+
+    return c.json({ data: row });
+  } catch (err) {
+    console.error("Update upload error:", err);
+    return c.json({ error: "Failed to update wallpaper" }, 500);
+  }
+});
+
+// DELETE /api/profile/uploads/:id — delete wallpaper from DB + R2
+profileRoutes.delete("/uploads/:id", async (c) => {
+  try {
+    const userId = c.get("userId");
+    const wallpaperId = c.req.param("id");
+
+    const existing = await db
+      .select({
+        id: wallpapers.id,
+        uploaderId: wallpapers.uploaderId,
+        fileUrl: wallpapers.fileUrl,
+      })
+      .from(wallpapers)
+      .where(eq(wallpapers.id, wallpaperId))
+      .limit(1);
+
+    if (!existing[0]) return c.json({ error: "Wallpaper not found" }, 404);
+    if (existing[0].uploaderId !== userId) return c.json({ error: "Not authorized" }, 403);
+
+    // Delete DB row first
+    await db.delete(wallpapers).where(eq(wallpapers.id, wallpaperId));
+
+    // Delete from R2 — extract key from public URL
+    const r2PublicUrl = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+    const fileUrl = existing[0].fileUrl;
+    if (r2PublicUrl && fileUrl.startsWith(r2PublicUrl)) {
+      const key = fileUrl.slice(r2PublicUrl.length + 1);
+      await deleteFile(key).catch((e) =>
+        console.error("[r2] Delete file failed (non-fatal):", e)
+      );
+    }
+
+    // Decrement upload count (floor at 0)
+    await db
+      .update(users)
+      .set({ totalUploads: sql`GREATEST(${users.totalUploads} - 1, 0)` })
+      .where(eq(users.id, userId));
+
+    return c.json({ message: "Wallpaper deleted" });
+  } catch (err) {
+    console.error("Delete upload error:", err);
+    return c.json({ error: "Failed to delete wallpaper" }, 500);
+  }
 });

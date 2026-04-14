@@ -187,3 +187,68 @@ export async function deleteAccount(password: string): Promise<void> {
   });
   await parseJson(response);
 }
+
+// ─── Uploads management ───────────────────────────────────
+
+export type UploadStatus = "approved" | "pending" | "rejected";
+
+export interface UserUpload {
+  id: string;
+  title: string;
+  description: string | null;
+  fileUrl: string;
+  blurhash: string;
+  dominantColor: string;
+  width: number;
+  height: number;
+  tags: string[];
+  categoryId: string | null;
+  status: UploadStatus;
+  likeCount: number;
+  downloadCount: number;
+  createdAt: string;
+  format: string;
+}
+
+export interface UpdateUploadPayload {
+  title: string;
+  description?: string | null;
+  tags?: string[];
+  categoryId?: string | null;
+}
+
+export async function getUserUploads(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ data: UserUpload[]; hasMore: boolean }> {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.offset) qs.set("offset", String(params.offset));
+  const response = await fetch(
+    `${getApiUrl()}/api/profile/uploads${qs.toString() ? `?${qs}` : ""}`,
+    { method: "GET", credentials: "include", cache: "no-store" }
+  );
+  return parseJson<{ data: UserUpload[]; hasMore: boolean }>(response);
+}
+
+export async function updateUpload(
+  id: string,
+  payload: UpdateUploadPayload
+): Promise<UserUpload> {
+  const response = await fetch(`${getApiUrl()}/api/profile/uploads/${id}`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJson<{ data: UserUpload }>(response);
+  return data.data;
+}
+
+export async function deleteUpload(id: string): Promise<void> {
+  const response = await fetch(`${getApiUrl()}/api/profile/uploads/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  await parseJson(response);
+}

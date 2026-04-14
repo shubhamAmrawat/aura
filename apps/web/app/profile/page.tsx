@@ -23,6 +23,7 @@ import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 import { getLikedWallpapers } from "@/lib/likesApi";
 import { becomeCreator } from "@/lib/api";
+import UserUploadsSection from "@/app/components/UserUploadsSection";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -745,6 +746,16 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* ── My Uploads ───────────────────────────────────────── */}
+          <div style={{ marginTop: 24, marginBottom: 8 }}>
+            <UserUploadsSection
+              isCreator={profile.isCreator}
+              onUploadCountChange={(delta) =>
+                setProfile((p) => p ? { ...p, totalUploads: Math.max(0, p.totalUploads + delta) } : p)
+              }
+            />
+          </div>
 
           {/* ── Liked Wallpapers + Collections ──────────────────── */}
           <div
