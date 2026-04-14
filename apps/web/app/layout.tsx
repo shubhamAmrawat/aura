@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import { SITE_LOGO_URL } from "@/lib/site";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
@@ -43,7 +42,7 @@ export const metadata: Metadata = {
     google: "YOOLGUwpRkHS7YCgE1_lseYDOh2BnilnWFIoI_50KuI",
   },
   icons: {
-    icon: SITE_LOGO_URL,
+    icon: [{ url: "/favicon.ico", sizes: "48x48" }],
   },
 };
 

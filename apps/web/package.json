@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "generate-favicon": "node scripts/gen-favicon.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -23,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "png-to-ico": "^3.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
