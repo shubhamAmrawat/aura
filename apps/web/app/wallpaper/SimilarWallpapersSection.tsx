@@ -36,7 +36,7 @@ function mapRows(wallpapers: SimilarSqlRow[]): Wallpaper[] {
     fileSizeBytes: 0,
     isFeatured: false,
     isPremium: false,
-    isMobile: (row.height ?? 0) >= (row.width ?? 1),
+    isMobile: Number(w.height ?? 0) >= Number(w.width ?? 1),
     createdAt: new Date().toISOString(),
   }));
 }
