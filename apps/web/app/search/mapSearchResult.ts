@@ -25,6 +25,7 @@ export function mapSearchResult(w: Record<string, unknown>): Wallpaper {
     tags: Array.isArray(w.tags) ? (w.tags as string[]) : [],
     isFeatured: Boolean(w.is_featured ?? w.isFeatured ?? false),
     isPremium: Boolean(w.is_premium ?? w.isPremium ?? false),
+    isMobile: Boolean(w.is_mobile ?? w.isMobile ?? Number(w.height) >= Number(w.width)),
     createdAt: String(w.created_at ?? w.createdAt ?? new Date().toISOString()),
   };
 }

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "@aura/db";
-import { users, wallpapers } from "@aura/db";
+import { users, wallpapers, likes, downloads, collectionWallpapers, collections } from "@aura/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { generateUploadUrl, deleteFile, buildObjectKey, uploadFileToKey } from "../lib/r2";
@@ -644,7 +644,18 @@ profileRoutes.delete("/uploads/:id", async (c) => {
     if (!existing[0]) return c.json({ error: "Wallpaper not found" }, 404);
     if (existing[0].uploaderId !== userId) return c.json({ error: "Not authorized" }, 403);
 
-    // Delete DB row first
+    // Clear all FK-constrained dependents in parallel before deleting the wallpaper row.
+    // Order matters: collection_wallpapers and likes/downloads reference wallpapers directly;
+    // collections.cover_wallpaper_id also references it and must be nulled first.
+    await Promise.all([
+      db.delete(likes).where(eq(likes.wallpaperId, wallpaperId)),
+      db.delete(downloads).where(eq(downloads.wallpaperId, wallpaperId)),
+      db.delete(collectionWallpapers).where(eq(collectionWallpapers.wallpaperId, wallpaperId)),
+      db.update(collections)
+        .set({ coverWallpaperId: null })
+        .where(eq(collections.coverWallpaperId, wallpaperId)),
+    ]);
+
     await db.delete(wallpapers).where(eq(wallpapers.id, wallpaperId));
 
     // Delete from R2 — extract key from public URL

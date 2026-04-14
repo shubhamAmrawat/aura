@@ -34,6 +34,7 @@ function wallpaperForCard(w: CollectionWallpaperRow): Wallpaper {
     createdAt: w.addedAt ?? new Date().toISOString(),
     isPremium: false,
     isFeatured: false,
+    isMobile: w.height >= w.width,
   };
 }
 
