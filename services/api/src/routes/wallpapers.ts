@@ -200,7 +200,7 @@ wallpaperRoutes.get("/", async (c) => {
 
     const hasMore = result.length === limit;
 
-    c.header("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
+    c.header("Cache-Control", "no-store");
     return c.json({
       data: result,
       count: result.length,
@@ -391,7 +391,7 @@ wallpaperRoutes.get("/trending", async (c) => {
 
     const hasMore = result.length === limit;
 
-    c.header("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    c.header("Cache-Control", "no-store");
     return c.json({
       data: result,
       count: result.length,
@@ -527,7 +527,7 @@ wallpaperRoutes.get("/:id", async (c) => {
       return c.json({ error: "Wallpaper not found" }, 404);
     }
 
-    c.header("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
+    c.header("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
     return c.json({ data: result[0] });
   } catch (error) {
     console.error("Wallpapers error:", error);

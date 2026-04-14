@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import { getCategories, getUploadUrl, submitWallpaper } from "@/lib/api";
+import { revalidateFeeds } from "@/app/actions";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -469,6 +470,8 @@ export default function UploadPage() {
         const id = result.wallpaper?.id as string | undefined;
         setProgress("done");
         uploadLog("complete: approved, redirect", { id });
+        // Bust feed caches so the new wallpaper appears immediately on homepage/latest/trending
+        await revalidateFeeds().catch(() => {});
         if (id) router.push(`/wallpaper/${id}`);
         else router.push("/");
         return;

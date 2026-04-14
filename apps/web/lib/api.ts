@@ -61,7 +61,7 @@ export async function getWallpapers(
 ): Promise<{ data: Wallpaper[]; hasMore: boolean }> {
   const url = wallpapersListUrl(params);
   const json = await fetchJsonOrThrow<{ data: Wallpaper[]; hasMore?: boolean }>(url, {
-    next: { revalidate: 180 },
+    next: { revalidate: 60, tags: ["wallpapers"] },
   });
   return { data: json.data, hasMore: Boolean(json.hasMore) };
 }
@@ -72,7 +72,7 @@ export const getWallpapersPage = getWallpapers;
 export async function getFeaturedWallpapers(): Promise<Wallpaper[]> {
   const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(
     `${getApiUrl()}/api/wallpapers?featured=true&limit=5`,
-    { next: { revalidate: 300 } }
+    { next: { revalidate: 120, tags: ["wallpapers", "featured"] } }
   );
   return data;
 }
@@ -84,7 +84,7 @@ export async function getFeaturedWallpapers(): Promise<Wallpaper[]> {
 export const getWallpaperById = cache(async (id: string): Promise<Wallpaper> => {
   const { data } = await fetchJsonOrThrow<{ data: Wallpaper }>(
     `${getApiUrl()}/api/wallpapers/${id}`,
-    { next: { revalidate: 3600 } }
+    { next: { revalidate: 300, tags: ["wallpapers", `wallpaper-${id}`] } }
   );
   return data;
 });
@@ -178,7 +178,7 @@ export async function getTrendingWallpapers(params?: {
 
   const json = await fetchJsonOrThrow<{ data: Wallpaper[]; hasMore?: boolean }>(
     url.toString(),
-    { next: { revalidate: 300 } }
+    { next: { revalidate: 60, tags: ["wallpapers", "trending"] } }
   );
   return { data: json.data, hasMore: Boolean(json.hasMore) };
 }
