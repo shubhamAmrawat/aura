@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
-
+// esdfsdfsd
 export type SimilarSqlRow = {
   id: string;
   title: string;
