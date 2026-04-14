@@ -10,13 +10,19 @@ import { likesRoutes } from "./routes/likes";
 import { collectionsRoutes } from "./routes/collections";
 import { startScheduler } from "./lib/scheduler";
 import { searchRoutes } from "./routes/search";
-import { generateTextEmbedding } from "./lib/embeddings";
 
 const app = new Hono();
 
 // ─── Rate limiter ──────────────────────────────────────────
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 const uploadCounts = new Map<string, { count: number; resetAt: number }>();
+
+// Prevent unbounded Map growth — sweep expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, rec] of requestCounts) if (now > rec.resetAt) requestCounts.delete(ip);
+  for (const [ip, rec] of uploadCounts) if (now > rec.resetAt) uploadCounts.delete(ip);
+}, 5 * 60_000).unref();
 
 function getIp(c: any): string {
   return (
@@ -97,11 +103,4 @@ serve({
   console.log(`API running at http://0.0.0.0:${info.port}`);
   
   startScheduler(); // start trending score scheduler
-   // warm up CLIP text model at startup so first search is instant
-   console.log("[warmup] Loading CLIP text model...");
-   generateTextEmbedding("warmup").then(() => {
-     console.log("[warmup] CLIP text model ready ✅");
-   }).catch((err: any) => {
-     console.error("[warmup] Failed:", err);
-   });
 });

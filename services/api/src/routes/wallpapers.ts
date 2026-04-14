@@ -6,7 +6,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { checkImageSafety } from "../lib/vision";
 import { generateUploadUrl, deleteFile } from "../lib/r2";
 import { authMiddleware } from "../middleware/auth";
-import { generateImageEmbedding } from "../lib/embeddings";
+import { generateImageEmbedding, generateWallpaperTextEmbedding } from "../lib/embeddings";
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
 // define reusable column selection for list views
 const wallpaperListSelect = {
@@ -192,6 +192,7 @@ wallpaperRoutes.get("/", async (c) => {
 
     const hasMore = result.length === limit;
 
+    c.header("Cache-Control", "public, s-maxage=120, stale-while-revalidate=300");
     return c.json({
       data: result,
       count: result.length,
@@ -340,23 +341,38 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       .set({ totalUploads: sql`${users.totalUploads} + 1` })
       .where(eq(users.id, userId));
 
-    // wait for embedding so detail page / similar search work immediately after redirect
+    // Fire both embedding jobs after the response is returned — upload stays fast.
+    //   embedding      → CLIP visual (for /:id/similar visual similarity)
+    //   textEmbedding  → OpenAI text of metadata (for /search semantic queries)
     if (created) {
-      try {
-        const embedding = await generateImageEmbedding(fileUrl);
-        if (embedding) {
-          await db
-            .update(wallpapers)
-            .set({ embedding })
-            .where(eq(wallpapers.id, created.id));
-          console.log(`[embedding] Saved for wallpaper ${created.id}`);
-        } else {
-          console.warn(`[embedding] No vector produced for wallpaper ${created.id}`);
-        }
-      } catch (err) {
-        console.error("[embedding] Failed:", err);
-      }
+      setImmediate(() => {
+        Promise.all([
+          generateImageEmbedding(fileUrl),
+          generateWallpaperTextEmbedding({
+            title: created.title,
+            description: created.description,
+            tags: created.tags,
+          }),
+        ])
+          .then(([embedding, textEmbedding]) => {
+            const updates: Record<string, unknown> = {};
+            if (embedding) updates.embedding = embedding;
+            else console.warn(`[embedding] No CLIP vector for wallpaper ${created.id}`);
+
+            if (textEmbedding) updates.textEmbedding = textEmbedding;
+            else console.warn(`[text-embedding] No OpenAI vector for wallpaper ${created.id}`);
+
+            if (Object.keys(updates).length === 0) return;
+            return db
+              .update(wallpapers)
+              .set(updates)
+              .where(eq(wallpapers.id, created.id))
+              .then(() => console.log(`[embedding] Both vectors saved for wallpaper ${created.id}`));
+          })
+          .catch((err) => console.error("[embedding] Background update failed:", err));
+      });
     }
+
     return c.json({
       wallpaper: created,
       moderationStatus: moderation.status,
@@ -384,6 +400,7 @@ wallpaperRoutes.get("/trending", async (c) => {
 
     const hasMore = result.length === limit;
 
+    c.header("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
     return c.json({
       data: result,
       count: result.length,
@@ -497,6 +514,7 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
     const hasMore = rows.length > pageLimit;
     const data = hasMore ? rows.slice(0, pageLimit) : rows;
 
+    c.header("Cache-Control", "public, s-maxage=1800, stale-while-revalidate=3600");
     return c.json({ data, hasMore });
   } catch (error) {
     console.error("Similar wallpapers error:", error);
@@ -518,6 +536,7 @@ wallpaperRoutes.get("/:id", async (c) => {
       return c.json({ error: "Wallpaper not found" }, 404);
     }
 
+    c.header("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=86400");
     return c.json({ data: result[0] });
   } catch (error) {
     console.error("Wallpapers error:", error);
@@ -538,5 +557,71 @@ wallpaperRoutes.post("/:id/download", async (c) => {
   } catch (error) {
     console.error("Download track error:", error);
     return c.json({ error: "Failed to track download" }, 500);
+  }
+});
+
+// POST /api/wallpapers/reembed-text — backfill text_embedding for existing wallpapers
+// Requires X-Admin-Secret header. Processes in small batches to avoid rate limits.
+wallpaperRoutes.post("/reembed-text", async (c) => {
+  if (c.req.header("X-Admin-Secret") !== process.env.ADMIN_SECRET) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  try {
+    // Fetch wallpapers that are missing text_embedding
+    const rows = await db
+      .select({
+        id: wallpapers.id,
+        title: wallpapers.title,
+        description: wallpapers.description,
+        tags: wallpapers.tags,
+      })
+      .from(wallpapers)
+      .where(sql`text_embedding IS NULL AND status = 'approved'`)
+      .limit(100);
+
+    if (rows.length === 0) {
+      return c.json({ message: "All wallpapers already have text embeddings", updated: 0 });
+    }
+
+    let updated = 0;
+    let failed = 0;
+
+    for (const row of rows) {
+      const textEmbedding = await generateWallpaperTextEmbedding({
+        title: row.title,
+        description: row.description,
+        tags: row.tags,
+      });
+
+      if (textEmbedding) {
+        await db
+          .update(wallpapers)
+          .set({ textEmbedding })
+          .where(eq(wallpapers.id, row.id));
+        updated++;
+      } else {
+        failed++;
+      }
+
+      // Small delay to stay within OpenAI rate limits
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    const remaining = await db
+      .select({ id: wallpapers.id })
+      .from(wallpapers)
+      .where(sql`text_embedding IS NULL AND status = 'approved'`)
+      .limit(1);
+
+    return c.json({
+      message: `Processed batch of ${rows.length}`,
+      updated,
+      failed,
+      hasMore: remaining.length > 0,
+    });
+  } catch (error) {
+    console.error("Reembed error:", error);
+    return c.json({ error: "Reembed failed" }, 500);
   }
 });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db, wallpapers } from "@aura/db";
-import { eq, sql, and, ilike, or, desc } from "drizzle-orm";
+import { and, ilike, or, desc, eq, sql } from "drizzle-orm";
 import { generateTextEmbedding } from "../lib/embeddings";
 
 export const searchRoutes = new Hono();
@@ -41,61 +41,25 @@ searchRoutes.get("/", async (c) => {
 
     const pattern = `%${q}%`;
 
-    // ── Semantic / Hybrid ───────────────────────────────────
+    // ── Semantic / Hybrid ────────────────────────────────────────────────────
+    // Uses `text_embedding` column (OpenAI text-embedding-3-small of wallpaper
+    // metadata). The query is embedded with the same OpenAI model → same vector
+    // space → valid cosine similarity.
     if (mode === "semantic" || mode === "hybrid") {
-      const textEmbedding = await generateTextEmbedding(q);
+      console.log(`[search] mode=${mode} q="${q}" — generating OpenAI text embedding`);
+      const queryEmbedding = await generateTextEmbedding(q);
 
-      if (textEmbedding) {
-        const embeddingStr = `[${textEmbedding.join(",")}]`;
+      if (queryEmbedding) {
+        console.log(`[search] embedding generated (${queryEmbedding.length}-dim) — running vector query`);
+        const embStr = `[${queryEmbedding.join(",")}]`;
 
-        if (mode === "semantic") {
-          const results = await db.execute(sql`
-            SELECT
-              id, title, file_url, blurhash, dominant_color,
-              palette, width, height, like_count, download_count,
-              view_count, trending_score, is_featured, is_premium,
-              tags, category_id, status, created_at, format, file_size_bytes,
-              (1 - (embedding <=> ${embeddingStr}::vector)) AS semantic_score,
-              CASE
-                WHEN LOWER(title) LIKE LOWER(${pattern}) THEN 0.15
-                WHEN array_to_string(tags, ' ') ILIKE ${pattern} THEN 0.10
-                WHEN LOWER(COALESCE(description, '')) LIKE LOWER(${pattern}) THEN 0.05
-                ELSE 0
-              END AS keyword_boost,
-              (
-                (1 - (embedding <=> ${embeddingStr}::vector)) * 0.85 +
-                CASE
-                  WHEN LOWER(title) LIKE LOWER(${pattern}) THEN 0.15
-                  WHEN array_to_string(tags, ' ') ILIKE ${pattern} THEN 0.10
-                  WHEN LOWER(COALESCE(description, '')) LIKE LOWER(${pattern}) THEN 0.05
-                  ELSE 0
-                END
-              ) AS hybrid_score
-            FROM wallpapers
-            WHERE status = 'approved'
-              AND embedding IS NOT NULL
-            ORDER BY hybrid_score DESC
-            LIMIT ${limit + 1}
-            OFFSET ${offset}
-          `);
-
-          const rows = [...results];
-          const hasMore = rows.length > limit;
-          return c.json({
-            data: hasMore ? rows.slice(0, limit) : rows,
-            hasMore,
-            mode: "semantic",
-          });
-        }
-
-        // hybrid
-        const results = await db.execute(sql`
+        const semanticSql = sql`
           SELECT
             id, title, file_url, blurhash, dominant_color,
             palette, width, height, like_count, download_count,
             view_count, trending_score, is_featured, is_premium,
             tags, category_id, status, created_at, format, file_size_bytes,
-            (1 - (embedding <=> ${embeddingStr}::vector)) AS semantic_score,
+            (1 - (text_embedding <=> ${embStr}::vector)) AS semantic_score,
             CASE
               WHEN LOWER(title) LIKE LOWER(${pattern}) THEN 0.15
               WHEN array_to_string(tags, ' ') ILIKE ${pattern} THEN 0.10
@@ -103,7 +67,7 @@ searchRoutes.get("/", async (c) => {
               ELSE 0
             END AS keyword_boost,
             (
-              (1 - (embedding <=> ${embeddingStr}::vector)) * 0.85 +
+              (1 - (text_embedding <=> ${embStr}::vector)) * 0.85 +
               CASE
                 WHEN LOWER(title) LIKE LOWER(${pattern}) THEN 0.15
                 WHEN array_to_string(tags, ' ') ILIKE ${pattern} THEN 0.10
@@ -113,23 +77,29 @@ searchRoutes.get("/", async (c) => {
             ) AS hybrid_score
           FROM wallpapers
           WHERE status = 'approved'
-            AND embedding IS NOT NULL
+            AND text_embedding IS NOT NULL
           ORDER BY hybrid_score DESC
           LIMIT ${limit + 1}
           OFFSET ${offset}
-        `);
+        `;
 
+        const results = await db.execute(semanticSql);
         const rows = [...results];
         const hasMore = rows.length > limit;
+
+        console.log(`[search] semantic OK — ${Math.min(rows.length, limit)} results (hasMore=${hasMore})`);
         return c.json({
           data: hasMore ? rows.slice(0, limit) : rows,
           hasMore,
-          mode: "hybrid",
+          mode: mode === "semantic" ? "semantic" : "hybrid",
         });
+      } else {
+        console.warn(`[search] OpenAI embedding returned null — falling back to keyword search`);
       }
     }
 
-    // ── Keyword fallback ────────────────────────────────────
+    // ── Keyword fallback ─────────────────────────────────────────────────────
+    console.log(`[search] mode=keyword q="${q}"`);
     const results = await db
       .select(searchSelect)
       .from(wallpapers)

@@ -41,34 +41,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const results = await Promise.allSettled([
-        me(),
-        getLikedWallpaperIds(),
-        getSavedWallpaperIds(),
-      ]);
-
-      const userRes = results[0];
-      const likedRes = results[1];
-      const savedRes = results[2];
-
-      if (userRes.status === "rejected") {
-        const err = userRes.reason;
-        if (err instanceof Error && err.message.toLowerCase().includes("unauthorized")) {
+      // First resolve the session — only authenticated users need liked/saved IDs.
+      // This avoids 2 wasted API calls on every page load for unauthenticated visitors.
+      let userData: { user?: User | null } | null = null;
+      try {
+        userData = await me() as { user?: User | null };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message.toLowerCase() : "";
+        if (msg.includes("unauthorized") || msg.includes("401")) {
           setUser(null);
           setLikedIds(new Set());
           setSavedIds(new Set());
+          return;
         }
+        // Non-auth error (network issue etc.) — don't clear existing state
         return;
       }
 
-      const userData = userRes.value as { user?: User | null };
-      setUser(userData.user ?? null);
+      const resolvedUser = userData?.user ?? null;
+      setUser(resolvedUser);
 
-      if (likedRes.status === "fulfilled") {
-        setLikedIds(likedRes.value);
-      }
-      if (savedRes.status === "fulfilled") {
-        setSavedIds(savedRes.value);
+      if (resolvedUser) {
+        // Only logged-in users have liked/saved lists worth fetching
+        const [likedRes, savedRes] = await Promise.allSettled([
+          getLikedWallpaperIds(),
+          getSavedWallpaperIds(),
+        ]);
+        if (likedRes.status === "fulfilled") setLikedIds(likedRes.value);
+        if (savedRes.status === "fulfilled") setSavedIds(savedRes.value);
+      } else {
+        setLikedIds(new Set());
+        setSavedIds(new Set());
       }
     } finally {
       setLoaded(true);

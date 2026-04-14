@@ -77,19 +77,26 @@ const CategoryPill = ({
   );
 };
 
-const Navbar = () => {
+interface NavbarProps {
+  /** Pre-fetched server-side categories. When provided the client fetch is skipped. */
+  initialCategories?: Category[];
+}
+
+const Navbar = ({ initialCategories }: NavbarProps) => {
   const [catOpen, setCatOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [catLoading, setCatLoading] = useState(() =>
-    Boolean(process.env.NEXT_PUBLIC_API_URL),
+  const [categories, setCategories] = useState<Category[]>(initialCategories ?? []);
+  const [catLoading, setCatLoading] = useState(
+    // If we already have categories from the server, no loading state needed
+    initialCategories ? false : Boolean(process.env.NEXT_PUBLIC_API_URL),
   );
   const [megaScrolled, setMegaScrolled] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
   const megaMenuRef = useRef<HTMLDivElement>(null);
 
-  // Fetch categories immediately on mount so the dropdown is ready when opened
+  // Only fetch client-side when the server didn't pre-populate categories
   useEffect(() => {
+    if (initialCategories) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) return;
     fetch(`${apiUrl}/api/categories`, { credentials: "include" })
@@ -97,7 +104,7 @@ const Navbar = () => {
       .then((json) => setCategories(json.data ?? []))
       .catch(() => {})
       .finally(() => setCatLoading(false));
-  }, []);
+  }, [initialCategories]);
 
   // Close mega menu when clicking outside the trigger + panel, or on Escape
   useEffect(() => {

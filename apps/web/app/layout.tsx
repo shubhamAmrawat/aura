@@ -7,6 +7,7 @@ import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
 import { ToastProvider } from "@/lib/toast";
 import { AuthProvider } from "@/lib/authContext";
+import { getCategories } from "@/lib/api";
 
 
 const geist = Geist({
@@ -47,11 +48,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Fetch categories server-side so Navbar renders with data immediately,
+  // eliminating the client-side fetch that fired on every page mount.
+  const categories = await getCategories().catch(() => []);
+
   return (
     <html lang="en" className={geist.variable}>
       <head>
@@ -65,7 +70,7 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             <ConditionalNavbar>
-              <Navbar />
+              <Navbar initialCategories={categories} />
             </ConditionalNavbar>
             {children}
             <Footer />

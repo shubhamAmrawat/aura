@@ -1,5 +1,9 @@
 import { MetadataRoute } from "next";
 
+// Regenerate the sitemap at most once per day; crawlers are fine with stale-by-a-day data
+// and this prevents every bot visit from hammering the backend with N paginated fetches.
+export const revalidate = 86400;
+
 const BASE_URL = "https://www.aurora-walls.com";
 const API_URL = process.env.NEXT_PUBLIC_API_URL!;
 
@@ -11,10 +15,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/latest`, changeFrequency: "hourly", priority: 0.9 },
   ];
 
-  // categories
+  // categories — cached for 24h so repeated crawler hits reuse the same response
   let categoryPages: MetadataRoute.Sitemap = [];
   try {
-    const res = await fetch(`${API_URL}/api/categories`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/categories`, {
+      next: { revalidate: 86400 },
+    });
     const { data } = await res.json();
     categoryPages = data.map((c: { slug: string }) => ({
       url: `${BASE_URL}/category/${c.slug}`,
@@ -23,7 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch {}
 
-  // wallpapers — fetch all in batches
+  // wallpapers — fetch in batches but cache each page response for 24h
   let wallpaperPages: MetadataRoute.Sitemap = [];
   try {
     let allWallpapers: any[] = [];
@@ -33,7 +39,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     while (true) {
       const res = await fetch(
         `${API_URL}/api/wallpapers?limit=${batchSize}&offset=${offset}`,
-        { cache: "no-store" }
+        { next: { revalidate: 86400 } }
       );
       const { data, hasMore } = await res.json();
       allWallpapers = [...allWallpapers, ...data];

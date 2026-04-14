@@ -22,10 +22,8 @@ async function runJob() {
 export function startScheduler() {
   console.log("[scheduler] Starting — will recalculate trending scores every hour");
 
-  // run immediately on startup
-  void runJob();
-
-  // then every hour
+  // Only run on the hourly interval; skipping the immediate startup call avoids
+  // a heavy SQL UPDATE on every cold-start (Render restarts after inactivity).
   intervalId = setInterval(() => {
     void runJob();
   }, INTERVAL_MS);

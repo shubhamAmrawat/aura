@@ -12,7 +12,8 @@ categoryRoutes.get("/", async (c) => {
       .from(categories)
       .orderBy(categories.sortOrder); 
     
-    return c.json({ data: result }); 
+    c.header("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800");
+    return c.json({ data: result });
 
   } catch (error) {
     console.log("Categories error:", error);

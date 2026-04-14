@@ -22,6 +22,7 @@
     "hono": "^4.0.0",
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^8.0.4",
+    "openai": "^6.34.0",
     "postgres": "*",
     "sharp": "^0.34.5"
   },
