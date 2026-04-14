@@ -273,15 +273,24 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
     }
 
   
-    // run moderation + metadata extraction in parallel — saves 3-4s
-    console.log("Running moderation + metadata extraction in parallel...");
-    const [moderation, metadata] = await Promise.all([
+    // Run moderation, metadata extraction, and vision embedding all in parallel.
+    // Sightengine + GPT-4o-mini both take ~1-2s — overlapping them costs nothing extra.
+    // When all three resolve, the embedding is ready to be stored immediately in the
+    // INSERT, so Similar Vibes works the moment the user lands on the wallpaper page.
+    const [moderation, metadata, textEmbedding] = await Promise.all([
       checkImageSafety(fileUrl),
       extractImageMetadata(fileUrl),
+      generateVisionEmbedding(fileUrl, {
+        title: title.trim(),
+        description: description?.trim() || null,
+        tags: tags || [],
+      }).catch((err) => {
+        console.error("[embedding] Vision embedding failed during upload:", err);
+        return null;
+      }),
     ]);
 
     if (moderation.status === "rejected") {
-      // delete the uploaded file from R2
       await deleteFile(key).catch(() => { });
       return c.json({
         error: moderation.reason || "Image violates content policy",
@@ -293,8 +302,6 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       : fileType === "image/webp" ? "webp"
         : "jpeg";
 
-    // console.log("Extracting image metadata...");
-    // const metadata = await extractImageMetadata(fileUrl);
     const finalWidth = metadata.width || clientW;
     const finalHeight = metadata.height || clientH;
 
@@ -306,7 +313,13 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       }, 400);
     }
 
-    // create wallpaper record
+    if (textEmbedding) {
+      console.log(`[embedding] Vision+text vector ready (${textEmbedding.length}-dim)`);
+    } else {
+      console.warn("[embedding] No vector produced — Similar Vibes will be empty until reembedded");
+    }
+
+    // create wallpaper record with embedding already set — Similar Vibes works immediately
     const newWallpaper = await db
       .insert(wallpapers)
       .values({
@@ -330,6 +343,7 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
         likeCount: 0,
         viewCount: 0,
         status: moderation.status,
+        ...(textEmbedding ? { textEmbedding } : {}),
       })
       .returning();
 
@@ -340,32 +354,6 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       .update(users)
       .set({ totalUploads: sql`${users.totalUploads} + 1` })
       .where(eq(users.id, userId));
-
-    // Fire embedding AFTER the response is returned — upload is instant for the user.
-    // GPT-4o-mini (detail:low) describes the image visually, then we combine that
-    // description with title/tags and embed via text-embedding-3-small.
-    // Total background time: ~1.5s. Zero RAM on the server.
-    if (created) {
-      setImmediate(() => {
-        generateVisionEmbedding(fileUrl, {
-          title: created.title,
-          description: created.description,
-          tags: created.tags,
-        })
-          .then((textEmbedding) => {
-            if (!textEmbedding) {
-              console.warn(`[embedding] No vector produced for wallpaper ${created.id}`);
-              return;
-            }
-            return db
-              .update(wallpapers)
-              .set({ textEmbedding })
-              .where(eq(wallpapers.id, created.id))
-              .then(() => console.log(`[embedding] Vision+text vector saved for wallpaper ${created.id}`));
-          })
-          .catch((err) => console.error("[embedding] Background update failed:", err));
-      });
-    }
 
     return c.json({
       wallpaper: created,
