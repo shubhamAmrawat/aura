@@ -16,6 +16,7 @@ export interface Wallpaper {
   tags: string[];
   isPremium: boolean;
   isFeatured: boolean;
+  isMobile: boolean;
   downloadCount: number;
   likeCount: number;
   createdAt: string;

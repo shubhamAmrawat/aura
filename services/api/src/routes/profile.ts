@@ -548,6 +548,7 @@ profileRoutes.get("/uploads", async (c) => {
         downloadCount: wallpapers.downloadCount,
         createdAt: wallpapers.createdAt,
         format: wallpapers.format,
+        isMobile: wallpapers.isMobile,
       })
       .from(wallpapers)
       .where(eq(wallpapers.uploaderId, userId))

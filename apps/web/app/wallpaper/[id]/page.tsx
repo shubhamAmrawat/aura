@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: WallpaperPageProps) {
     if (!wallpaper) return { title: "Wallpaper Not Found" };
 
     const resolution = `${wallpaper.width}×${wallpaper.height}`;
-    const orientation = wallpaper.height > wallpaper.width ? "Mobile" : "Desktop";
+    const orientation = wallpaper.isMobile ? "Mobile" : "Desktop";
 
     return {
       title: `${wallpaper.title} — Free ${orientation} Wallpaper ${resolution}`,
@@ -94,7 +94,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
     );
   }
 
-  const isPortrait = wallpaper.height > wallpaper.width;
+  const isPortrait = wallpaper.isMobile;
 
   return (
     <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>

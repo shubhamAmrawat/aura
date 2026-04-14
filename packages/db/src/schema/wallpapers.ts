@@ -75,6 +75,7 @@ export const wallpapers = pgTable("wallpapers", {
   isPremium: boolean("is_premium").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
   isAiGenerated: boolean("is_ai_generated").notNull().default(false),
+  isMobile: boolean("is_mobile").notNull().default(false),
   downloadCount: integer("download_count").notNull().default(0),
   likeCount: integer("like_count").notNull().default(0),
   viewCount: integer("view_count").notNull().default(0),

@@ -24,6 +24,7 @@ const wallpaperListSelect = {
   trendingScore: wallpapers.trendingScore,
   isFeatured: wallpapers.isFeatured,
   isPremium: wallpapers.isPremium,
+  isMobile: wallpapers.isMobile,
   tags: wallpapers.tags,
   categoryId: wallpapers.categoryId,
   status: wallpapers.status,
@@ -38,6 +39,7 @@ async function extractImageMetadata(fileUrl: string): Promise<{
   blurhash: string;
   width: number;
   height: number;
+  isMobile: boolean;
 }> {
   const defaults = {
     dominantColor: "#0a0a0a",
@@ -45,17 +47,21 @@ async function extractImageMetadata(fileUrl: string): Promise<{
     blurhash: BLURHASH_FALLBACK,
     width: 0,
     height: 0,
+    isMobile: false,
   };
   try {
     const response = await fetch(fileUrl);
     if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    const meta = await sharp(buffer).metadata();
+    // .rotate() with no args applies EXIF auto-rotation so stored width/height
+    // always match what the browser displays (prevents portrait↔landscape mismatch)
+    const rotatedBuffer = await sharp(buffer).rotate().toBuffer();
+    const meta = await sharp(rotatedBuffer).metadata();
     const width = meta.width ?? 0;
     const height = meta.height ?? 0;
 
-    const { data: rawPixels, info } = await sharp(buffer)
+    const { data: rawPixels, info } = await sharp(rotatedBuffer)
       .resize(200, 200, { fit: "inside" })
       .flatten({ background: { r: 0, g: 0, b: 0 } })
       .raw()
@@ -101,7 +107,7 @@ async function extractImageMetadata(fileUrl: string): Promise<{
 
     const bhW = 32;
     const bhH = Math.max(1, Math.round((32 * Math.max(1, height)) / Math.max(1, width)));
-    const { data: bhPixels, info: bhInfo } = await sharp(buffer)
+    const { data: bhPixels, info: bhInfo } = await sharp(rotatedBuffer)
       .resize(bhW, bhH, { fit: "inside" })
       .ensureAlpha()
       .raw()
@@ -121,6 +127,8 @@ async function extractImageMetadata(fileUrl: string): Promise<{
       blurhash: blurhashValue,
       width,
       height,
+      // Portrait/square (ratio ≥ 0.9) → mobile; clearly landscape (ratio < 0.9) → desktop
+      isMobile: width > 0 ? height / width >= 0.9 : false,
     };
   } catch (error) {
     console.error("Metadata extraction failed:", error);
@@ -339,6 +347,7 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
         isPremium: false,
         isFeatured: false,
         isAiGenerated: false,
+        isMobile: metadata.isMobile,
         downloadCount: 0,
         likeCount: 0,
         viewCount: 0,
