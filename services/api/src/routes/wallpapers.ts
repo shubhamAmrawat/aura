@@ -6,7 +6,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { checkImageSafety } from "../lib/vision";
 import { generateUploadUrl, deleteFile } from "../lib/r2";
 import { authMiddleware } from "../middleware/auth";
-import { generateImageEmbedding, generateWallpaperTextEmbedding } from "../lib/embeddings";
+import { generateVisionEmbedding } from "../lib/embeddings";
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
 // define reusable column selection for list views
 const wallpaperListSelect = {
@@ -341,33 +341,27 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       .set({ totalUploads: sql`${users.totalUploads} + 1` })
       .where(eq(users.id, userId));
 
-    // Fire both embedding jobs after the response is returned — upload stays fast.
-    //   embedding      → CLIP visual (for /:id/similar visual similarity)
-    //   textEmbedding  → OpenAI text of metadata (for /search semantic queries)
+    // Fire embedding AFTER the response is returned — upload is instant for the user.
+    // GPT-4o-mini (detail:low) describes the image visually, then we combine that
+    // description with title/tags and embed via text-embedding-3-small.
+    // Total background time: ~1.5s. Zero RAM on the server.
     if (created) {
       setImmediate(() => {
-        Promise.all([
-          generateImageEmbedding(fileUrl),
-          generateWallpaperTextEmbedding({
-            title: created.title,
-            description: created.description,
-            tags: created.tags,
-          }),
-        ])
-          .then(([embedding, textEmbedding]) => {
-            const updates: Record<string, unknown> = {};
-            if (embedding) updates.embedding = embedding;
-            else console.warn(`[embedding] No CLIP vector for wallpaper ${created.id}`);
-
-            if (textEmbedding) updates.textEmbedding = textEmbedding;
-            else console.warn(`[text-embedding] No OpenAI vector for wallpaper ${created.id}`);
-
-            if (Object.keys(updates).length === 0) return;
+        generateVisionEmbedding(fileUrl, {
+          title: created.title,
+          description: created.description,
+          tags: created.tags,
+        })
+          .then((textEmbedding) => {
+            if (!textEmbedding) {
+              console.warn(`[embedding] No vector produced for wallpaper ${created.id}`);
+              return;
+            }
             return db
               .update(wallpapers)
-              .set(updates)
+              .set({ textEmbedding })
               .where(eq(wallpapers.id, created.id))
-              .then(() => console.log(`[embedding] Both vectors saved for wallpaper ${created.id}`));
+              .then(() => console.log(`[embedding] Vision+text vector saved for wallpaper ${created.id}`));
           })
           .catch((err) => console.error("[embedding] Background update failed:", err));
       });
@@ -452,11 +446,11 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
 
     const src = source[0];
 
-    if (!src.embedding) {
+    if (!src.textEmbedding) {
       return c.json({ data: [], hasMore: false });
     }
 
-    const embeddingStr = `[${src.embedding.join(",")}]`;
+    const embeddingStr = `[${src.textEmbedding.join(",")}]`;
 
     // JS string[] must become SQL text[] — binding ${src.tags} alone sends a scalar string (22P02).
     const tagList = src.tags ?? [];
@@ -473,16 +467,16 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
         ? sql`0`
         : sql`CASE WHEN category_id = ${src.categoryId}::uuid THEN 0.15 ELSE 0 END`;
 
-    // hybrid scoring: CLIP similarity + category bonus + tag overlap
+    // hybrid scoring: vision+semantic similarity + category bonus + tag overlap
     const similar = await db.execute(sql`
       SELECT 
         id, title, file_url, blurhash, dominant_color,
         width, height, like_count, download_count,
         category_id, tags,
-        (1 - (embedding <=> ${embeddingStr}::vector)) AS clip_score,
+        (1 - (text_embedding <=> ${embeddingStr}::vector)) AS semantic_score,
         ${categoryBonusSql} AS category_bonus,
         (
-          (1 - (embedding <=> ${embeddingStr}::vector)) * 0.75 +
+          (1 - (text_embedding <=> ${embeddingStr}::vector)) * 0.75 +
           ${categoryBonusSql} +
           (
             CARDINALITY(ARRAY(
@@ -504,7 +498,7 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
       WHERE 
         status = 'approved'
         AND id != ${id}
-        AND embedding IS NOT NULL
+        AND text_embedding IS NOT NULL
       ORDER BY hybrid_score DESC
       LIMIT ${fetchCount}
       OFFSET ${offset}
@@ -586,6 +580,8 @@ wallpaperRoutes.post("/reembed-text", async (c) => {
 
     let updated = 0;
     let failed = 0;
+
+    const { generateWallpaperTextEmbedding } = await import("../lib/embeddings");
 
     for (const row of rows) {
       const textEmbedding = await generateWallpaperTextEmbedding({
