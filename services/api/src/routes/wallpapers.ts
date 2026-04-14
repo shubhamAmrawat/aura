@@ -6,7 +6,7 @@ import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { checkImageSafety } from "../lib/vision";
 import { generateUploadUrl, deleteFile } from "../lib/r2";
 import { authMiddleware } from "../middleware/auth";
-import { generateImageEmbedding, isImageEmbeddingSkippedOnUpload } from "../lib/embeddings";
+import { generateImageEmbedding } from "../lib/embeddings";
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
 // define reusable column selection for list views
 const wallpaperListSelect = {
@@ -55,13 +55,9 @@ async function extractImageMetadata(fileUrl: string): Promise<{
     const width = meta.width ?? 0;
     const height = meta.height ?? 0;
 
-    // Single decode/resize pass (was two) — lowers peak native memory on small VPS/Render plans.
-    const bhW = 32;
-    const bhH = Math.max(1, Math.round((32 * Math.max(1, height)) / Math.max(1, width)));
     const { data: rawPixels, info } = await sharp(buffer)
-      .resize(bhW, bhH, { fit: "inside" })
+      .resize(200, 200, { fit: "inside" })
       .flatten({ background: { r: 0, g: 0, b: 0 } })
-      .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
 
@@ -103,10 +99,18 @@ async function extractImageMetadata(fileUrl: string): Promise<{
       if (!palette.includes(hex)) palette.push(hex);
     }
 
+    const bhW = 32;
+    const bhH = Math.max(1, Math.round((32 * Math.max(1, height)) / Math.max(1, width)));
+    const { data: bhPixels, info: bhInfo } = await sharp(buffer)
+      .resize(bhW, bhH, { fit: "inside" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
     const blurhashValue = encode(
-      new Uint8ClampedArray(rawPixels),
-      w,
-      h,
+      new Uint8ClampedArray(bhPixels),
+      bhInfo.width,
+      bhInfo.height,
       4,
       3
     );
@@ -336,8 +340,8 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       .set({ totalUploads: sql`${users.totalUploads} + 1` })
       .where(eq(users.id, userId));
 
-    // CLIP vision model is heavy; on low-RAM hosts (common on Render) this OOM-kills the process → "Failed to fetch".
-    if (created && !isImageEmbeddingSkippedOnUpload()) {
+    // wait for embedding so detail page / similar search work immediately after redirect
+    if (created) {
       try {
         const embedding = await generateImageEmbedding(fileUrl);
         if (embedding) {
@@ -352,10 +356,6 @@ wallpaperRoutes.post("/upload", authMiddleware, async (c) => {
       } catch (err) {
         console.error("[embedding] Failed:", err);
       }
-    } else if (created && isImageEmbeddingSkippedOnUpload()) {
-      console.warn(
-        "[embedding] Skipped on upload (set SKIP_IMAGE_EMBEDDING_ON_UPLOAD) — similar search may miss this wallpaper until embeddings are backfilled"
-      );
     }
     return c.json({
       wallpaper: created,
