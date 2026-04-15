@@ -56,12 +56,17 @@ const DownloadButton = ({
     if (downloading) return;
     setDownloading(true);
     try {
+      // Track download count (fire-and-forget).
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
         method: "POST",
         credentials: "include",
       }).catch(() => {});
 
-      const response = await fetch(fileUrl);
+      // Use our own API route which fetches the file server-side, bypassing
+      // the CORS restriction that blocks direct browser fetches to the R2 CDN.
+      const response = await fetch(`/api/download/${wallpaperId}`);
+      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -72,6 +77,7 @@ const DownloadButton = ({
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
     } catch {
+      // Last resort: open directly (user will see the image but can long-press/right-click save).
       window.open(fileUrl, "_blank");
     } finally {
       setDownloading(false);
