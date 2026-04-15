@@ -44,7 +44,7 @@ const DownloadButton = ({
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     // gate: must be logged in
     if (!user) {
       // save current page so we redirect back after login
@@ -55,32 +55,39 @@ const DownloadButton = ({
 
     if (downloading) return;
     setDownloading(true);
+
+    // Track download count (fire-and-forget).
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
+
     try {
-      // Track download count (fire-and-forget).
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/download`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {});
+      // Build the route URL with the CDN url + filename as query params.
+      // The route fetches the file server-side (no CORS) and streams it back
+      // with Content-Disposition: attachment — browser shows the save dialog
+      // the moment headers arrive and streams to disk natively, so the user
+      // sees the dialog immediately instead of waiting for the full file in RAM.
+      const params = new URLSearchParams({
+        url: fileUrl,
+        name: title.replace(/[^a-z0-9]/gi, "_").toLowerCase(),
+      });
+      const downloadHref = `/api/download/${wallpaperId}?${params.toString()}`;
 
-      // Use our own API route which fetches the file server-side, bypassing
-      // the CORS restriction that blocks direct browser fetches to the R2 CDN.
-      const response = await fetch(`/api/download/${wallpaperId}`);
-      if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      // Navigate via a hidden anchor — no fetch, no blob buffering.
       const a = document.createElement("a");
-      a.href = url;
+      a.href = downloadHref;
+      // 'download' attr only works same-origin; our route IS same-origin so this
+      // provides the filename hint as a second layer.
       a.download = `${title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.jpg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
     } catch {
-      // Last resort: open directly (user will see the image but can long-press/right-click save).
       window.open(fileUrl, "_blank");
     } finally {
-      setDownloading(false);
+      // Reset button state quickly — the download is handled by the browser now.
+      setTimeout(() => setDownloading(false), 1500);
     }
   };
 
