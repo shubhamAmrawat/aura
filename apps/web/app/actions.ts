@@ -8,7 +8,7 @@ import { revalidateTag, revalidatePath } from "next/cache";
  * the homepage, /latest, and /trending without waiting for revalidation TTLs.
  */
 export async function revalidateFeeds() {
-  revalidateTag("wallpapers");
+  revalidateTag("wallpapers", "max");
   revalidatePath("/");
   revalidatePath("/latest");
   revalidatePath("/trending");
