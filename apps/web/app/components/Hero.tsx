@@ -18,10 +18,30 @@ const Hero = ({ wallpapers }: HeroProps) => {
   const [hovered, setHovered] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastHorizontalSwipeAt = useRef(0);
+  const scrollingRef = useRef(false);
+  const scrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Pause autoplay while the user is scrolling — the hero is off-screen anyway
+  // and the 2 s CSS crossfade creates unnecessary compositor work during scroll.
+  useEffect(() => {
+    const onScroll = () => {
+      scrollingRef.current = true;
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+      scrollTimerRef.current = setTimeout(() => {
+        scrollingRef.current = false;
+      }, 300);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (wallpapers.length === 0) return;
     const timer = setInterval(() => {
+      if (scrollingRef.current) return;
       setCurrent((prev) => (prev + 1) % wallpapers.length);
     }, 7000);
     return () => clearInterval(timer);
@@ -74,6 +94,7 @@ const Hero = ({ wallpapers }: HeroProps) => {
           key={w.id}
           href={`/wallpaper/${w.id}`}
           onClick={onSlideLinkClick}
+          style={{ willChange: "opacity" }}
           className={`absolute inset-0 block transition-opacity duration-[2000ms] ease-in-out ${
             i === current
               ? "z-[2] opacity-100 pointer-events-auto"

@@ -99,13 +99,22 @@ export default function LatestWallpapersInfinite({
   }, [loadMore]);
 
   useEffect(() => {
-    const onScroll = () => maybeLoadFromScrollPosition();
+    // Throttle via rAF — scroll handler never runs more than once per frame.
+    let rafId: number | null = null;
+    const onScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        maybeLoadFromScrollPosition();
+      });
+    };
     maybeLoadFromScrollPosition();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [maybeLoadFromScrollPosition]);
 
@@ -147,7 +156,7 @@ export default function LatestWallpapersInfinite({
         <>
           <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
             {items.map((wallpaper, index) => (
-              <div key={wallpaper.id} className="break-inside-avoid mb-4">
+              <div key={wallpaper.id} className="break-inside-avoid mb-4" style={{ contentVisibility: "auto" }}>
                 <WallpaperCard wallpaper={wallpaper} priority={index === 0} />
               </div>
             ))}
