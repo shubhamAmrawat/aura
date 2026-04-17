@@ -10,9 +10,13 @@ TECHNICAL_AUDIT.md
 
 # Local-only DB scripts (credentials / one-off); do not commit
 packages/db/src/seed.ts
+packages/db/src/seed-local-walls.ts
 packages/db/src/migrate-to-r2.ts
 packages/db/src/generate-embeddings.ts
 packages/db/src/backfill-text-embeddings.ts
+
+# Local wallpaper import source (large personal assets)
+wallsCollection/
 
 # Migration SQL files — project uses drizzle-kit push (schema-sync), not migrate runner.
 # These files are never auto-applied; the schema is the source of truth.
