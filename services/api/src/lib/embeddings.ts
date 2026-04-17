@@ -132,3 +132,78 @@ export async function generateWallpaperTextEmbedding(metadata: {
   if (parts.length === 0) return null;
   return generateTextEmbedding(parts.join(". "));
 }
+
+function sanitizeTagList(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return [];
+  const out = tags
+    .map((t) => String(t).trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(out)].slice(0, 10);
+}
+
+/**
+ * One vision call: structured title/description/tags + visualDescription, then the same
+ * combined embedding as `generateVisionEmbedding` (vision text + metadata → text-embedding-3-small).
+ * Use for backfilling rows that were seeded with numeric titles or generic descriptions.
+ */
+export async function generateVisionMetadataAndEmbedding(imageUrl: string): Promise<{
+  title: string;
+  description: string;
+  tags: string[];
+  embedding: number[] | null;
+} | null> {
+  try {
+    const openai = getOpenAI();
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You analyze wallpaper images for a gallery. Return JSON with keys: " +
+            "visualDescription (string, 1–2 sentences: style, colors, mood, subject, searchable keywords), " +
+            "title (string, max 80 chars, human-readable, not just numbers), " +
+            "description (string, max 220 chars, specific and engaging), " +
+            "tags (array of 4–8 lowercase words). " +
+            "Avoid generic filler phrases like 'high-quality wallpaper' alone.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
+            {
+              type: "text",
+              text: "Produce catalog metadata and a visual description for similarity search.",
+            },
+          ],
+        },
+      ],
+    });
+
+    const raw = response.choices[0]?.message?.content?.trim();
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const visualDescription = String(parsed.visualDescription ?? "").trim();
+    const title = String(parsed.title ?? "").trim().slice(0, 255);
+    const description = String(parsed.description ?? "").trim().slice(0, 500);
+    const tags = sanitizeTagList(parsed.tags);
+
+    if (!title) return null;
+
+    const parts = [
+      visualDescription,
+      title,
+      description || null,
+      tags.length ? tags.join(", ") : null,
+    ].filter(Boolean) as string[];
+
+    const embedding = await generateTextEmbedding(parts.join(". "));
+    return { title, description, tags, embedding };
+  } catch (err) {
+    console.error("[embedding] Vision metadata+embedding failed:", err);
+    return null;
+  }
+}

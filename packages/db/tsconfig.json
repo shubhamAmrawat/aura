@@ -13,6 +13,7 @@
     "src/seed.ts",
     "src/migrate-to-r2.ts",
     "src/generate-embeddings.ts",
+    "src/backfill-text-embeddings.ts",
     "dist"
   ]
 }
