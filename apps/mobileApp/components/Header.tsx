@@ -1,30 +1,38 @@
-import { Image, StyleSheet, Text, View } from "react-native"
+import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 import { useInsets } from "../hooks/useInsets";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { Colors } from "../constants";
 
 interface HeaderProps {
   title?: string;
   logo?: boolean;
   titleFontSize?: number;
+  showBackButton?: boolean;
   rightElement?: React.ReactNode
 }
 const SITE_LOGO_URL = "https://res.cloudinary.com/dvzm9b086/image/upload/v1776106005/logo_1266_culdvs.png";
 
 
-const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, rightElement }: HeaderProps) => {
+const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, showBackButton = false, rightElement }: HeaderProps) => {
   const { topPadding } = useInsets();
   return (
     <View style={[styles.container, { paddingTop: topPadding + 10 }]}>
       {/* left side */}
 
-      {
-        (logo || title) &&
-        (
+      <View style={styles.leftContainer}>
+        {showBackButton && (
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={Colors.accent} />
+          </Pressable>
+        )}
+        {(logo || title) && (
           <View style={styles.logoContainer}>
             {logo && <Image source={{ uri: SITE_LOGO_URL }} style={styles.logo} />}
             <Text style={[styles.title, { fontSize: titleFontSize }]}>{title}</Text>
           </View>
-        )
-      }
+        )}
+      </View>
 
       {/* right side */}
       <View style={styles.rightContainer}>
@@ -35,16 +43,16 @@ const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, rightElemen
 }
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#111111',
+    backgroundColor: Colors.bgSecondary,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 10,
-    borderBottomColor: '#888888',
+    borderBottomColor: Colors.textSecondary,
     paddingBottom: 10,
   },
   title: {
-    color: '#81ee4e',
+    color: Colors.accent,
     fontSize: 24,
     fontWeight: '900',
     letterSpacing: 3,
@@ -61,6 +69,14 @@ const styles = StyleSheet.create({
   rightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  leftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backButton: {
+    padding: 4,
   },
 });
 export default Header

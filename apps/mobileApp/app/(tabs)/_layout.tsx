@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { Tabs } from "expo-router"
 import { useInsets } from "../../hooks/useInsets";
+import { Colors } from "../../constants";
 
 
 const TabLayout = () => {
@@ -10,12 +11,12 @@ const TabLayout = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#111111",
-          borderTopColor: "rgba(255,255,255,0.06)",
+          backgroundColor: Colors.bgSecondary,
+          borderTopColor: Colors.border,
           borderTopWidth: 1,
         },
-        tabBarActiveTintColor: '#81EE4E',
-        tabBarInactiveTintColor: '#888888',
+        tabBarActiveTintColor: Colors.accent,
+        tabBarInactiveTintColor: Colors.textSecondary,
       }}
     >
       <Tabs.Screen name="index" options={{

@@ -1,7 +1,7 @@
 import { getToken } from "./tokenStorage";
 
-const BASE_URL = "https://api.aurora-walls.com"
-
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+console.log("BASE URL:",BASE_URL);
 export type User = {
   id: string
   email: string

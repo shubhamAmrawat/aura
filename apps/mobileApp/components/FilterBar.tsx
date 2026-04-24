@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import { Pressable, StyleSheet, Text, View } from "react-native"
+import { Colors } from "../constants";
 
 const FilterBar = () => {
   return (
@@ -9,7 +10,7 @@ const FilterBar = () => {
         <Ionicons
           name="filter-outline"
           size={20}
-          color="#81ee4e"
+          color={Colors.accent}
         />
       </Pressable>
     </View>

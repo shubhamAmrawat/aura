@@ -28,7 +28,9 @@
       },
       "package": "com.aurora-walls",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "navigationBarColor": "#111111",
+      "backgroundColor": "#111111"
     }
   }
 }

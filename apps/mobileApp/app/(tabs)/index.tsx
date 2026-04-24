@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native"
 import Header from "../../components/Header";
 import ProfileButton from "../../components/ProfileButton";
+import { Colors } from "../../constants";
 
 
 const Index = () => {
@@ -14,7 +15,7 @@ const Index = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111111',
+    backgroundColor: Colors.bgSecondary,
 
   },
 });

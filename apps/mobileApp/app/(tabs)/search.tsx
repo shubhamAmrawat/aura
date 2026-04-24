@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import Header from '../../components/Header';
 import SearchBar from '../../components/searchBar';
+import { Colors } from '../../constants';
 
 
 const Search = () => {
@@ -15,7 +16,7 @@ const Search = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111111',
+    backgroundColor: Colors.bgSecondary,
     
   }
 });

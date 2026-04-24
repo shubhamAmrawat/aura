@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from "react-native"
 import Header from "../../components/Header";
 import FilterBar from "../../components/FilterBar";
+import { Colors } from "../../constants";
 
 const Trending = () => {
   return (
@@ -13,7 +14,7 @@ const Trending = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111111',
+    backgroundColor: Colors.bgSecondary,
   }
 });
 export default Trending;

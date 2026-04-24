@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native"
+import { Colors } from "../constants";
 
 
 const SearchBar = () => {
@@ -13,11 +14,11 @@ const SearchBar = () => {
       <Ionicons
         name="search-outline"
         size={24}
-        color="#81ee4e"
+        color={Colors.accent}
       />
       <TextInput
         placeholder="Search wallpapers..."
-        placeholderTextColor="#888888"
+        placeholderTextColor={Colors.textSecondary}
         style={styles.input}
         value={search}
         onChangeText={setSearch}
@@ -37,14 +38,14 @@ const styles = StyleSheet.create({
 
     paddingVertical: 5,
     alignItems: 'center',
-    borderColor: '#81ee4e',
+    borderColor: Colors.accent,
     borderWidth: 1,
     borderRadius: 50,
   },
   input: {
     flex: 1,
-    backgroundColor: '#111111',
-    color: 'white',
+    backgroundColor: Colors.bgSecondary,
+    color: Colors.textPrimary,
     borderRadius: 10,
     padding: 10,
   }
