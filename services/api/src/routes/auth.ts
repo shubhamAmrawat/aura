@@ -213,6 +213,7 @@ authRoutes.post("/signup", async (c) => {
 
     return c.json({
       message: "Account created successfully",
+      token,
       user: {
         id: createdUser.id,
         email: createdUser.email,
@@ -282,6 +283,7 @@ authRoutes.post("/login", async (c) => {
 
     return c.json({
       message: "Logged in successfully",
+      token,
       user: {
         id: u.id,
         email: u.email,
