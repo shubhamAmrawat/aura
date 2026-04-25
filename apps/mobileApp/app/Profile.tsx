@@ -74,7 +74,7 @@ export default function Profile() {
     <View style={styles.container}>
       <Header title="Profile" logo={false} titleFontSize={20} showBackButton={true} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.coverWrap}>``
+        <View style={styles.coverWrap}>
           <View style={styles.coverCard}>
             <Image
               source={{ uri: user.coverUrl || Images.DEFAULT_COVER_IMAGE_URL }}
