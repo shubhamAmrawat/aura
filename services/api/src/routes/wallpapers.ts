@@ -523,12 +523,16 @@ wallpaperRoutes.get("/:id", async (c) => {
       .where(eq(wallpapers.id, id))
       .limit(1);
 
-    if (result.length === 0) {
+    const wallpaperRecord = result[0];
+
+    if (!wallpaperRecord) {
       return c.json({ error: "Wallpaper not found" }, 404);
     }
 
+    const { textEmbedding: _textEmbedding, ...wallpaper } = wallpaperRecord;
+
     c.header("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
-    return c.json({ data: result[0] });
+    return c.json({ data: wallpaper });
   } catch (error) {
     console.error("Wallpapers error:", error);
     return c.json({ error: "Failed to fetch wallpapers" }, 500);
