@@ -18,15 +18,24 @@ export async function verifyOtp(payload: {email: string, code: string, type: str
   });
 }
 
-export async function login(payload: {email: string}):Promise<{message: string, user: User}>{
-  return await request<{message: string, user: User}>("/api/auth/login", {
+export async function login(
+  payload: {email: string}):Promise<{message: string,token: string, user: User}>{
+  return await request<{message: string,token: string, user: User}>(
+    "/api/auth/login", 
+  {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export async function signup(payload: {email: string, username: string, displayName: string, password: string}):Promise<{message: string, user: User}>{
-  return await request<{message: string, user: User}>("/api/auth/signup", {
+export async function signup(
+  payload: {
+    email: string, 
+    username: string, 
+    displayName: string, 
+    password: string
+  }):Promise<{message: string, token: string, user: User}>{
+  return await request<{message: string, token: string, user: User}>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify(payload),
   });

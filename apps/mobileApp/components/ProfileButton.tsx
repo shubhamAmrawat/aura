@@ -8,12 +8,19 @@ import { Colors } from "../constants";
 
 const ProfileButton = () => {
   const { user } = useAuth();
+  const handleNavigate = () => {
+    if(user){
+      router.push('/Profile');
+    }else{
+      router.push('/auth');
+    }
+  }
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.push('/Profile')}>
+      <Pressable onPress={handleNavigate}>
 
         {user?.avatarUrl ? (
-          <Image source={{ uri: user.avatarUrl }} style={{ width: 30, height: 30, borderRadius: 15 }} />
+          <Image source={{ uri: user.avatarUrl }} style={{ width: 33, height: 33,borderRadius: 100 }} />
         ) : (
           <Ionicons
             name="person-outline"
@@ -29,10 +36,10 @@ const ProfileButton = () => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 5,
+    padding: 2,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: Colors.accent,
+    borderColor: Colors.accent ,
   }
 })
 export default ProfileButton
