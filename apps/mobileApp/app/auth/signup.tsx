@@ -61,73 +61,92 @@ export default function SignupScreen() {
         transition={400}
       />
       <LinearGradient
-        colors={['transparent', 'rgba(10,10,10,0.5)', '#0A0A0A', '#0A0A0A']}
-        locations={[0, 0.45, 0.75, 1]}
+        colors={['rgba(5,5,5,0.18)', 'rgba(7,7,7,0.50)', 'rgba(8,8,8,0.85)']}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', Colors.bgScrim]}
+        locations={[0.38, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <View style={{ flex: 1 }}>
         <View style={styles.content}>
-          <Text style={styles.brandTitle}>AURORA</Text>
-          <Text style={styles.brandSub}>Create your account</Text>
-
-          <View style={styles.spacer} />
-
-          <View style={styles.inputRow}>
-            <Ionicons name="at-outline" size={18} color={Colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              placeholderTextColor={Colors.textMuted}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoCorrect={false}
-              underlineColorAndroid="transparent"
-            />
+          <View style={styles.hero}>
+            <Text style={styles.brandTitle}>AURORA</Text>
+            <Text style={styles.brandSub}>Create your account</Text>
           </View>
 
-          <View style={styles.inputRow}>
-            <Ionicons name="person-outline" size={18} color={Colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Display Name"
-              placeholderTextColor={Colors.textMuted}
-              value={displayName}
-              onChangeText={setDisplayName}
-              underlineColorAndroid="transparent"
-            />
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Almost there</Text>
+            <Text style={styles.cardSubtitle}>Complete your profile and secure your account.</Text>
+
+            <View style={styles.inputRow}>
+              <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={[styles.input, styles.inputDisabled]}
+                value={email}
+                editable={false}
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <Ionicons name="at-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                placeholderTextColor={Colors.textMuted}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+                underlineColorAndroid="transparent"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <Ionicons name="person-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Display Name"
+                placeholderTextColor={Colors.textMuted}
+                value={displayName}
+                onChangeText={setDisplayName}
+                underlineColorAndroid="transparent"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password (min 8 characters)"
+                placeholderTextColor={Colors.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                underlineColorAndroid="transparent"
+              />
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={({ pressed }) => [styles.button, pressed && { opacity: 0.9 }]}
+              onPress={handleSignup}
+              disabled={loading}
+            >
+              {loading
+                ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
+                : <Text style={styles.buttonText}>Create Account</Text>
+              }
+            </Pressable>
+
+            <Pressable onPress={() => router.back()} style={styles.backBtn}>
+              <Text style={styles.backText}>Go back</Text>
+            </Pressable>
           </View>
-
-          <View style={styles.inputRow}>
-            <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password (min 8 characters)"
-              placeholderTextColor={Colors.textMuted}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              underlineColorAndroid="transparent"
-            />
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable
-            style={({ pressed }) => [styles.button, pressed && { opacity: 0.85 }]}
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-              : <Text style={styles.buttonText}>Create Account</Text>
-            }
-          </Pressable>
-
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Go back</Text>
-          </Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -143,29 +162,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 24,
-    paddingBottom: 60,
-    paddingTop: 120,
-    gap: 12,
+    paddingBottom: 34,
+    paddingTop: 88,
+    gap: 16,
+  },
+  hero: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    backgroundColor: Colors.cardSurface,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    gap: 14,
   },
   brandTitle: {
     color: Colors.textPrimary,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
-    letterSpacing: 6,
+    letterSpacing: 5,
   },
   brandSub: {
+    color: '#D0CFCF',
+    fontSize: 14,
+    letterSpacing: 0.6,
+    lineHeight: 20,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  cardSubtitle: {
     color: Colors.textSecondary,
     fontSize: 13,
-    letterSpacing: 1,
+    lineHeight: 18,
   },
-  spacer: { height: 8 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: Colors.bgOverlay,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: Colors.borderHover,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 4,
@@ -176,6 +218,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingVertical: 12,
   },
+  inputDisabled: {
+    color: Colors.textSecondary,
+  },
   error: {
     color: '#E05252',
     fontSize: 12,
@@ -183,7 +228,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -201,5 +246,6 @@ const styles = StyleSheet.create({
   backText: {
     color: Colors.textSecondary,
     fontSize: 13,
+    textDecorationLine: 'underline',
   },
 })

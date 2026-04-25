@@ -10,6 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { Colors, Images } from '../../constants'
 import { verifyOtp, login } from '../../lib/authApi'
 import { useAuth } from '../../lib/AuthContext'
+import { useToast } from '../../lib/ToastContext'
 
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
@@ -22,7 +23,7 @@ export default function OtpScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const inputs = useRef<(TextInput | null)[]>([])
-
+  const { showToast } = useToast();
   const handleChange = (text: string, index: number) => {
     const cleaned = text.replace(/[^0-9]/g, '').slice(-1)
     const next = [...digits]
@@ -53,9 +54,11 @@ export default function OtpScreen() {
       if (type === 'login') {
         const res = await login({ email })
         await onLogin(res.token, res.user)
+        showToast("Login successful.", { type: "success" });
         router.replace('/(tabs)')
       } else {
         router.push({ pathname: '/auth/signup', params: { email } })
+        showToast("Signup successful.", { type: "success" });
       }
     } catch (e: any) {
       setError(e.message || 'Invalid OTP')
@@ -81,64 +84,73 @@ export default function OtpScreen() {
         transition={400}
       />
       <LinearGradient
-        colors={['transparent', 'rgba(10,10,10,0.5)', '#0A0A0A', '#0A0A0A']}
-        locations={[0, 0.45, 0.75, 1]}
+        colors={['rgba(5,5,5,0.18)', 'rgba(7,7,7,0.50)', 'rgba(8,8,8,0.85)']}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', Colors.bgScrim]}
+        locations={[0.38, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <View style={styles.content}>
-        <Text style={styles.brandTitle}>AURORA</Text>
-        <Text style={styles.brandSub}>Check your email</Text>
-        <Text style={styles.emailLabel}>
-          We sent a 6-digit code to{'\n'}
-          <Text style={{ color: Colors.textPrimary, fontWeight: '600' }}>{email}</Text>
-        </Text>
-
-        <View style={styles.spacer} />
-
-        {/* OTP boxes */}
-        <View style={styles.otpRow}>
-          {digits.map((digit, i) => (
-            <TextInput
-              key={i}
-              ref={el => { inputs.current[i] = el }}
-              style={[
-                styles.otpBox,
-                digit ? styles.otpBoxFilled : null,
-              ]}
-              value={digit}
-              onChangeText={text => handleChange(text, i)}
-              onKeyPress={e => handleKeyPress(e, i)}
-              keyboardType="number-pad"
-              maxLength={1}
-              textAlign="center"
-              selectionColor={Colors.accent}
-              caretHidden
-              underlineColorAndroid="transparent"
-            />
-          ))}
+        <View style={styles.hero}>
+          <Text style={styles.brandTitle}>AURORA</Text>
+          <Text style={styles.brandSub}>Secure verification</Text>
         </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Enter verification code</Text>
+          <Text style={styles.emailLabel}>
+            We sent a 6-digit code to{'\n'}
+            <Text style={styles.emailValue}>{email}</Text>
+          </Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            !isFilled && styles.buttonDisabled,
-            pressed && isFilled && { opacity: 0.85 }
-          ]}
-          onPress={handleVerify}
-          disabled={loading || !isFilled}
-        >
-          {loading
-            ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-            : <Text style={styles.buttonText}>Verify Code</Text>
-          }
-        </Pressable>
+          <View style={styles.otpRow}>
+            {digits.map((digit, i) => (
+              <TextInput
+                key={i}
+                ref={el => { inputs.current[i] = el }}
+                style={[
+                  styles.otpBox,
+                  digit ? styles.otpBoxFilled : null,
+                ]}
+                value={digit}
+                onChangeText={text => handleChange(text, i)}
+                onKeyPress={e => handleKeyPress(e, i)}
+                keyboardType="number-pad"
+                maxLength={1}
+                textAlign="center"
+                selectionColor={Colors.accent}
+                caretHidden
+              scrollEnabled={false}
+                underlineColorAndroid="transparent"
+              />
+            ))}
+          </View>
 
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Use a different email</Text>
-        </Pressable>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              !isFilled && styles.buttonDisabled,
+              pressed && isFilled && { opacity: 0.9 }
+            ]}
+            onPress={handleVerify}
+            disabled={loading || !isFilled}
+          >
+            {loading
+              ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
+              : <Text style={styles.buttonText}>Verify Code</Text>
+            }
+          </Pressable>
+
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backText}>Use a different email</Text>
+          </Pressable>
+        </View>
       </View>
     </KeyboardAvoidingView>
   )
@@ -153,27 +165,49 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 24,
-    paddingBottom: 60,
-    paddingTop: 120,
-    gap: 12,
+    paddingBottom: 34,
+    paddingTop: 88,
+    gap: 16,
+  },
+  hero: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    backgroundColor: Colors.cardSurface,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    gap: 14,
   },
   brandTitle: {
     color: Colors.textPrimary,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
-    letterSpacing: 6,
+    letterSpacing: 5,
   },
   brandSub: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    letterSpacing: 1,
+    color: '#D0CFCF',
+    fontSize: 14,
+    letterSpacing: 0.6,
+    lineHeight: 20,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
   },
   emailLabel: {
     color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 22,
   },
-  spacer: { height: 8 },
+  emailValue: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
+  },
   otpRow: {
     flexDirection: 'row',
     gap: 10,
@@ -182,18 +216,23 @@ const styles = StyleSheet.create({
   otpBox: {
     flex: 1,
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: Colors.border,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: Colors.borderHover,
+    backgroundColor: Colors.bgOverlay,
     color: Colors.textPrimary,
-    fontSize: 22,
+    fontSize: 24,
+    lineHeight: 24,
     fontWeight: '700',
+    includeFontPadding: false,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     textAlignVertical: 'center',
+    overflow: 'hidden',
   },
   otpBoxFilled: {
     borderColor: Colors.accent,
-    backgroundColor: 'rgba(129,238,78,0.10)',
+    backgroundColor: 'rgba(129,238,78,0.14)',
   },
   error: {
     color: '#E05252',
@@ -202,7 +241,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -223,5 +262,6 @@ const styles = StyleSheet.create({
   backText: {
     color: Colors.textSecondary,
     fontSize: 13,
+    textDecorationLine: 'underline',
   },
 })

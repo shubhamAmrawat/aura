@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView,
   ActivityIndicator, StyleSheet
 } from 'react-native'
 import { Image } from 'expo-image'
@@ -38,7 +38,6 @@ export default function AuthIndex() {
       behavior="padding"
       style={styles.root}
     >
-      {/* Full screen wallpaper using expo-image for blurhash + caching */}
       <Image
         source={{ uri: Images.AUTH_WALLPAPER_URL }}
         placeholder={{ blurhash: BLURHASH }}
@@ -46,76 +45,80 @@ export default function AuthIndex() {
         style={StyleSheet.absoluteFillObject}
         transition={400}
       />
-
-      {/* Gradient — transparent top, solid dark at bottom */}
       <LinearGradient
-        colors={['transparent', 'rgba(10,10,10,0.5)', '#0A0A0A', '#0A0A0A']}
-        locations={[0, 0.45, 0.75, 1]}
+        colors={['rgba(5,5,5,0.18)', 'rgba(7,7,7,0.50)', 'rgba(8,8,8,0.85)']}
+        locations={[0, 0.35, 1]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', Colors.bgScrim]}
+        locations={[0.38, 1]}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* All content in one view pushed to bottom */}
       <View style={styles.content}>
-
-        {/* Branding */}
-        <Text style={styles.brandTitle}>AURORA</Text>
-        <Text style={styles.brandSub}>Premium Wallpaper Discovery</Text>
-
-        <View style={styles.spacer} />
-
-        {/* Mode toggle */}
-        <View style={styles.segmented}>
-          <Pressable
-            style={[styles.segBtn, mode === 'login' && styles.segBtnActive]}
-            onPress={() => { setMode('login'); setError('') }}
-          >
-            <Text style={[styles.segText, mode === 'login' && styles.segTextActive]}>
-              Sign In
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.segBtn, mode === 'signup' && styles.segBtnActive]}
-            onPress={() => { setMode('signup'); setError('') }}
-          >
-            <Text style={[styles.segText, mode === 'signup' && styles.segTextActive]}>
-              Sign Up
-            </Text>
-          </Pressable>
+        <View style={styles.hero}>
+          <Text style={styles.brandTitle}>AURORA</Text>
+          <Text style={styles.brandSub}>Wallpaper experiences crafted for you</Text>
         </View>
 
-        {/* Email input */}
-        <View style={styles.inputRow}>
-          <Ionicons name="mail-outline" size={18} color={Colors.textPrimary} />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor={Colors.textPrimary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            underlineColorAndroid="transparent"
-          />
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
+          <Text style={styles.cardSubtitle}>
+            {mode === 'login' ? 'Sign in securely with a one-time code.' : 'Start with your email. We will verify it instantly.'}
+          </Text>
+
+          <View style={styles.segmented}>
+            <Pressable
+              style={[styles.segBtn, mode === 'login' && styles.segBtnActive]}
+              onPress={() => { setMode('login'); setError('') }}
+            >
+              <Text style={[styles.segText, mode === 'login' && styles.segTextActive]}>
+                Sign In
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segBtn, mode === 'signup' && styles.segBtnActive]}
+              onPress={() => { setMode('signup'); setError('') }}
+            >
+              <Text style={[styles.segText, mode === 'signup' && styles.segTextActive]}>
+                Sign Up
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.inputRow}>
+            <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor={Colors.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              underlineColorAndroid="transparent"
+            />
+          </View>
+
+          {error ? (
+            <Text style={styles.error}>{error}</Text>
+          ) : null}
+
+          <Pressable
+            style={({ pressed }) => [styles.button, pressed && { opacity: 0.9 }]}
+            onPress={handleSendOtp}
+            disabled={loading}
+          >
+            {loading
+              ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
+              : <Text style={styles.buttonText}>Continue</Text>
+            }
+          </Pressable>
+
+          <Text style={styles.footerCopy}>By continuing, you agree to Aurora terms and privacy policy.</Text>
         </View>
-
-        {/* Error */}
-        {error ? (
-          <Text style={styles.error}>{error}</Text>
-        ) : null}
-
-        {/* CTA Button */}
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && { opacity: 0.85 }]}
-          onPress={handleSendOtp}
-          disabled={loading}
-        >
-          {loading
-            ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-            : <Text style={styles.buttonText}>Continue</Text>
-          }
-        </Pressable>
-
       </View>
     </KeyboardAvoidingView>
   )
@@ -130,46 +133,67 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     paddingHorizontal: 24,
-    paddingBottom: 60,
-    paddingTop: 120,
-    gap: 12,
+    paddingBottom: 34,
+    paddingTop: 88,
+    gap: 16,
+  },
+  hero: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    backgroundColor: Colors.cardSurface,
+    borderColor: Colors.cardBorder,
+    borderWidth: 1,
+    borderRadius: 26,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    gap: 14,
   },
   brandTitle: {
     color: Colors.textPrimary,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '900',
-    letterSpacing: 6,
+    letterSpacing: 5,
   },
   brandSub: {
+    color: '#D0CFCF',
+    fontSize: 14,
+    letterSpacing: 0.6,
+    lineHeight: 20,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  cardSubtitle: {
     color: Colors.textSecondary,
     fontSize: 13,
-    letterSpacing: 1,
-  },
-  spacer: {
-    height: 24,
+    lineHeight: 18,
   },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: Colors.bgOverlay,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: Colors.borderHover,
     borderRadius: 16,
     padding: 4,
     gap: 4,
   },
   segBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 9,
+    paddingVertical: 11,
+    borderRadius: 10,
     alignItems: 'center',
   },
   segBtnActive: {
     backgroundColor: Colors.accent,
   },
   segText: {
-    color: Colors.textPrimary,
+    color: '#E4E0DA',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   segTextActive: {
     color: Colors.bgPrimary,
@@ -178,16 +202,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: Colors.bgOverlay,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: Colors.borderHover,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 4,
   },
   input: {
     flex: 1,
-    
     color: Colors.textPrimary,
     fontSize: 15,
     paddingVertical: 12,
@@ -199,7 +222,7 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: Colors.accent,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -209,5 +232,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  footerCopy: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
   },
 })

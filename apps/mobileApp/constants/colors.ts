@@ -7,6 +7,8 @@ export const Colors = {
   bgPrimary:   '#0A0A0A',
   bgSecondary: '#111111',
   bgElevated:  '#1A1A1A',
+  bgOverlay:   'rgba(8, 8, 8, 0.56)',
+  bgScrim:     'rgba(6, 6, 6, 0.82)',
 
   // Text
   textPrimary:   '#F5F0EB',
@@ -21,6 +23,8 @@ export const Colors = {
   // Borders
   border:      'rgba(255, 255, 255, 0.06)',
   borderHover: 'rgba(255, 255, 255, 0.12)',
+  cardBorder:  'rgba(255, 255, 255, 0.16)',
+  cardSurface: 'rgba(15, 15, 15, 0.62)',
 
   // Other accent options — swap into accent above:
   // Orange: '#E8743A'
