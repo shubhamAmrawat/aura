@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   wallpaperGrid: {
     flex: 1,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    // paddingVertical: 12,
   }
 });
 
