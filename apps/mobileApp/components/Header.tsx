@@ -3,6 +3,7 @@ import { useInsets } from "../hooks/useInsets";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Colors } from "../constants";
+import { Images } from "../constants";
 
 interface HeaderProps {
   title?: string;
@@ -11,7 +12,6 @@ interface HeaderProps {
   showBackButton?: boolean;
   rightElement?: React.ReactNode
 }
-const SITE_LOGO_URL = "https://res.cloudinary.com/dvzm9b086/image/upload/v1776106005/logo_1266_culdvs.png";
 
 
 const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, showBackButton = false, rightElement }: HeaderProps) => {
@@ -28,7 +28,7 @@ const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, showBackBut
         )}
         {(logo || title) && (
           <View style={styles.logoContainer}>
-            {logo && <Image source={{ uri: SITE_LOGO_URL }} style={styles.logo} />}
+            {logo && <Image source={{ uri: Images.SITE_LOGO_URL }} style={styles.logo} />}
             <Text style={[styles.title, { fontSize: titleFontSize }]}>{title}</Text>
           </View>
         )}

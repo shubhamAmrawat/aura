@@ -8,11 +8,9 @@ import { useAuth } from "../lib/AuthContext";
 import { router } from "expo-router";
 import ConfirmModal from "../components/ConfirmModal";
 import { useToast } from "../lib/ToastContext";
+import { Images } from "../constants";
 
-const DEFAULT_PROFILE_IMAGE_URL =
-  "https://res.cloudinary.com/dvzm9b086/image/upload/v1777111502/default-avatar_u5fkkh.png";
-const DEFAULT_COVER_IMAGE_URL =
-  "https://res.cloudinary.com/dvzm9b086/image/upload/v1777111603/default-cover_mu8ie0.png";
+
 
 function formatDate(value?: string) {
   if (!value) return "Unknown";
@@ -76,16 +74,16 @@ export default function Profile() {
     <View style={styles.container}>
       <Header title="Profile" logo={false} titleFontSize={20} showBackButton={true} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.coverWrap}>
+        <View style={styles.coverWrap}>``
           <View style={styles.coverCard}>
             <Image
-              source={{ uri: user.coverUrl || DEFAULT_COVER_IMAGE_URL }}
+              source={{ uri: user.coverUrl || Images.DEFAULT_COVER_IMAGE_URL }}
               style={styles.coverImage}
               contentFit="cover"
             />
           </View>
           <Image
-            source={{ uri: user.avatarUrl || DEFAULT_PROFILE_IMAGE_URL }}
+            source={{ uri: user.avatarUrl || Images.DEFAULT_PROFILE_IMAGE_URL }}
             style={styles.floatingAvatar}
             contentFit="cover"
           />
