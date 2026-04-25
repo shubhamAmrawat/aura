@@ -16,7 +16,37 @@ export type User = {
   totalUploads?: number
   createdAt?: string
 }
-
+export type Wallpaper = {
+  id: string
+  title: string
+  description: string | null
+  fileUrl: string
+  blurhash: string
+  dominantColor: string
+  palette: string[]
+  width: number
+  height: number
+  fileSizeBytes: number
+  downloadCount: number
+  likeCount: number
+  viewCount: number
+  trendingScore: number
+  isFeatured: boolean
+  isPremium: boolean
+  isAiGenerated: boolean
+  tags: string[]
+  categoryId: string | null
+  status: string
+  createdAt: string
+}
+export type Category = {
+  id: string
+  name: string
+  slug: string
+  description?: string | null
+  coverImageUrl: string | null
+  sortOrder?: number
+}
 export async function request<T>(
   path:string , 
   options:RequestInit = {}
