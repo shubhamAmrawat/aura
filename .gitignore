@@ -14,6 +14,7 @@ packages/db/src/seed-local-walls.ts
 packages/db/src/migrate-to-r2.ts
 packages/db/src/generate-embeddings.ts
 packages/db/src/backfill-text-embeddings.ts
+packages/db/src/seed-hindusm.ts
 
 # Local wallpaper import source (large personal assets)
 wallsCollection/
