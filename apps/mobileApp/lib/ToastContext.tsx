@@ -1,16 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import AppToast, { type ToastType } from "../components/AppToast";
+import AppToast, { type ToastPosition, type ToastType } from "../components/AppToast";
 
 type ToastState = {
   visible: boolean;
   message: string;
   type: ToastType;
   duration: number;
+  position: ToastPosition;
 };
 
 type ShowToastOptions = {
   type?: ToastType;
   duration?: number;
+  position?: ToastPosition;
 };
 
 type ToastContextValue = {
@@ -27,6 +29,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     message: "",
     type: "info",
     duration: 2600,
+    position: "bottom",
   });
 
   const clearTimer = useCallback(() => {
@@ -44,8 +47,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message: string, options?: ShowToastOptions) => {
       const type = options?.type ?? "info";
       const duration = options?.duration ?? 2600;
+      const position = options?.position ?? "bottom";
       clearTimer();
-      setToast({ visible: true, message, type, duration });
+      setToast({ visible: true, message, type, duration, position });
     },
     [clearTimer]
   );
@@ -70,7 +74,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <AppToast visible={toast.visible} message={toast.message} type={toast.type} onClose={hideToast} />
+      <AppToast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        position={toast.position}
+        onClose={hideToast}
+      />
     </ToastContext.Provider>
   );
 }

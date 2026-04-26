@@ -3,11 +3,13 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Colors } from "../constants";
 
 export type ToastType = "success" | "error" | "info";
+export type ToastPosition = "top" | "bottom";
 
 type AppToastProps = {
   visible: boolean;
   message: string;
   type?: ToastType;
+  position?: ToastPosition;
   onClose?: () => void;
 };
 
@@ -17,12 +19,21 @@ const TOAST_THEME: Record<ToastType, { icon: keyof typeof Ionicons.glyphMap; col
   info: { icon: "information-circle", color: Colors.accent },
 };
 
-export default function AppToast({ visible, message, type = "info", onClose }: AppToastProps) {
+export default function AppToast({
+  visible,
+  message,
+  type = "info",
+  position = "bottom",
+  onClose,
+}: AppToastProps) {
   if (!visible) return null;
   const theme = TOAST_THEME[type];
 
   return (
-    <View pointerEvents="box-none" style={styles.wrapper}>
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrapper, position === "top" ? styles.wrapperTop : styles.wrapperBottom]}
+    >
       <View style={styles.toast}>
         <Ionicons name={theme.icon} size={18} color={theme.color} />
         <Text style={styles.message} numberOfLines={2}>
@@ -43,10 +54,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 72,
     alignItems: "center",
     zIndex: 9999,
     paddingHorizontal: 14,
+  },
+  wrapperTop: {
+    top: 78,
+  },
+  wrapperBottom: {
+    bottom: 80,
   },
   toast: {
     width: "100%",

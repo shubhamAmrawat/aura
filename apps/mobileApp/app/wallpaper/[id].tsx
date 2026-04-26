@@ -169,7 +169,13 @@ export default function WallpaperDetail() {
           Download · Apply · Details buttons go here (built next) */}
         
        
-          <WallpaperDock  bottomOffset={bottomPadding + 16} screenWidth={width}/>
+          {wallpaper ? (
+            <WallpaperDock
+              bottomOffset={bottomPadding + 16}
+              screenWidth={width}
+              wallpaper={wallpaper}
+            />
+          ) : null}
   
     </View>
   );
