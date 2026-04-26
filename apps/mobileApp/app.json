@@ -19,18 +19,24 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aurora-walls"
+      "bundleIdentifier": "com.shubhzx09.aurorawalls"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0a0a0a"
       },
-      "package": "com.aurora-walls",
+      "package": "com.shubhzx09.aurorawalls",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "navigationBarColor": "#111111",
       "backgroundColor": "#111111"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b42fe208-71d2-4443-8c22-8a6ddc63da11"
+      }
     }
   }
 }

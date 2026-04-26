@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { Wallpaper } from "../lib/api";
 import { FlashList } from "@shopify/flash-list";
 import { getWallpapers } from "../lib/wallpaperApi";
-import { Colors } from "../constants/colors";
 import WallpaperCard from "./WallpaperCard";
 import { useLayoutInfo } from "../hooks/useLayout";
 
@@ -43,6 +42,8 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
     getWallpapers({ limit: 24, offset: 0,category: category ?? undefined })
     .then((res) => {
       setWallpapers(res.data);
+      console.log("Wallpapers fetched:", res.data.length, "for category:", category);
+      console.log("Wallpapers:", res.data);
       offset.current = res.data.length;
       setHasMore(res.hasMore);
     }) .finally(() => {
@@ -81,11 +82,6 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  wallpaperTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
   },
 })
 export default WallpaperGrid

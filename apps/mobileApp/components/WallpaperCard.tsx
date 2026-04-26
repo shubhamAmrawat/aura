@@ -1,6 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Wallpaper } from "../lib/api";
-import { Colors } from "../constants/colors";
 import { Image } from "expo-image";
 import { useLayoutInfo } from "../hooks/useLayout";
 import { router } from "expo-router";
@@ -15,7 +14,16 @@ const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
   return (
     <View style={[styles.wallpaperCard, { marginHorizontal: cardGap / 2, marginBottom: cardGap }]}>
       <Pressable 
-      onPress={() => router.push(`/wallpaper/${wallpaper.id}`)}
+      onPress={() => router.push({
+        pathname: `/wallpaper/${wallpaper.id}`,
+        params: {
+          dominantColor: wallpaper.dominantColor?.replace('#', '') ?? '',
+          blurhash: wallpaper.blurhash ?? '',
+          title: wallpaper.title ?? '',
+          w: String(wallpaper.width ?? 0),
+          h: String(wallpaper.height ?? 0),
+        }
+      })}
       style={({ pressed }) => ({
         borderRadius: 10,
         overflow: 'hidden',
@@ -23,13 +31,9 @@ const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
       })}
       >
         <Image
-          source={{ uri: wallpaper.fileUrl }}
+          source={wallpaper.fileUrl}
           style={[styles.wallpaperImage, { aspectRatio }]}
-          placeholder={
-            wallpaper.blurhash
-              ? { blurhash: wallpaper.blurhash }
-              : wallpaper.dominantColor ?? Colors.bgElevated
-          }
+          placeholder={wallpaper.blurhash ? { blurhash: wallpaper.blurhash } : null}
           contentFit="cover"
           placeholderContentFit="cover"
           transition={200}
@@ -43,15 +47,9 @@ const styles = StyleSheet.create({
   wallpaperCard: {
     marginBottom: 12,
   },
-  wallpaperTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.textPrimary,
-  },
   wallpaperImage: {
     width: "100%",
   },
-
 })
 
 export default WallpaperCard
