@@ -10,6 +10,7 @@ import { useLayoutInfo } from "../../hooks/useLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants";
 import { useInsets } from "../../hooks/useInsets";
+import WallpaperDock from "../../components/WallpaperDock";
 
 export default function WallpaperDetail() {
   // ─── Route params ────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ export default function WallpaperDetail() {
 
   // ─── Layout ──────────────────────────────────────────────────────────────────
   const { width, height } = useLayoutInfo();
-  const { topPadding } = useInsets();
+  const { topPadding , bottomPadding } = useInsets();
   const horizontalPadding = width >= 768 ? 32 : 20;
 
   // ─── Derived display values ───────────────────────────────────────────────────
@@ -166,7 +167,10 @@ export default function WallpaperDetail() {
 
       {/* ── Bottom dock placeholder ─────────────────────────────────────────────
           Download · Apply · Details buttons go here (built next) */}
-
+        
+       
+          <WallpaperDock  bottomOffset={bottomPadding + 16} screenWidth={width}/>
+  
     </View>
   );
 }
@@ -192,7 +196,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingBottom: 18,
+    paddingBottom: 100,
   },
   wallpaperFrame: {
     alignItems: 'center',
@@ -213,5 +217,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.58,
     transform: [{ scale: 1.08 }],
+  },
+  wallpaperDock: {
+    position: 'absolute',
+    alignSelf: 'center',
   },
 });
