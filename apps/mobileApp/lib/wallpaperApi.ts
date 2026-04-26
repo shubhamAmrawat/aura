@@ -26,3 +26,13 @@ export async function getWallpapers(params:{
     `/api/wallpapers${qs ? `?${qs}` : ""}`
   );
 }
+
+export async function getWallpaperById(id: string):Promise<Wallpaper>{
+  const res = await request<{ data: Wallpaper }>(`/api/wallpapers/${id}`);
+  return res.data;
+}
+
+export async function getSimilarWallpapers(id: string):Promise<Wallpaper[]>{
+  const res = await request<{ data: Wallpaper[] }>(`/api/wallpapers/${id}/similar`);
+  return res.data;
+}

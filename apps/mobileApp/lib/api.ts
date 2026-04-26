@@ -27,8 +27,10 @@ export type Wallpaper = {
   width: number
   height: number
   fileSizeBytes: number
+  format: string
   downloadCount: number
   likeCount: number
+  isMobile: boolean
   viewCount: number
   trendingScore: number
   isFeatured: boolean
