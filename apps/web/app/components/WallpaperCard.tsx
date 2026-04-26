@@ -112,7 +112,7 @@ const WallpaperCard = ({ wallpaper, priority = false }: WallpaperCardProps) => {
     : 3 / 4;
 
   return (
-    <Link href={`/wallpaper/${wallpaper.id}`}>
+    <Link href={`/wallpaper/${wallpaper.id}`} target="_blank">
       {/*
         will-change: transform  → promotes card to its own GPU compositor layer so
         hover transforms never trigger a full-page repaint.
