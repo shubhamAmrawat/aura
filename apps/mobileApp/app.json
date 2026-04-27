@@ -10,7 +10,8 @@
     "scheme": "aurora",
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-media-library"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",
