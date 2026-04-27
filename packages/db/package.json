@@ -11,6 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx --env-file=../../.env src/seed.ts",
     "db:seed:hindusm": "tsx --env-file=../../.env src/seed-hindusm.ts",
+    "db:seed:local-walls": "tsx --env-file=../../.env src/seed-local-walls.ts",
+    "db:backfill:text-embeddings": "tsx --env-file=../../.env src/backfill-text-embeddings.ts",
     "db:migrate-r2": "tsx --env-file=../../.env src/migrate-to-r2.ts",
     "db:embeddings": "tsx --env-file=../../.env src/generate-embeddings.ts"
   },
