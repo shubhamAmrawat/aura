@@ -9,6 +9,7 @@ import { useToast } from "../lib/ToastContext"
 import { useState } from "react"
 import { applyWallpaper, WallpaperTarget } from "../lib/applyWallpaper"
 import ApplySheet from "./ApplySheet"
+import DetailsSheet from "./DetailsSheet"
 
 interface DockProps {
   bottomOffset: number
@@ -22,6 +23,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [showApplySheet, setShowApplySheet] = useState(false)
+  const [showDetailsSheet, setShowDetailsSheet] = useState(false)
   const { showToast } = useToast()
 
   const applySuccessMessages: Record<WallpaperTarget, string> = {
@@ -111,7 +113,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
           </Text>
         </Pressable>
 
-        <Pressable style={styles.dockButtons}>
+        <Pressable style={styles.dockButtons} onPress={() => setShowDetailsSheet(true)}>
           <Ionicons name="information-circle-outline" size={24} color={Colors.textPrimary} />
           <Text style={styles.label}>Details</Text>
         </Pressable>
@@ -123,6 +125,12 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
         onClose={() => setShowApplySheet(false)}
         onSelect={handleApplyTarget}
         applying={applying}
+      />
+
+      <DetailsSheet
+        visible={showDetailsSheet}
+        onClose={() => setShowDetailsSheet(false)}
+        wallpaper={wallpaper}
       />
     </>
   )

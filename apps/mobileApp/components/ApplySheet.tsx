@@ -39,60 +39,72 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
       animationType="slide"
       onRequestClose={onClose}
     >
-      {/* Tap outside to dismiss */}
-      <Pressable style={styles.overlay} onPress={onClose} />
+      <View style={styles.container}>
+        {/* Tap outside to dismiss */}
+        <Pressable style={styles.overlay} onPress={onClose} />
 
-      <View style={styles.sheet}>
-        {/* Handle bar */}
-        <View style={styles.handle} />
+        <View style={styles.sheetWrapper}>
+          <View style={styles.sheet}>
+            {/* Handle bar */}
+            <View style={styles.handle} />
 
-        
-        <Text style={styles.title}>Apply Wallpaper</Text>
-        <Text style={styles.subtitle}>Choose where to apply this wallpaper</Text>
+            <Text style={styles.title}>Apply Wallpaper</Text>
+            <Text style={styles.subtitle}>Choose where to apply this wallpaper</Text>
 
-        <View style={styles.options}>
-          {options.map((opt) => (
-            <Pressable
-              key={opt.target}
-              style={({ pressed }) => [
-                styles.option,
-                pressed && { opacity: 0.7 },
-                applying && { opacity: 0.4 },
-              ]}
-              onPress={() => onSelect(opt.target)}
-              disabled={applying}
-            >
-              <View style={styles.optionIcon}>
-                <Ionicons name={opt.icon} size={20} color={Colors.accent} />
-              </View>
-              <View style={styles.optionText}>
-                <Text style={styles.optionLabel}>{opt.label}</Text>
-                {/* <Text style={styles.optionSub}>{opt.sub}</Text> */}
-              </View>
-              {/* <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} /> */}
+            <View style={styles.options}>
+              {options.map((opt) => (
+                <Pressable
+                  key={opt.target}
+                  style={({ pressed }) => [
+                    styles.option,
+                    pressed && { opacity: 0.7 },
+                    applying && { opacity: 0.4 },
+                  ]}
+                  onPress={() => onSelect(opt.target)}
+                  disabled={applying}
+                >
+                  <View style={styles.optionIcon}>
+                    <Ionicons name={opt.icon} size={20} color={Colors.accent} />
+                  </View>
+                  <View style={styles.optionText}>
+                    <Text style={styles.optionLabel}>{opt.label}</Text>
+                    {/* <Text style={styles.optionSub}>{opt.sub}</Text> */}
+                  </View>
+                  {/* <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} /> */}
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
-          ))}
+          </View>
         </View>
-
-        <Pressable style={styles.cancelBtn} onPress={onClose}>
-          <Text style={styles.cancelText}>Cancel</Text>
-        </Pressable>
       </View>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetWrapper: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    backgroundColor: Colors.bgElevated,
   },
   sheet: {
     backgroundColor: Colors.bgElevated,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: Colors.border,
     paddingTop: 12,
     paddingHorizontal: 20,
     paddingBottom: 36,
