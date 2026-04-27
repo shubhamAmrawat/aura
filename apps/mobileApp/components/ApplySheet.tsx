@@ -25,7 +25,7 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
       target: 'lock',
     },
     {
-      label: 'Home & Lock Screen',
+      label: 'Both Screens',
       sub: 'Apply to both screens at once',
       icon: 'phone-portrait-outline',
       target: 'both',
@@ -46,6 +46,7 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
         {/* Handle bar */}
         <View style={styles.handle} />
 
+        
         <Text style={styles.title}>Apply Wallpaper</Text>
         <Text style={styles.subtitle}>Choose where to apply this wallpaper</Text>
 
@@ -62,13 +63,13 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
               disabled={applying}
             >
               <View style={styles.optionIcon}>
-                <Ionicons name={opt.icon} size={22} color={Colors.accent} />
+                <Ionicons name={opt.icon} size={20} color={Colors.accent} />
               </View>
               <View style={styles.optionText}>
                 <Text style={styles.optionLabel}>{opt.label}</Text>
-                <Text style={styles.optionSub}>{opt.sub}</Text>
+                {/* <Text style={styles.optionSub}>{opt.sub}</Text> */}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              {/* <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} /> */}
             </Pressable>
           ))}
         </View>
@@ -84,7 +85,7 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
     backgroundColor: Colors.bgElevated,
@@ -116,12 +117,19 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
   options: {
+    width: '100%',
+    flexDirection: 'row',
     gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   option: {
-    flexDirection: 'row',
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'center',
+    gap: 2,
     backgroundColor: Colors.bgSecondary,
     borderRadius: 14,
     padding: 14,
@@ -139,13 +147,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   optionText: {
-    flex: 1,
-    gap: 2,
+    // flex: 1,
+    // gap: 2,
   },
   optionLabel: {
     color: Colors.textPrimary,
-    fontSize: 15,
+    fontSize: 10,
     fontWeight: '600',
+    textAlign: 'center',
   },
   optionSub: {
     color: Colors.textSecondary,
