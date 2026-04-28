@@ -1,0 +1,123 @@
+name: Mobile Preview Distribution
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobileApp/**"
+      - ".github/workflows/mobile-preview-distribute.yml"
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: Release notes for testers
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-distribute:
+    name: Build preview APK and distribute
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobileApp
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+      FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      FIREBASE_TESTER_GROUPS: ${{ secrets.FIREBASE_TESTER_GROUPS }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/mobileApp/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Verify mobile app config
+        run: npm run ci:verify
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build preview APK with EAS
+        run: npm run build:preview:android > "$RUNNER_TEMP/eas-build.json"
+
+      - name: Extract EAS build artifact metadata
+        shell: bash
+        id: eas_artifact
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          build_file = Path(os.environ["RUNNER_TEMP"]) / "eas-build.json"
+          data = json.loads(build_file.read_text())
+          if not data:
+              raise SystemExit("EAS build output was empty.")
+
+          build = data[0]
+          artifact_url = (
+              build.get("artifacts", {}).get("buildUrl")
+              or build.get("artifacts", {}).get("applicationArchiveUrl")
+              or build.get("buildArtifactsUrl")
+          )
+          if not artifact_url:
+              raise SystemExit(f"Could not find an artifact URL in EAS output: {build}")
+
+          out_file = Path(os.environ["RUNNER_TEMP"]) / "aurora-preview.apk"
+          github_output = Path(os.environ["GITHUB_OUTPUT"])
+          with github_output.open("a", encoding="utf-8") as fh:
+              fh.write(f"artifact_url={artifact_url}\n")
+              fh.write(f"artifact_path={out_file}\n")
+          PY
+
+      - name: Download built APK
+        shell: bash
+        run: |
+          curl --fail --location --output "${{ steps.eas_artifact.outputs.artifact_path }}" "${{ steps.eas_artifact.outputs.artifact_url }}"
+
+      - name: Setup Firebase CLI auth
+        shell: bash
+        run: |
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Install Firebase CLI
+        shell: bash
+        run: npm install --global firebase-tools
+
+      - name: Upload APK to Firebase App Distribution
+        shell: bash
+        env:
+          RELEASE_NOTES_INPUT: ${{ github.event.inputs.release_notes }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          RELEASE_NOTES="${RELEASE_NOTES_INPUT:-Preview build from ${GITHUB_REF_NAME} (${GITHUB_SHA::7})}"
+          EXTRA_ARGS=()
+          if [ -n "$FIREBASE_TESTER_GROUPS" ]; then
+            EXTRA_ARGS+=(--groups "$FIREBASE_TESTER_GROUPS")
+          fi
+
+          firebase appdistribution:distribute "${{ steps.eas_artifact.outputs.artifact_path }}" \
+            --app "$FIREBASE_APP_ID" \
+            --release-notes "$RELEASE_NOTES" \
+            "${EXTRA_ARGS[@]}"
