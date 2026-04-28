@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "ci:verify": "npm run typecheck && npx expo config --type public",
+    "build:preview:android": "npx eas-cli build --platform android --profile preview --non-interactive --wait --json"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
