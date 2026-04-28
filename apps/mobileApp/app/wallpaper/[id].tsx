@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { getSimilarWallpapers, getWallpaperById } from "../../lib/wallpaperApi";
 import { Wallpaper } from "../../lib/api";
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,50 +36,57 @@ export default function WallpaperDetail() {
   // wallpaper starts null — we show param data while the full fetch is in flight
   const [wallpaper, setWallpaper] = useState<Wallpaper | null>(null);
   const [similarWallpapers, setSimilarWallpapers] = useState<Wallpaper[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // ─── Layout ──────────────────────────────────────────────────────────────────
   const { width, height } = useLayoutInfo();
-  const { topPadding , bottomPadding } = useInsets();
+  const { topPadding, bottomPadding } = useInsets();
   const horizontalPadding = width >= 768 ? 32 : 20;
+
+  const carouselData = useMemo(
+    () => (wallpaper ? [wallpaper, ...similarWallpapers] : []),
+    [wallpaper, similarWallpapers]
+  );
+  const activeWallpaper = carouselData[activeIndex] ?? wallpaper;
 
   // ─── Derived display values ───────────────────────────────────────────────────
   // Use wallpaper API data when available, fall back to params immediately.
   // This means the UI is never empty — params fill the gap while API loads.
-  const dominantColor = wallpaper?.dominantColor 
-  ?? (paramColor ? `#${paramColor}` : '#0A0A0A');
-  const displayTitle    = wallpaper?.title    ?? paramTitle    ?? '';
-  const previewUrl      = wallpaper?.fileUrl  ?? '';
-  const previewBlurhash = wallpaper?.blurhash ?? paramBlurhash ?? '';
-  const previewWidth    = wallpaper?.width    ?? Number(w)     ?? 0;
-  const previewHeight   = wallpaper?.height   ?? Number(h)     ?? 0;
+  const dominantColor =
+    activeWallpaper?.dominantColor ?? (paramColor ? `#${paramColor}` : "#0A0A0A");
+  const displayTitle = activeWallpaper?.title ?? paramTitle ?? "";
+  const previewUrl = activeWallpaper?.fileUrl ?? "";
+  const previewBlurhash = activeWallpaper?.blurhash ?? paramBlurhash ?? "";
+  const previewWidth = activeWallpaper?.width ?? Number(w) ?? 0;
+  const previewHeight = activeWallpaper?.height ?? Number(h) ?? 0;
 
   // Contrast color ensures header text/icons are readable against the gradient
   const contrastColor = getContrastColor(dominantColor);
 
-  // ─── Image sizing ─────────────────────────────────────────────────────────────
-  // We constrain the image to a maximum height so tall portraits don't overflow,
-  // and landscape walls get a full-height frame. Blurred backdrop fills any gaps.
-  const aspectRatio = previewWidth && previewHeight
-    ? previewWidth / previewHeight
-    : 9 / 16;
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setActiveIndex(viewableItems[0].index ?? 0);
+    }
+  }).current;
 
-  const safeAspectRatio   = Math.max(0.35, Math.min(aspectRatio, 3.2));
-  const imageWidth        = Math.min(width - horizontalPadding * 2, 520);
-  const maxImageHeight    = Math.min(height * 0.72, height - topPadding - 116);
-  const minImageHeight    = Math.min(maxImageHeight, Math.max(240, height * 0.34));
-  const naturalImageHeight = imageWidth / safeAspectRatio;
-  const imageHeight = Math.max(minImageHeight, Math.min(naturalImageHeight, maxImageHeight));
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
 
-  // Calculate the actual rendered image dimensions inside the frame
-  const displayedAspectRatio = Math.max(0.1, aspectRatio);
-  const frameAspectRatio     = imageWidth / imageHeight;
-  const displayedImageWidth  = frameAspectRatio > displayedAspectRatio
-    ? imageHeight * displayedAspectRatio
-    : imageWidth;
-  const displayedImageHeight = displayedImageWidth / displayedAspectRatio;
+  const dockWallpaper = activeWallpaper
+    ? {
+        ...activeWallpaper,
+        downloadCount: activeWallpaper.downloadCount ?? 0,
+        likeCount: activeWallpaper.likeCount ?? 0,
+        fileSizeBytes: activeWallpaper.fileSizeBytes ?? 0,
+        palette: activeWallpaper.palette ?? [],
+        tags: activeWallpaper.tags ?? [],
+      }
+    : null;
 
   // ─── Data fetching ────────────────────────────────────────────────────────────
   useEffect(() => {
+    setActiveIndex(0);
     fetchWallpaper();
     fetchSimilarWallpapers();
   }, [id]);
@@ -94,9 +101,60 @@ export default function WallpaperDetail() {
     setSimilarWallpapers(res);
   };
 
+  const renderWallpaperItem = ({ item }: { item: Wallpaper }) => {
+    const itemPreviewUrl = item.fileUrl ?? "";
+    const itemPreviewBlurhash = item.blurhash ?? "";
+    const itemPreviewWidth = item.width ?? 0;
+    const itemPreviewHeight = item.height ?? 0;
+    const aspectRatio =
+      itemPreviewWidth && itemPreviewHeight
+        ? itemPreviewWidth / itemPreviewHeight
+        : 9 / 16;
+    const safeAspectRatio = Math.max(0.35, Math.min(aspectRatio, 3.2));
+    const imageWidth = Math.min(width - horizontalPadding * 2, 520);
+    const maxImageHeight = Math.min(height * 0.72, height - topPadding - 116);
+    const minImageHeight = Math.min(maxImageHeight, Math.max(240, height * 0.34));
+    const naturalImageHeight = imageWidth / safeAspectRatio;
+    const imageHeight = Math.max(
+      minImageHeight,
+      Math.min(naturalImageHeight, maxImageHeight)
+    );
+    const displayedAspectRatio = Math.max(0.1, aspectRatio);
+    const frameAspectRatio = imageWidth / imageHeight;
+    const displayedImageWidth =
+      frameAspectRatio > displayedAspectRatio
+        ? imageHeight * displayedAspectRatio
+        : imageWidth;
+    const displayedImageHeight = displayedImageWidth / displayedAspectRatio;
+
+    return (
+      <View style={{ width, paddingHorizontal: horizontalPadding, paddingBottom: 100, flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={[styles.wallpaperFrame, { width: imageWidth, height: imageHeight }]}>
+          {itemPreviewUrl ? (
+            <Image
+              source={itemPreviewUrl}
+              style={styles.wallpaperBackdrop}
+              contentFit="cover"
+              blurRadius={28}
+              transition={300}
+            />
+          ) : null}
+          <Image
+            source={itemPreviewUrl || null}
+            style={{ width: displayedImageWidth, height: displayedImageHeight, zIndex: 1 }}
+            contentFit="cover"
+            placeholder={itemPreviewBlurhash ? { blurhash: itemPreviewBlurhash } : null}
+            placeholderContentFit="cover"
+            transition={400}
+          />
+        </View>
+      </View>
+    );
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
+    <View style={{ flex: 1, backgroundColor: "#0A0A0A" }}>
 
       {/* Dynamic gradient — tinted by the wallpaper's dominant color.
           Fades from the dominant color at the top to pure dark at the bottom.
@@ -104,8 +162,8 @@ export default function WallpaperDetail() {
       <LinearGradient
         colors={[
           hexToRgba(dominantColor, 0.86),
-          hexToRgba('#0A0A0A', 0.72),
-          '#0A0A0A',
+          hexToRgba("#0A0A0A", 0.72),
+          "#0A0A0A",
         ]}
         locations={[0, 0.48, 1]}
         style={StyleSheet.absoluteFillObject}
@@ -134,48 +192,29 @@ export default function WallpaperDetail() {
         </Pressable>
       </View>
 
-      {/* ── Wallpaper frame ────────────────────────────────────────────────────
-          Two-layer approach:
-          Layer 1 (backdrop) — same image blurred, fills the frame.
-                               Eliminates pillarboxing for portrait images.
-          Layer 2 (main image) — sharp image rendered at its natural aspect ratio. */}
-      <View style={[styles.wallpaperContainer, { paddingHorizontal: horizontalPadding }]}>
-        <View style={[styles.wallpaperFrame, { width: imageWidth, height: imageHeight }]}>
-
-          {/* Blurred backdrop — only shown once the real URL is available */}
-          {previewUrl ? (
-            <Image
-              source={previewUrl}
-              style={styles.wallpaperBackdrop}
-              contentFit="cover"
-              blurRadius={28}
-              transition={300}
-            />
-          ) : null}
-
-          {/* Sharp main image — shows blurhash placeholder instantly while API loads */}
-          <Image
-            source={previewUrl || null}
-            style={{ width: displayedImageWidth, height: displayedImageHeight, zIndex: 1 }}
-            contentFit="cover"
-            placeholder={previewBlurhash ? { blurhash: previewBlurhash } : null}
-            placeholderContentFit="cover"
-            transition={400}
-          />
-        </View>
-      </View>
+      <FlatList
+        data={carouselData}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        renderItem={renderWallpaperItem}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        style={{ flex: 1 }}
+      />
 
       {/* ── Bottom dock placeholder ─────────────────────────────────────────────
           Download · Apply · Details buttons go here (built next) */}
         
        
-          {wallpaper ? (
-            <WallpaperDock
-              bottomOffset={bottomPadding + 16}
-              screenWidth={width}
-              wallpaper={wallpaper}
-            />
-          ) : null}
+      {dockWallpaper ? (
+        <WallpaperDock
+          bottomOffset={bottomPadding + 16}
+          screenWidth={width}
+          wallpaper={dockWallpaper}
+        />
+      ) : null}
   
     </View>
   );
@@ -183,9 +222,9 @@ export default function WallpaperDetail() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     minHeight: 54,
     paddingHorizontal: 20,
     zIndex: 1,
@@ -193,27 +232,21 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     marginHorizontal: 14,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 0.8,
   },
-  wallpaperContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
   wallpaperFrame: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
     borderRadius: 28,
     borderColor: Colors.cardBorder,
     borderWidth: 1,
     backgroundColor: Colors.bgElevated,
     // Shadow gives the frame a lifted, floating feel
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 18 },
     shadowOpacity: 0.34,
     shadowRadius: 32,
@@ -223,9 +256,5 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.58,
     transform: [{ scale: 1.08 }],
-  },
-  wallpaperDock: {
-    position: 'absolute',
-    alignSelf: 'center',
   },
 });

@@ -32,7 +32,70 @@ export async function getWallpaperById(id: string):Promise<Wallpaper>{
   return res.data;
 }
 
+type SimilarWallpaperApiItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  file_url?: string | null;
+  blurhash?: string | null;
+  dominant_color?: string | null;
+  width?: number | string | null;
+  height?: number | string | null;
+  like_count?: number | string | null;
+  download_count?: number | string | null;
+  file_size_bytes?: number | string | null;
+  palette?: string[] | null;
+  tags?: string[] | null;
+  format?: string | null;
+  category_id?: string | null;
+  is_ai_generated?: boolean | null;
+  is_featured?: boolean | null;
+  is_premium?: boolean | null;
+  is_mobile?: boolean | null;
+  view_count?: number | string | null;
+  trending_score?: number | string | null;
+  status?: string | null;
+  created_at?: string | null;
+};
+
+function toNumber(value: number | string | null | undefined, fallback = 0): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function mapSimilarWallpaper(item: SimilarWallpaperApiItem): Wallpaper {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description ?? null,
+    fileUrl: item.file_url ?? "",
+    blurhash: item.blurhash ?? "",
+    dominantColor: item.dominant_color ?? "#0A0A0A",
+    width: toNumber(item.width),
+    height: toNumber(item.height),
+    likeCount: toNumber(item.like_count),
+    downloadCount: toNumber(item.download_count),
+    fileSizeBytes: toNumber(item.file_size_bytes),
+    palette: item.palette ?? [],
+    tags: item.tags ?? [],
+    format: item.format ?? "jpeg",
+    categoryId: item.category_id ?? null,
+    isAiGenerated: item.is_ai_generated ?? false,
+    isFeatured: item.is_featured ?? false,
+    isPremium: item.is_premium ?? false,
+    isMobile: item.is_mobile ?? false,
+    viewCount: toNumber(item.view_count),
+    trendingScore: toNumber(item.trending_score),
+    status: item.status ?? "approved",
+    createdAt: item.created_at ?? "",
+  };
+}
+
 export async function getSimilarWallpapers(id: string):Promise<Wallpaper[]>{
-  const res = await request<{ data: Wallpaper[] }>(`/api/wallpapers/${id}/similar`);
-  return res.data;
+  const res = await request<{ data: SimilarWallpaperApiItem[] }>(`/api/wallpapers/${id}/similar`);
+  return res.data.map(mapSimilarWallpaper);
 }
