@@ -467,8 +467,9 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
     // hybrid scoring: vision+semantic similarity + category bonus + tag overlap
     const similar = await db.execute(sql`
       SELECT 
-        id, title, file_url, blurhash, dominant_color,
-        width, height, like_count, download_count,
+        id, title, description, file_url, blurhash, dominant_color,
+        palette, width, height, like_count, download_count, view_count,
+        format, file_size_bytes,
         category_id, tags,
         (1 - (text_embedding <=> ${embeddingStr}::vector)) AS semantic_score,
         ${categoryBonusSql} AS category_bonus,
