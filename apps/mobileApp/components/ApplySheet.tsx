@@ -75,6 +75,12 @@ export default function ApplySheet({ visible, onClose, onSelect, applying }: App
               ))}
             </View>
 
+            <View style={styles.tipBox}>
+              <Ionicons name="bulb-outline" size={14} color={Colors.accent} />
+              <Text style={styles.tipText}>
+                If wallpaper appears dim, go to Settings → Display → Dark Mode and disable "Dim Home Screen wallpaper" toggle 
+              </Text>
+            </View>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
@@ -184,5 +190,22 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 15,
     fontWeight: '600',
+  },
+  tipBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: Colors.bgSecondary,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 10,
+    marginTop: -8,
+  },
+  tipText: {
+    flex: 1,
+    color: Colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
   },
 })

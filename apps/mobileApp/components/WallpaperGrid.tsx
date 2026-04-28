@@ -42,8 +42,8 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
     getWallpapers({ limit: 24, offset: 0,category: category ?? undefined })
     .then((res) => {
       setWallpapers(res.data);
-      console.log("Wallpapers fetched:", res.data.length, "for category:", category);
-      console.log("Wallpapers:", res.data);
+      // console.log("Wallpapers fetched:", res.data.length, "for category:", category)r;
+      // console.log("Wallpapers:", res.data);
       offset.current = res.data.length;
       setHasMore(res.hasMore);
     }) .finally(() => {
