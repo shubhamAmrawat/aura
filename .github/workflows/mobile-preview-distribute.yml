@@ -57,7 +57,14 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build preview APK with EAS
-        run: npm run build:preview:android > "$RUNNER_TEMP/eas-build.json"
+        shell: bash
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > "$RUNNER_TEMP/eas-build.json"
 
       - name: Extract EAS build artifact metadata
         shell: bash
@@ -69,7 +76,12 @@ jobs:
           from pathlib import Path
 
           build_file = Path(os.environ["RUNNER_TEMP"]) / "eas-build.json"
-          data = json.loads(build_file.read_text())
+          raw_text = build_file.read_text()
+          json_start = raw_text.find("[")
+          if json_start == -1:
+              raise SystemExit(f"Could not find JSON array in EAS output:\n{raw_text}")
+
+          data = json.loads(raw_text[json_start:])
           if not data:
               raise SystemExit("EAS build output was empty.")
 
