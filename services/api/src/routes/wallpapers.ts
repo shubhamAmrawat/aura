@@ -33,6 +33,14 @@ const wallpaperListSelect = {
   fileSizeBytes: wallpapers.fileSizeBytes,
 };
 
+type ScreenFilter = "mobile" | "tablet";
+
+function getScreenFilter(screen: string | undefined): ScreenFilter | null {
+  if (!screen) return null;
+  if (screen === "mobile" || screen === "tablet") return screen;
+  return null;
+}
+
 async function extractImageMetadata(fileUrl: string): Promise<{
   dominantColor: string;
   palette: string[];
@@ -158,6 +166,14 @@ wallpaperRoutes.get("/", async (c) => {
 
     const categorySlug = c.req.query("category")?.trim();
     const q = c.req.query("q")?.trim();
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
 
     const offset = Number(c.req.query("offset")) || 0;
 
@@ -188,6 +204,11 @@ wallpaperRoutes.get("/", async (c) => {
           sql`array_to_string(${wallpapers.tags}, ' ') ILIKE ${pattern}`
         )!
       );
+    }
+    if (screenFilter === "mobile") {
+      conditions.push(eq(wallpapers.isMobile, true));
+    } else if (screenFilter === "tablet") {
+      conditions.push(eq(wallpapers.isMobile, false));
     }
 
     const result = await db
@@ -380,11 +401,26 @@ wallpaperRoutes.get("/trending", async (c) => {
   try {
     const limit = Math.min(Number(c.req.query("limit")) || 50, 100);
     const offset = Number(c.req.query("offset")) || 0;
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
+
+    const conditions = [eq(wallpapers.status, "approved")];
+    if (screenFilter === "mobile") {
+      conditions.push(eq(wallpapers.isMobile, true));
+    } else if (screenFilter === "tablet") {
+      conditions.push(eq(wallpapers.isMobile, false));
+    }
 
     const result = await db
       .select(wallpaperListSelect)
       .from(wallpapers)
-      .where(eq(wallpapers.status, "approved"))
+      .where(and(...conditions))
       .orderBy(desc(wallpapers.trendingScore))
       .limit(limit)
       .offset(offset);
@@ -431,6 +467,14 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
     const id = c.req.param("id");
     const pageLimit = Math.min(Number(c.req.query("limit")) || 24, 50);
     const offset = Math.max(0, Math.floor(Number(c.req.query("offset")) || 0));
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
     const fetchCount = pageLimit + 1;
 
     const source = await db
@@ -463,6 +507,12 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
       src.categoryId == null
         ? sql`0`
         : sql`CASE WHEN category_id = ${src.categoryId}::uuid THEN 0.15 ELSE 0 END`;
+    const screenFilterSql =
+      screenFilter === "mobile"
+        ? sql`AND is_mobile = true`
+        : screenFilter === "tablet"
+          ? sql`AND is_mobile = false`
+          : sql``;
 
     // hybrid scoring: vision+semantic similarity + category bonus + tag overlap
     const similar = await db.execute(sql`
@@ -497,6 +547,7 @@ wallpaperRoutes.get("/:id/similar", async (c) => {
         status = 'approved'
         AND id != ${id}
         AND text_embedding IS NOT NULL
+        ${screenFilterSql}
       ORDER BY hybrid_score DESC
       LIMIT ${fetchCount}
       OFFSET ${offset}

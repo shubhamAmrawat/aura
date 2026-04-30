@@ -28,12 +28,34 @@ const searchSelect = {
   fileSizeBytes: wallpapers.fileSizeBytes,
 };
 
+type ScreenFilter = "mobile" | "tablet";
+
+function getScreenFilter(screen: string | undefined): ScreenFilter | null {
+  if (!screen) return null;
+  if (screen === "mobile" || screen === "tablet") return screen;
+  return null;
+}
+
 searchRoutes.get("/", async (c) => {
   try {
     const q = c.req.query("q")?.trim();
     const limit = Math.min(Number(c.req.query("limit")) || 20, 50);
     const offset = Number(c.req.query("offset")) || 0;
     const mode = c.req.query("mode") || "hybrid";
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
+    const screenFilterSql =
+      screenFilter === "mobile"
+        ? sql`AND is_mobile = true`
+        : screenFilter === "tablet"
+          ? sql`AND is_mobile = false`
+          : sql``;
 
     if (!q || q.length < 2) {
       return c.json({ data: [], hasMore: false, mode: "none" });
@@ -78,6 +100,7 @@ searchRoutes.get("/", async (c) => {
           FROM wallpapers
           WHERE status = 'approved'
             AND text_embedding IS NOT NULL
+            ${screenFilterSql}
           ORDER BY hybrid_score DESC
           LIMIT ${limit + 1}
           OFFSET ${offset}
@@ -106,6 +129,11 @@ searchRoutes.get("/", async (c) => {
       .where(
         and(
           eq(wallpapers.status, "approved"),
+          screenFilter === "mobile"
+            ? eq(wallpapers.isMobile, true)
+            : screenFilter === "tablet"
+              ? eq(wallpapers.isMobile, false)
+              : undefined,
           or(
             ilike(wallpapers.title, pattern),
             ilike(wallpapers.description, pattern),
