@@ -11,7 +11,14 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-media-library"
+      [
+        "expo-media-library",
+        {
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/splash-icon.png",

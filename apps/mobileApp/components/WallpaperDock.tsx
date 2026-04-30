@@ -19,7 +19,9 @@ interface DockProps {
 
 
 const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
-  const [status, requestPermission] = MediaLibrary.usePermissions()
+  const [status, requestPermission] = MediaLibrary.usePermissions({
+    granularPermissions: ['photo'],
+  })
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [showApplySheet, setShowApplySheet] = useState(false)
