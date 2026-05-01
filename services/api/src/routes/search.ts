@@ -29,12 +29,188 @@ const searchSelect = {
 };
 
 type ScreenFilter = "mobile" | "tablet";
+type SuggestionSource = "editorial" | "trending-title" | "trending-tag";
+
+const EDITORIAL_SEARCH_SUGGESTIONS = [
+  "neon city",
+  "amoled minimal",
+  "dark abstract",
+  "cozy rainy evening",
+  "peaceful mountain morning",
+  "futuristic cyberpunk",
+  "space art",
+  "anime aesthetic",
+];
 
 function getScreenFilter(screen: string | undefined): ScreenFilter | null {
   if (!screen) return null;
   if (screen === "mobile" || screen === "tablet") return screen;
   return null;
 }
+
+function normalizeSuggestion(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+async function getDynamicSearchSuggestions(params: {
+  screenFilter: ScreenFilter | null;
+  limit: number;
+}): Promise<{ term: string; source: SuggestionSource }[]> {
+  const target = Math.max(1, Math.min(params.limit, 20));
+  const seen = new Set<string>();
+  const output: { term: string; source: SuggestionSource }[] = [];
+
+  const pushSuggestion = (term: string, source: SuggestionSource) => {
+    const normalized = normalizeSuggestion(term);
+    if (!normalized || normalized.length < 3 || seen.has(normalized)) return;
+    seen.add(normalized);
+    output.push({ term: normalized, source });
+  };
+
+  // 1) Editorial seeds guarantee meaningful ideas even with sparse analytics data.
+  for (const term of EDITORIAL_SEARCH_SUGGESTIONS) {
+    if (output.length >= target) break;
+    pushSuggestion(term, "editorial");
+  }
+
+  const screenFilterSql =
+    params.screenFilter === "mobile"
+      ? sql`AND is_mobile = true`
+      : params.screenFilter === "tablet"
+        ? sql`AND is_mobile = false`
+        : sql``;
+
+  // 2) Pull from trending titles.
+  const trendingTitles = await db.execute(sql`
+    SELECT title
+    FROM wallpapers
+    WHERE status = 'approved'
+      ${screenFilterSql}
+      AND COALESCE(title, '') <> ''
+    ORDER BY trending_score DESC NULLS LAST, view_count DESC NULLS LAST
+    LIMIT 40
+  `);
+
+  for (const row of trendingTitles as Array<{ title?: string | null }>) {
+    if (output.length >= target) break;
+    if (!row.title) continue;
+    pushSuggestion(row.title, "trending-title");
+  }
+
+  // 3) Pull from tags of trending wallpapers.
+  const trendingTags = await db.execute(sql`
+    SELECT DISTINCT tag
+    FROM (
+      SELECT UNNEST(tags) AS tag
+      FROM wallpapers
+      WHERE status = 'approved'
+        ${screenFilterSql}
+      ORDER BY trending_score DESC NULLS LAST, view_count DESC NULLS LAST
+      LIMIT 200
+    ) t
+    WHERE COALESCE(tag, '') <> ''
+    LIMIT 60
+  `);
+
+  for (const row of trendingTags as Array<{ tag?: string | null }>) {
+    if (output.length >= target) break;
+    if (!row.tag) continue;
+    pushSuggestion(row.tag, "trending-tag");
+  }
+
+  return output.slice(0, target);
+}
+
+searchRoutes.get("/suggestions", async (c) => {
+  try {
+    const limit = Math.min(Number(c.req.query("limit")) || 8, 20);
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
+
+    const suggestions = await getDynamicSearchSuggestions({
+      screenFilter,
+      limit,
+    });
+
+    c.header("Cache-Control", "public, max-age=120, s-maxage=300, stale-while-revalidate=600");
+    return c.json({ data: suggestions });
+  } catch (error) {
+    console.error("Search suggestions error:", error);
+    return c.json({ error: "Failed to fetch search suggestions" }, 500);
+  }
+});
+
+searchRoutes.get("/autocomplete", async (c) => {
+  try {
+    const q = c.req.query("q")?.trim().toLowerCase() ?? "";
+    const limit = Math.min(Number(c.req.query("limit")) || 8, 15);
+    const screenQuery = c.req.query("screen")?.trim().toLowerCase();
+    const screenFilter = getScreenFilter(screenQuery);
+    if (screenQuery && !screenFilter) {
+      return c.json(
+        { error: "Invalid screen value. Use 'mobile' or 'tablet'." },
+        400
+      );
+    }
+
+    if (q.length < 2) {
+      return c.json({ data: [] });
+    }
+
+    const screenFilterSql =
+      screenFilter === "mobile"
+        ? sql`AND is_mobile = true`
+        : screenFilter === "tablet"
+          ? sql`AND is_mobile = false`
+          : sql``;
+
+    const pattern = `${q}%`;
+    const titleRows = await db.execute(sql`
+      SELECT DISTINCT LOWER(title) AS term
+      FROM wallpapers
+      WHERE status = 'approved'
+        ${screenFilterSql}
+        AND LOWER(title) LIKE ${pattern}
+      ORDER BY term ASC
+      LIMIT ${limit}
+    `);
+
+    const tagRows = await db.execute(sql`
+      SELECT DISTINCT LOWER(tag) AS term
+      FROM (
+        SELECT UNNEST(tags) AS tag
+        FROM wallpapers
+        WHERE status = 'approved'
+          ${screenFilterSql}
+      ) t
+      WHERE LOWER(tag) LIKE ${pattern}
+      ORDER BY term ASC
+      LIMIT ${limit}
+    `);
+
+    const seen = new Set<string>();
+    const data: string[] = [];
+    for (const row of [...titleRows, ...tagRows] as Array<{ term?: string | null }>) {
+      const term = row.term?.trim();
+      if (!term || seen.has(term)) continue;
+      seen.add(term);
+      data.push(term);
+      if (data.length >= limit) break;
+    }
+
+    c.header("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=120");
+    return c.json({ data });
+  } catch (error) {
+    console.error("Search autocomplete error:", error);
+    return c.json({ error: "Failed to fetch autocomplete suggestions" }, 500);
+  }
+});
 
 searchRoutes.get("/", async (c) => {
   try {
