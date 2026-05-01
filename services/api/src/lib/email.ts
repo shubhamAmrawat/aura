@@ -31,7 +31,7 @@ function buildOtpEmailHtml(
     signup: {
       eyebrow: "Welcome",
       title: "Verify your email",
-      lead: "You’re one step away from AURA. Enter this code to confirm your address and finish creating your account.",
+      lead: "You’re one step away from Aurora. Enter this code to confirm your address and finish creating your account.",
     },
     login: {
       eyebrow: "Sign in",
@@ -41,7 +41,7 @@ function buildOtpEmailHtml(
     password_reset: {
       eyebrow: "Security",
       title: "Reset your password",
-      lead: "We received a request to reset the password for your AURA account. Use this code to continue.",
+      lead: "We received a request to reset the password for your Aurora account. Use this code to continue.",
     },
   }[type];
 
@@ -51,7 +51,7 @@ function buildOtpEmailHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>AURA</title>
+  <title>Aurora</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
 </head>
 <body style="margin:0;padding:0;background-color:${THEME.bg};-webkit-font-smoothing:antialiased;">
@@ -76,7 +76,7 @@ function buildOtpEmailHtml(
                 ${subjects.title}
               </h1>
               <p style="margin:0 0 28px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${THEME.dim};">
-                AURA · Visual culture
+                Aurora · Visual culture
               </p>
             </td>
           </tr>
@@ -120,7 +120,7 @@ function buildOtpEmailHtml(
                 If you didn’t request this email, you can ignore it. Your account stays secure.
               </p>
               <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:${THEME.dim};">
-                © ${new Date().getFullYear()} AURA · <a href="https://www.aurawalls.site" style="color:${THEME.accent};text-decoration:none;">aurawalls.site</a>
+                © ${new Date().getFullYear()} Aurora · <a href="https://www.aurora-walls.com" style="color:${THEME.accent};text-decoration:none;">aurora-walls.com</a>
               </p>
             </td>
           </tr>
@@ -138,9 +138,9 @@ export async function sendOTPEmail(
   type: "signup" | "login" | "password_reset"
 ): Promise<void> {
   const subjects = {
-    signup: "Verify your AURA account",
-    login: "Your AURA login code",
-    password_reset: "Reset your AURA password",
+    signup: "Verify your Aurora account",
+    login: "Your Aurora login code",
+    password_reset: "Reset your Aurora password",
   };
 
   const htmlContent = buildOtpEmailHtml(otp, type);
@@ -153,7 +153,7 @@ export async function sendOTPEmail(
       "api-key": process.env.BREVO_API_KEY!,
     },
     body: JSON.stringify({
-      sender: { name: "AURA", email: process.env.BREVO_FROM_EMAIL },
+      sender: { name: "Aurora", email: process.env.BREVO_FROM_EMAIL },
       to: [{ email }],
       subject: subjects[type],
       htmlContent,

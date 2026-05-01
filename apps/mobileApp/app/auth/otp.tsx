@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View, Text, TextInput, Pressable,
   KeyboardAvoidingView, Platform,
@@ -8,7 +8,7 @@ import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
 import { router, useLocalSearchParams } from 'expo-router'
 import { Colors, Images } from '../../constants'
-import { verifyOtp, login } from '../../lib/authApi'
+import { verifyOtp, login, sendOtp } from '../../lib/authApi'
 import { useAuth } from '../../lib/AuthContext'
 import { useToast } from '../../lib/ToastContext'
 import { useLayoutInfo } from '../../hooks/useLayout'
@@ -16,6 +16,7 @@ import { useLayoutInfo } from '../../hooks/useLayout'
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 const OTP_LENGTH = 6
+const RESEND_COOLDOWN_SECONDS = 30
 
 export default function OtpScreen() {
   const { width, height, deviceType } = useLayoutInfo()
@@ -25,9 +26,21 @@ export default function OtpScreen() {
   const { onLogin } = useAuth()
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS)
   const [error, setError] = useState('')
   const inputs = useRef<(TextInput | null)[]>([])
   const { showToast } = useToast();
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [cooldown])
   const handleChange = (text: string, index: number) => {
     const cleaned = text.replace(/[^0-9]/g, '').slice(-1)
     const next = [...digits]
@@ -70,6 +83,24 @@ export default function OtpScreen() {
       inputs.current[0]?.focus()
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || resending) return
+
+    setError('')
+    setResending(true)
+    try {
+      await sendOtp({ email, type })
+      setDigits(Array(OTP_LENGTH).fill(''))
+      setCooldown(RESEND_COOLDOWN_SECONDS)
+      showToast('A new OTP was sent to your email.', { type: 'success' })
+      inputs.current[0]?.focus()
+    } catch (e: any) {
+      setError(e.message || 'Failed to resend OTP')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -167,6 +198,27 @@ export default function OtpScreen() {
               : <Text style={styles.buttonText}>Verify Code</Text>
             }
           </Pressable>
+
+          <View style={styles.resendRow}>
+            <Text style={styles.resendHint}>Didn&apos;t get the code?</Text>
+            <Pressable
+              onPress={handleResendOtp}
+              disabled={resending || cooldown > 0}
+            >
+              <Text
+                style={[
+                  styles.resendLink,
+                  (resending || cooldown > 0) && styles.resendLinkDisabled,
+                ]}
+              >
+                {resending
+                  ? 'Sending...'
+                  : cooldown > 0
+                    ? `Resend in ${cooldown}s`
+                    : 'Resend code'}
+              </Text>
+            </Pressable>
+          </View>
 
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Text style={styles.backText}>Use a different email</Text>
@@ -320,6 +372,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  resendRow: {
+    alignItems: 'center',
+    gap: 4,
+    paddingTop: 2,
+  },
+  resendHint: {
+    color: Colors.textMuted,
+    fontSize: 12,
+  },
+  resendLink: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  resendLinkDisabled: {
+    color: Colors.textSecondary,
   },
   backBtn: {
     alignItems: 'center',
