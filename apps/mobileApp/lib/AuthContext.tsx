@@ -8,6 +8,7 @@ type AuthContextType = {
   loaded: boolean
   onLogin: (token: string, user: User) => Promise<void>
   onLogout: () => Promise<void>
+  setUser: (nextUser: User | null | ((prev: User | null) => User | null)) => void
 };
 export const AuthContext = createContext<AuthContextType | null>(null); 
 
@@ -42,7 +43,7 @@ export function AuthProvider({children}:{children:ReactNode}){
   };
   
   return (
-    <AuthContext.Provider value={{user, loaded, onLogin, onLogout}}>
+    <AuthContext.Provider value={{user, loaded, onLogin, onLogout, setUser}}>
       {children}
     </AuthContext.Provider>
   ); 

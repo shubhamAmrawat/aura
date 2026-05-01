@@ -10,10 +10,12 @@ export type User = {
   avatarUrl?: string | null
   coverUrl?: string | null
   bio?: string | null
+  contactNo?: string | null
   isCreator?: boolean
   isPro?: boolean
   totalDownloads?: number
   totalUploads?: number
+  usernameChangedAt?: string | null
   createdAt?: string
 }
 export type Wallpaper = {

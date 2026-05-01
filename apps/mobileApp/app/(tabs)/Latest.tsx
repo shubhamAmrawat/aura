@@ -14,6 +14,7 @@ import { Wallpaper } from "../../lib/api";
 import { getWallpapers } from "../../lib/wallpaperApi";
 import { useLayoutInfo } from "../../hooks/useLayout";
 import { useScreenFilter } from "../../lib/ScreenFilterContext";
+import ProfileButton from "../../components/ProfileButton";
 
 const Latest = () => {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
@@ -91,7 +92,7 @@ const Latest = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="Latest" titleFontSize={20} logo={false} />
+      <Header title="Latest" titleFontSize={20} logo={false} rightElement={<ProfileButton />} />
 
       {isLoadingInitial ? (
         <View style={styles.stateContainer}>

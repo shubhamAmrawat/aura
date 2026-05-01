@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons"
 import { BlurView } from "expo-blur"
 import { Pressable, StyleSheet, Text } from "react-native"
 import { Colors } from "../constants"
-import * as MediaLibrary from 'expo-media-library'
 import { downloadWallpaper } from "../lib/downloadWallpaper"
 import { Wallpaper } from "../lib/api"
 import { useToast } from "../lib/ToastContext"
@@ -10,6 +9,7 @@ import { useState } from "react"
 import { applyWallpaper, WallpaperTarget } from "../lib/applyWallpaper"
 import ApplySheet from "./ApplySheet"
 import DetailsSheet from "./DetailsSheet"
+import { ensureMediaLibraryPermission } from "../lib/permissions"
 
 interface DockProps {
   bottomOffset: number
@@ -19,9 +19,6 @@ interface DockProps {
 
 
 const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
-  const [status, requestPermission] = MediaLibrary.usePermissions({
-    granularPermissions: ['photo'],
-  })
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [showApplySheet, setShowApplySheet] = useState(false)
@@ -37,12 +34,10 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
     if (downloading) return
     setDownloading(true)
     try {
-      if (status?.status !== 'granted') {
-        const result = await requestPermission()
-        if (!result.granted) {
-          showToast("Gallery permission denied.", { type: "error" , position: "top"})
-          return
-        }
+      const granted = await ensureMediaLibraryPermission()
+      if (!granted) {
+        showToast("Gallery permission denied.", { type: "error" , position: "top"})
+        return
       }
       const downloadResult = await downloadWallpaper(
         wallpaper.fileUrl,

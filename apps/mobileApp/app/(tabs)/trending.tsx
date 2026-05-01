@@ -15,6 +15,7 @@ import { FlashList } from "@shopify/flash-list";
 import WallpaperCard from "../../components/WallpaperCard";
 import { useLayoutInfo } from "../../hooks/useLayout";
 import { useScreenFilter } from "../../lib/ScreenFilterContext";
+import ProfileButton from "../../components/ProfileButton";
 
 const Trending = () => {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>([]);
@@ -84,7 +85,7 @@ const Trending = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="Trending" titleFontSize={20} logo={false} rightElement={<FilterBar />} />
+      <Header title="Trending" titleFontSize={20} logo={false} rightElement={<ProfileButton />} />
 
       {isLoadingInitial ? (
         <View style={styles.stateContainer}>
