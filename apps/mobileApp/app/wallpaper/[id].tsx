@@ -10,6 +10,7 @@
   import { Ionicons } from "@expo/vector-icons";
   import { Colors } from "../../constants";
   import { useInsets } from "../../hooks/useInsets";
+  import { useScreenFilter } from "../../lib/ScreenFilterContext";
   import WallpaperDock from "../../components/WallpaperDock";
 
   export default function WallpaperDetail() {
@@ -30,8 +31,9 @@
       title: string;
       w: string;
       h: string;
+      screen?: "mobile" | "tablet";
     }>();
-
+    const { screen } = useScreenFilter();
     // ─── State ───────────────────────────────────────────────────────────────────
     // wallpaper starts null — we show param data while the full fetch is in flight
     const [wallpaper, setWallpaper] = useState<Wallpaper | null>(null);
@@ -91,7 +93,7 @@
       setActiveIndex(0);
       fetchWallpaper();
       fetchSimilarWallpapers();
-    }, [id]);
+    }, [id, screen]);
 
     const fetchWallpaper = async () => {
       const res = await getWallpaperById(id);
@@ -99,7 +101,7 @@
     };
 
     const fetchSimilarWallpapers = async () => {
-      const res = await getSimilarWallpapers(id);
+      const res = await getSimilarWallpapers(id, screen);
       setSimilarWallpapers(res);
     };
 

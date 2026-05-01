@@ -5,7 +5,7 @@ import { FlashList } from "@shopify/flash-list";
 import { getWallpapers } from "../lib/wallpaperApi";
 import WallpaperCard from "./WallpaperCard";
 import { useLayoutInfo } from "../hooks/useLayout";
-
+import { useScreenFilter } from "../lib/ScreenFilterContext";
 interface WallpaperGridProps {
   category?: string | null
 }
@@ -14,6 +14,7 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { numofCols, cardGap, screenPadding } = useLayoutInfo();
+  const { screen } = useScreenFilter();
   const offset = useRef(0);
   const isLoadingRef = useRef(false);
   
@@ -22,7 +23,12 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
     isLoadingRef.current = true;
     setIsLoadingMore(true);
     try {
-      const res = await getWallpapers({ limit: 24, offset: offset.current, category: category ?? undefined });
+      const res = await getWallpapers({ 
+        limit: 24, 
+        offset: offset.current, 
+        category: category ?? undefined,
+        screen: screen
+      });
       setWallpapers(prev => [...prev, ...res.data]);
       offset.current += res.data.length;
       setHasMore(res.hasMore);
@@ -39,7 +45,12 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
     isLoadingRef.current = true
     setIsLoadingMore(true)
     
-    getWallpapers({ limit: 24, offset: 0,category: category ?? undefined })
+    getWallpapers({ 
+      limit: 24, 
+      offset: 0,
+      category: category ?? undefined,
+      screen: screen
+    })
     .then((res) => {
       setWallpapers(res.data);
       // console.log("Wallpapers fetched:", res.data.length, "for category:", category)r;
@@ -50,7 +61,7 @@ const WallpaperGrid = ({ category }: WallpaperGridProps) => {
       setIsLoadingMore(false)
       isLoadingRef.current = false
     })
-  }, [category])
+  }, [category, screen])
 
   return (
     <View style={styles.container}>

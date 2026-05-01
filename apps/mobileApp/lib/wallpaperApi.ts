@@ -1,5 +1,6 @@
 import { Category, request, Wallpaper } from "./api";
 
+export type ScreenFilter = "mobile" | "tablet";
 
 export async function getCategories():Promise<Category[]>{
   const res = await request<{ data: Category[] }>("/api/categories");
@@ -12,6 +13,7 @@ export async function getWallpapers(params:{
   category?: string;
   q?: string;
   featured?: boolean;
+  screen?: ScreenFilter;
 }):Promise<{data: Wallpaper[];count: number; hasMore: boolean}>{
   
   const query = new URLSearchParams();
@@ -20,6 +22,7 @@ export async function getWallpapers(params:{
   if (params.category) query.set('category', params.category);
   if (params.q) query.set('q', params.q);
   if (params.featured) query.set('featured', 'true');
+  if (params.screen) query.set("screen", params.screen);
   
   const qs = query.toString();
   return request<{ data: Wallpaper[]; count: number; hasMore: boolean }>(
@@ -95,7 +98,15 @@ function mapSimilarWallpaper(item: SimilarWallpaperApiItem): Wallpaper {
   };
 }
 
-export async function getSimilarWallpapers(id: string):Promise<Wallpaper[]>{
-  const res = await request<{ data: SimilarWallpaperApiItem[] }>(`/api/wallpapers/${id}/similar`);
+export async function getSimilarWallpapers(
+  id: string,
+  screen?: ScreenFilter
+):Promise<Wallpaper[]>{
+  const query = new URLSearchParams();
+  if (screen) query.set("screen", screen);
+  const qs = query.toString();
+  const res = await request<{ data: SimilarWallpaperApiItem[] }>(
+    `/api/wallpapers/${id}/similar${qs ? `?${qs}` : ""}`
+  );
   return res.data.map(mapSimilarWallpaper);
 }
