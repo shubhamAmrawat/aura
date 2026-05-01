@@ -24,12 +24,14 @@
       id,
       dominantColor: paramColor,
       blurhash: paramBlurhash,
+      fileUrl: paramFileUrl,
       title: paramTitle,
       w, h,
     } = useLocalSearchParams<{
       id: string;
       dominantColor: string;
       blurhash: string;
+      fileUrl?: string;
       title: string;
       w: string;
       h: string;
@@ -38,9 +40,38 @@
     const { screen } = useScreenFilter();
     const { showToast } = useToast();
     const { user } = useAuth();
+    const seedWallpaper = useMemo<Wallpaper>(
+      () => ({
+        id,
+        title: paramTitle ?? "",
+        description: null,
+        fileUrl: paramFileUrl ?? "",
+        blurhash: paramBlurhash ?? "",
+        dominantColor: paramColor ? `#${paramColor}` : "#0A0A0A",
+        palette: [],
+        width: Number(w) || 0,
+        height: Number(h) || 0,
+        fileSizeBytes: 0,
+        format: "jpeg",
+        downloadCount: 0,
+        likeCount: 0,
+        isMobile: false,
+        viewCount: 0,
+        trendingScore: 0,
+        isFeatured: false,
+        isPremium: false,
+        isAiGenerated: false,
+        tags: [],
+        categoryId: null,
+        status: "approved",
+        createdAt: "",
+      }),
+      [id, paramTitle, paramFileUrl, paramBlurhash, paramColor, w, h]
+    );
+
     // ─── State ───────────────────────────────────────────────────────────────────
-    // wallpaper starts null — we show param data while the full fetch is in flight
-    const [wallpaper, setWallpaper] = useState<Wallpaper | null>(null);
+    // Start from route params so detail screen renders instantly.
+    const [wallpaper, setWallpaper] = useState<Wallpaper | null>(seedWallpaper);
     const [similarWallpapers, setSimilarWallpapers] = useState<Wallpaper[]>([]);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
@@ -116,9 +147,11 @@
     // ─── Data fetching ────────────────────────────────────────────────────────────
     useEffect(() => {
       setActiveIndex(0);
+      setWallpaper(seedWallpaper);
+      setSimilarWallpapers([]);
       fetchWallpaper();
       fetchSimilarWallpapers();
-    }, [id, screen]);
+    }, [id, screen, seedWallpaper]);
 
     useEffect(() => {
       if (!user || !activeWallpaperId) {

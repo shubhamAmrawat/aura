@@ -71,12 +71,19 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
     try {
       const result = await applyWallpaper(wallpaper.fileUrl, wallpaper.title, target)
       if (!result.success) {
+        console.log(result.error)
         showToast(result.error ?? "Failed to apply.", { type: "error" , position: "top"})
+        return
+      }
+      if (result.needsUserConfirmation) {
+        // System wallpaper UI doesn't provide a reliable completion callback.
+        // Avoid false-positive success/info toasts for home/both flow.
         return
       }
       showToast(applySuccessMessages[target], { type: "success", position: "top" })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      console.log(message)
       showToast(message, { type: "error" , position: "top"})
     } finally {
       setApplying(false)

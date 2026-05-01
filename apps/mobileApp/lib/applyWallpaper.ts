@@ -17,38 +17,55 @@ async function downloadToCache(fileUrl: string, title: string): Promise<File> {
   await file.write(new Uint8Array(buffer) as unknown as string);
   return file;
 }
+async function openSystemWallpaperCrop(contentUri: string): Promise<void> {
+  try {
+    await IntentLauncher.startActivityAsync(
+      'android.service.wallpaper.CROP_AND_SET_WALLPAPER',
+      {
+        data: contentUri,
+        type: 'image/jpeg',
+        flags: 1,
+      }
+    );
+    return;
+  } catch {
+    // Fallback for OEMs that don't expose CROP_AND_SET_WALLPAPER.
+  }
+
+  await IntentLauncher.startActivityAsync(
+    'android.intent.action.ATTACH_DATA',
+    {
+      data: contentUri,
+      type: 'image/jpeg',
+      extra: { mimeType: 'image/jpeg' },
+      flags: 1,
+    }
+  );
+}
 
 export async function applyWallpaper(
   fileUrl: string,
   title: string,
   target: WallpaperTarget = 'both'
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; needsUserConfirmation?: boolean }> {
   try {
     const file = await downloadToCache(fileUrl, title);
+    const contentUri = (file as any).contentUri ?? file.uri;
 
     if (isTablet) {
-      // On tablets, ManageWallpaper triggers a navigation reset via Android intent.
-      // Use system wallpaper picker instead — opens separate app, no nav conflict.
-      const contentUri = (file as any).contentUri ?? file.uri;
-      await IntentLauncher.startActivityAsync(
-        'android.intent.action.ATTACH_DATA',
-        {
-          data: contentUri,
-          type: 'image/jpeg',
-          extra: { mimeType: 'image/jpeg' },
-          flags: 1,
-        }
-      );
-      return { success: true };
+      await openSystemWallpaperCrop(contentUri);
+      return { success: true, needsUserConfirmation: true };
     }
 
-    // Phone — use ManageWallpaper for seamless in-app apply
-    return new Promise((resolve) => {
-      const wallpaperType =
-        target === 'home' ? TYPE.HOME :
-        target === 'lock' ? TYPE.LOCK :
-        TYPE.BOTH;
+    // For phone home/both: use system crop/apply flow like wallpaper apps.
+    // OEM launcher decides exact fit; this avoids custom crop mismatch.
+    if (target === 'home' || target === 'both') {
+      await openSystemWallpaperCrop(contentUri);
+      return { success: true, needsUserConfirmation: true };
+    }
 
+    // For lock-only: direct apply is usually consistent and does not need launcher crop behavior.
+    return new Promise((resolve) => {
       ManageWallpaper.setWallpaper(
         { uri: file.uri },
         (res: any) => {
@@ -58,7 +75,7 @@ export async function applyWallpaper(
             resolve({ success: false, error: res?.msg ?? 'Failed to set wallpaper' });
           }
         },
-        wallpaperType
+        TYPE.LOCK
       );
     });
 

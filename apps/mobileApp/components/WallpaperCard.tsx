@@ -21,6 +21,7 @@ const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
             params: {
               dominantColor: wallpaper.dominantColor?.replace("#", "") ?? "",
               blurhash: wallpaper.blurhash ?? "",
+              fileUrl: wallpaper.fileUrl ?? "",
               title: wallpaper.title ?? "",
               w: String(wallpaper.width ?? 0),
               h: String(wallpaper.height ?? 0),
