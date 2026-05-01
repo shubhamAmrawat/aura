@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "../lib/AuthContext";
 import { ToastProvider, useToast } from "../lib/ToastContext";
 import { ScreenFilterProvider, useScreenFilter } from "../lib/ScreenFilterContext";
 import * as SystemUI from "expo-system-ui";
+import * as SecureStore from "expo-secure-store";
 import { Colors } from "../constants/colors";
 import SplashScreen from "../components/SplashScreen";
 
@@ -30,12 +31,37 @@ function AppGate() {
   const { deviceType, screen } = useScreenFilter();
 
   useEffect(() => {
-    showToast(
-      `${deviceType.toUpperCase()} detected: filtering ${screen === "tablet" ? "wide" : "portrait"} wallpapers`,
-      { type: "info", position: "top" }
-    );
-    console.log(`[screen-filter] deviceType=${deviceType} screen=${screen}`);
-  }, []);
+    let isMounted = true;
+
+    const maybeShowFilterToast = async () => {
+      try {
+        const key = "screen_filter_toast_seen_v1";
+        const alreadySeen = await SecureStore.getItemAsync(key);
+        if (!isMounted || alreadySeen === "1") return;
+
+        showToast(
+          `${deviceType.toUpperCase()} detected: filtering ${screen === "tablet" ? "wide" : "portrait"} wallpapers`,
+          { type: "info", position: "top" }
+        );
+        await SecureStore.setItemAsync(key, "1");
+        console.log(`[screen-filter] first-run toast shown: deviceType=${deviceType} screen=${screen}`);
+      } catch (error) {
+        // If persistence fails, avoid blocking startup and show once for this session.
+        if (!isMounted) return;
+        showToast(
+          `${deviceType.toUpperCase()} detected: filtering ${screen === "tablet" ? "wide" : "portrait"} wallpapers`,
+          { type: "info", position: "top" }
+        );
+        console.warn("[screen-filter] failed to persist first-run toast flag", error);
+      }
+    };
+
+    maybeShowFilterToast();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [deviceType, screen, showToast]);
 
   if (!loaded) return <SplashScreen />;
 

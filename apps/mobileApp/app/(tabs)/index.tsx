@@ -1,8 +1,8 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native"
+import { Animated, Easing, FlatList, Pressable, StyleSheet, Text, View } from "react-native"
 import Header from "../../components/Header";
 import ProfileButton from "../../components/ProfileButton";
 import { Colors } from "../../constants";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCategories } from "../../lib/wallpaperApi";
 import { Category } from "../../lib/api";
 import WallpaperGrid from "../../components/WallpaperGrid";
@@ -12,6 +12,29 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const skeletonPulse = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(skeletonPulse, {
+          toValue: 1,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(skeletonPulse, {
+          toValue: 0.45,
+          duration: 750,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    return () => animation.stop();
+  }, [skeletonPulse]);
   
   const loadCategories = async () => {
     setIsCategoriesLoading(true);
@@ -40,7 +63,10 @@ const Index = () => {
         {isCategoriesLoading ? (
           <View style={styles.categorySkeletonWrap}>
             {Array.from({ length: 5 }, (_, idx) => (
-              <View key={`cat-skeleton-${idx}`} style={styles.categorySkeleton} />
+              <Animated.View
+                key={`cat-skeleton-${idx}`}
+                style={[styles.categorySkeleton, { opacity: skeletonPulse }]}
+              />
             ))}
           </View>
         ) : categoriesError ? (
