@@ -1,4 +1,4 @@
-import { Animated, Easing, FlatList, Pressable, StyleSheet, Text, View } from "react-native"
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, StyleSheet, Text, View } from "react-native"
 import Header from "../../components/Header";
 import ProfileButton from "../../components/ProfileButton";
 import { Colors } from "../../constants";

@@ -1,6 +1,8 @@
 import { Category, request, Wallpaper } from "./api";
 
 export type ScreenFilter = "mobile" | "tablet";
+export type SearchApiMode = "semantic" | "keyword" | "hybrid" | "none";
+export type SearchSuggestionSource = "editorial" | "trending-title" | "trending-tag";
 
 export async function getCategories():Promise<Category[]>{
   const res = await request<{ data: Category[] }>("/api/categories");
@@ -50,6 +52,45 @@ export async function getWallpaperById(id: string):Promise<Wallpaper>{
   const res = await request<{ data: Wallpaper }>(`/api/wallpapers/${id}`);
   return res.data;
 }
+
+type SearchWallpaperApiItem = {
+  id: string;
+  title: string;
+  description?: string | null;
+  fileUrl?: string | null;
+  file_url?: string | null;
+  blurhash?: string | null;
+  dominantColor?: string | null;
+  dominant_color?: string | null;
+  width?: number | string | null;
+  height?: number | string | null;
+  likeCount?: number | string | null;
+  like_count?: number | string | null;
+  downloadCount?: number | string | null;
+  download_count?: number | string | null;
+  viewCount?: number | string | null;
+  view_count?: number | string | null;
+  trendingScore?: number | string | null;
+  trending_score?: number | string | null;
+  isFeatured?: boolean | null;
+  is_featured?: boolean | null;
+  isPremium?: boolean | null;
+  is_premium?: boolean | null;
+  isAiGenerated?: boolean | null;
+  is_ai_generated?: boolean | null;
+  isMobile?: boolean | null;
+  is_mobile?: boolean | null;
+  tags?: string[] | null;
+  palette?: string[] | null;
+  categoryId?: string | null;
+  category_id?: string | null;
+  status?: string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
+  format?: string | null;
+  fileSizeBytes?: number | string | null;
+  file_size_bytes?: number | string | null;
+};
 
 type SimilarWallpaperApiItem = {
   id: string;
@@ -114,6 +155,34 @@ function mapSimilarWallpaper(item: SimilarWallpaperApiItem): Wallpaper {
   };
 }
 
+function mapSearchWallpaper(item: SearchWallpaperApiItem): Wallpaper {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description ?? null,
+    fileUrl: item.fileUrl ?? item.file_url ?? "",
+    blurhash: item.blurhash ?? "",
+    dominantColor: item.dominantColor ?? item.dominant_color ?? "#0A0A0A",
+    width: toNumber(item.width),
+    height: toNumber(item.height),
+    likeCount: toNumber(item.likeCount ?? item.like_count),
+    downloadCount: toNumber(item.downloadCount ?? item.download_count),
+    fileSizeBytes: toNumber(item.fileSizeBytes ?? item.file_size_bytes),
+    palette: item.palette ?? [],
+    tags: item.tags ?? [],
+    format: item.format ?? "jpeg",
+    categoryId: item.categoryId ?? item.category_id ?? null,
+    isAiGenerated: item.isAiGenerated ?? item.is_ai_generated ?? false,
+    isFeatured: item.isFeatured ?? item.is_featured ?? false,
+    isPremium: item.isPremium ?? item.is_premium ?? false,
+    isMobile: item.isMobile ?? item.is_mobile ?? false,
+    viewCount: toNumber(item.viewCount ?? item.view_count),
+    trendingScore: toNumber(item.trendingScore ?? item.trending_score),
+    status: item.status ?? "approved",
+    createdAt: item.createdAt ?? item.created_at ?? "",
+  };
+}
+
 export async function getSimilarWallpapers(
   id: string,
   screen?: ScreenFilter
@@ -125,6 +194,65 @@ export async function getSimilarWallpapers(
     `/api/wallpapers/${id}/similar${qs ? `?${qs}` : ""}`
   );
   return res.data.map(mapSimilarWallpaper);
+}
+
+export async function searchWallpapers(params: {
+  q: string;
+  limit?: number;
+  offset?: number;
+  mode?: "semantic" | "keyword" | "hybrid";
+  screen?: ScreenFilter;
+}): Promise<{ data: Wallpaper[]; hasMore: boolean; mode: SearchApiMode }> {
+  const query = new URLSearchParams();
+  query.set("q", params.q);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+  if (params.mode) query.set("mode", params.mode);
+  if (params.screen) query.set("screen", params.screen);
+
+  const qs = query.toString();
+  const res = await request<{
+    data: SearchWallpaperApiItem[];
+    hasMore: boolean;
+    mode: SearchApiMode;
+  }>(`/api/search${qs ? `?${qs}` : ""}`);
+
+  return {
+    data: (res.data ?? []).map(mapSearchWallpaper),
+    hasMore: Boolean(res.hasMore),
+    mode: res.mode ?? "none",
+  };
+}
+
+export async function getSearchSuggestions(params: {
+  limit?: number;
+  screen?: ScreenFilter;
+}): Promise<Array<{ term: string; source: SearchSuggestionSource }>> {
+  const query = new URLSearchParams();
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.screen) query.set("screen", params.screen);
+  const qs = query.toString();
+
+  const res = await request<{
+    data: Array<{ term: string; source: SearchSuggestionSource }>;
+  }>(`/api/search/suggestions${qs ? `?${qs}` : ""}`);
+
+  return res.data ?? [];
+}
+
+export async function getSearchAutocomplete(params: {
+  q: string;
+  limit?: number;
+  screen?: ScreenFilter;
+}): Promise<string[]> {
+  const query = new URLSearchParams();
+  query.set("q", params.q);
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.screen) query.set("screen", params.screen);
+  const qs = query.toString();
+
+  const res = await request<{ data: string[] }>(`/api/search/autocomplete${qs ? `?${qs}` : ""}`);
+  return res.data ?? [];
 }
 
 export async function isWallpaperLiked(wallpaperId: string): Promise<boolean> {

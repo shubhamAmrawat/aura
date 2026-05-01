@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: 12,
+    alignItems: "center"
   },
   errorContainer: {
     position: "absolute",

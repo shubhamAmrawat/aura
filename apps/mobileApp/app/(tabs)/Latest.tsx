@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
   },
   footerLoader: {
     paddingVertical: 12,
+    alignItems: "center",
   },
   footerDone: {
     paddingVertical: 16,

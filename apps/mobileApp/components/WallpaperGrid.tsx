@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
   },
   loaderContainer: {
     ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
     zIndex: 1,
   },
 })
