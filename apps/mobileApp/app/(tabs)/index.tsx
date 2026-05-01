@@ -10,9 +10,26 @@ import WallpaperGrid from "../../components/WallpaperGrid";
 const Index = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
   
+  const loadCategories = async () => {
+    setIsCategoriesLoading(true);
+    setCategoriesError(null);
+    try {
+      const data = await getCategories();
+      setCategories(data);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load categories";
+      setCategoriesError(message);
+    } finally {
+      setIsCategoriesLoading(false);
+    }
+  };
+
   useEffect(() => {
-    getCategories().then(setCategories);
+    loadCategories();
   }, []);
 
   return (
@@ -20,30 +37,44 @@ const Index = () => {
       <Header title="AURORA" logo={true} titleFontSize={24} rightElement={<ProfileButton />} />
       {/* category bar */}
       <View style={styles.categoryBar}>
-        <FlatList data={categories}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryList}
-          ListHeaderComponent={
-            <Pressable
-              style={[styles.categoryPill, selectedCategory === null && styles.categoryPillActive]}
-              onPress={() => setSelectedCategory(null)}
-            >
-              <Text style={styles.categoryText}>All</Text>
+        {isCategoriesLoading ? (
+          <View style={styles.categorySkeletonWrap}>
+            {Array.from({ length: 5 }, (_, idx) => (
+              <View key={`cat-skeleton-${idx}`} style={styles.categorySkeleton} />
+            ))}
+          </View>
+        ) : categoriesError ? (
+          <View style={styles.categoryErrorWrap}>
+            <Text style={styles.categoryErrorText}>Couldn&apos;t load categories</Text>
+            <Pressable onPress={loadCategories} style={styles.categoryRetryBtn}>
+              <Text style={styles.categoryRetryText}>Retry</Text>
             </Pressable>
-          }
-          renderItem={({ item }) =>
-            <Pressable style={[
-              styles.categoryPill,
-              selectedCategory === item.slug && styles.categoryPillActive
-            ]}
-              onPress={() => setSelectedCategory(
-                selectedCategory === item.slug ? null : item.slug
-              )}>
-
-              <Text style={styles.categoryText}> {item.name}</Text>
-            </Pressable>
-          } />
+          </View>
+        ) : (
+          <FlatList data={categories}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryList}
+            ListHeaderComponent={
+              <Pressable
+                style={[styles.categoryPill, selectedCategory === null && styles.categoryPillActive]}
+                onPress={() => setSelectedCategory(null)}
+              >
+                <Text style={styles.categoryText}>All</Text>
+              </Pressable>
+            }
+            renderItem={({ item }) =>
+              <Pressable style={[
+                styles.categoryPill,
+                selectedCategory === item.slug && styles.categoryPillActive
+              ]}
+                onPress={() => setSelectedCategory(
+                  selectedCategory === item.slug ? null : item.slug
+                )}>
+                <Text style={styles.categoryText}>{item.name}</Text>
+              </Pressable>
+            } />
+        )}
       </View>
       
       
@@ -75,6 +106,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 10,
     alignItems: 'center',
+  },
+  categorySkeletonWrap: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  categorySkeleton: {
+    width: 72,
+    height: 30,
+    borderRadius: 6,
+    backgroundColor: Colors.bgElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  categoryErrorWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  categoryErrorText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  categoryRetryBtn: {
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  categoryRetryText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: "700",
   },
   categoryPill: {
     paddingHorizontal: 14,

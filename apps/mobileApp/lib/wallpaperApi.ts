@@ -30,6 +30,22 @@ export async function getWallpapers(params:{
   );
 }
 
+export async function getTrendingWallpapers(params: {
+  limit?: number;
+  offset?: number;
+  screen?: ScreenFilter;
+}): Promise<{ data: Wallpaper[]; count: number; hasMore: boolean }> {
+  const query = new URLSearchParams();
+  if (params.limit !== undefined) query.set("limit", String(params.limit));
+  if (params.offset !== undefined) query.set("offset", String(params.offset));
+  if (params.screen) query.set("screen", params.screen);
+
+  const qs = query.toString();
+  return request<{ data: Wallpaper[]; count: number; hasMore: boolean }>(
+    `/api/wallpapers/trending${qs ? `?${qs}` : ""}`
+  );
+}
+
 export async function getWallpaperById(id: string):Promise<Wallpaper>{
   const res = await request<{ data: Wallpaper }>(`/api/wallpapers/${id}`);
   return res.data;
