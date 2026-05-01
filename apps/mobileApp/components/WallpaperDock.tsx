@@ -76,8 +76,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
         return
       }
       if (result.needsUserConfirmation) {
-        // System wallpaper UI doesn't provide a reliable completion callback.
-        // Avoid false-positive success/info toasts for home/both flow.
+        showToast(applySuccessMessages[target], { type: "success", position: "top" })
         return
       }
       showToast(applySuccessMessages[target], { type: "success", position: "top" })
