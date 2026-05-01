@@ -1,7 +1,7 @@
   import { router, useLocalSearchParams } from "expo-router";
   import { useEffect, useMemo, useRef, useState } from "react";
-  import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-  import { getSimilarWallpapers, getWallpaperById } from "../../lib/wallpaperApi";
+  import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+  import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike } from "../../lib/wallpaperApi";
   import { Wallpaper } from "../../lib/api";
   import { LinearGradient } from "expo-linear-gradient";
   import { getContrastColor, hexToRgba } from "../../utils/color";
@@ -11,6 +11,8 @@
   import { Colors } from "../../constants";
   import { useInsets } from "../../hooks/useInsets";
   import { useScreenFilter } from "../../lib/ScreenFilterContext";
+  import { useToast } from "../../lib/ToastContext";
+  import { useAuth } from "../../lib/AuthContext";
   import WallpaperDock from "../../components/WallpaperDock";
 
   export default function WallpaperDetail() {
@@ -34,16 +36,23 @@
       screen?: "mobile" | "tablet";
     }>();
     const { screen } = useScreenFilter();
+    const { showToast } = useToast();
+    const { user } = useAuth();
     // ─── State ───────────────────────────────────────────────────────────────────
     // wallpaper starts null — we show param data while the full fetch is in flight
     const [wallpaper, setWallpaper] = useState<Wallpaper | null>(null);
     const [similarWallpapers, setSimilarWallpapers] = useState<Wallpaper[]>([]);
     const [activeIndex, setActiveIndex] = useState(0);
+    const [isLiked, setIsLiked] = useState(false);
+    const [likeLoading, setLikeLoading] = useState(false);
+    const likeScale = useRef(new Animated.Value(1)).current;
 
     // ─── Layout ──────────────────────────────────────────────────────────────────
     const { width, height } = useLayoutInfo();
     const { topPadding, bottomPadding } = useInsets();
-    const horizontalPadding = width >= 768 ? 32 : 20;
+    const isTablet = width >= 768;
+    const isLandscape = width > height;
+    const horizontalPadding = isTablet ? 32 : 20;
   const PEEK = 32;
   const itemWidth = width - PEEK * 2;
 
@@ -52,6 +61,7 @@
       [wallpaper, similarWallpapers]
     );
     const activeWallpaper = carouselData[activeIndex] ?? wallpaper;
+    const activeWallpaperId = activeWallpaper?.id ?? id;
 
     // ─── Derived display values ───────────────────────────────────────────────────
     // Use wallpaper API data when available, fall back to params immediately.
@@ -66,6 +76,21 @@
 
     // Contrast color ensures header text/icons are readable against the gradient
     const contrastColor = getContrastColor(dominantColor);
+
+    const animateLikePress = () => {
+      Animated.sequence([
+        Animated.spring(likeScale, {
+          toValue: 1.2,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+        Animated.spring(likeScale, {
+          toValue: 1,
+          friction: 5,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
 
     const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
       if (viewableItems.length > 0) {
@@ -95,6 +120,25 @@
       fetchSimilarWallpapers();
     }, [id, screen]);
 
+    useEffect(() => {
+      if (!user || !activeWallpaperId) {
+        setIsLiked(false);
+        return;
+      }
+      let cancelled = false;
+      (async () => {
+        try {
+          const liked = await isWallpaperLiked(activeWallpaperId);
+          if (!cancelled) setIsLiked(liked);
+        } catch {
+          if (!cancelled) setIsLiked(false);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [activeWallpaperId, user]);
+
     const fetchWallpaper = async () => {
       const res = await getWallpaperById(id);
       setWallpaper(res);
@@ -103,6 +147,47 @@
     const fetchSimilarWallpapers = async () => {
       const res = await getSimilarWallpapers(id, screen);
       setSimilarWallpapers(res);
+    };
+
+    const handleToggleLike = async () => {
+      if (!activeWallpaperId || likeLoading) return;
+      if (!user) {
+        showToast("Please login to like wallpapers.", { type: "info", position: "top" });
+        return;
+      }
+
+      const previousLiked = isLiked;
+      setLikeLoading(true);
+      setIsLiked(!previousLiked);
+      animateLikePress();
+
+      try {
+        const res = await toggleWallpaperLike(activeWallpaperId);
+        const nextLiked = res.liked;
+        setIsLiked(nextLiked);
+
+        const delta = (nextLiked ? 1 : 0) - (previousLiked ? 1 : 0);
+        if (delta !== 0) {
+          setWallpaper((prev) =>
+            prev && prev.id === activeWallpaperId
+              ? { ...prev, likeCount: Math.max(0, (prev.likeCount ?? 0) + delta) }
+              : prev
+          );
+          setSimilarWallpapers((prev) =>
+            prev.map((item) =>
+              item.id === activeWallpaperId
+                ? { ...item, likeCount: Math.max(0, (item.likeCount ?? 0) + delta) }
+                : item
+            )
+          );
+        }
+      } catch (error) {
+        setIsLiked(previousLiked);
+        const message = error instanceof Error ? error.message : "Unable to update like";
+        showToast(message, { type: "error", position: "top" });
+      } finally {
+        setLikeLoading(false);
+      }
     };
 
     const renderWallpaperItem = ({ item, index }: { item: Wallpaper; index: number }) => {
@@ -115,9 +200,29 @@
           ? itemPreviewWidth / itemPreviewHeight
           : 9 / 16;
       const safeAspectRatio = Math.max(0.35, Math.min(aspectRatio, 3.2));
-      const imageWidth = Math.min(itemWidth - horizontalPadding * 2, 520);
-      const maxImageHeight = Math.min(height * 0.72, height - topPadding - 116);
-      const minImageHeight = Math.min(maxImageHeight, Math.max(240, height * 0.34));
+      // Mobile keeps the current compact behavior.
+      // Tablet gets a much larger hero frame for both portrait and landscape.
+      const mobileImageWidth = Math.min(itemWidth - horizontalPadding * 2, 520);
+      const tabletWidthRatio = isLandscape ? 0.62 : 0.78;
+      const tabletImageWidth = Math.min(
+        itemWidth - horizontalPadding * 2,
+        Math.max(640, Math.min(width * tabletWidthRatio, 980))
+      );
+      const imageWidth = isTablet ? tabletImageWidth : mobileImageWidth;
+
+      const mobileMaxImageHeight = Math.min(height * 0.72, height - topPadding - 116);
+      const tabletMaxImageHeight = Math.min(
+        isLandscape ? height * 0.8 : height * 0.74,
+        height - topPadding - 140
+      );
+      const maxImageHeight = isTablet ? tabletMaxImageHeight : mobileMaxImageHeight;
+
+      const mobileMinImageHeight = Math.min(maxImageHeight, Math.max(240, height * 0.34));
+      const tabletMinImageHeight = Math.min(
+        maxImageHeight,
+        Math.max(isLandscape ? 360 : 420, height * (isLandscape ? 0.48 : 0.52))
+      );
+      const minImageHeight = isTablet ? tabletMinImageHeight : mobileMinImageHeight;
       const naturalImageHeight = imageWidth / safeAspectRatio;
       const imageHeight = Math.max(
         minImageHeight,
@@ -191,8 +296,14 @@
             {displayTitle}
           </Text>
 
-          <Pressable hitSlop={12}>
-            <Ionicons name="heart-outline" size={24} color={contrastColor} />
+          <Pressable hitSlop={12} onPress={handleToggleLike} disabled={likeLoading}>
+            <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+              <Ionicons
+                name={isLiked ? "heart" : "heart-outline"}
+                size={24}
+                color={isLiked ? "#FF4D8D" : contrastColor}
+              />
+            </Animated.View>
           </Pressable>
         </View>
 

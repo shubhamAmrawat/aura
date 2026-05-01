@@ -11,12 +11,16 @@ import { Colors, Images } from '../../constants'
 import { verifyOtp, login } from '../../lib/authApi'
 import { useAuth } from '../../lib/AuthContext'
 import { useToast } from '../../lib/ToastContext'
+import { useLayoutInfo } from '../../hooks/useLayout'
 
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 const OTP_LENGTH = 6
 
 export default function OtpScreen() {
+  const { width, height, deviceType } = useLayoutInfo()
+  const isTablet = deviceType === 'tablet'
+  const isLandscapeTablet = isTablet && width > height
   const { email, type } = useLocalSearchParams<{ email: string; type: string }>()
   const { onLogin } = useAuth()
   const [digits, setDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''))
@@ -94,26 +98,43 @@ export default function OtpScreen() {
         style={StyleSheet.absoluteFillObject}
       />
 
-      <View style={styles.content}>
-        <View style={styles.hero}>
+      <View style={[
+        styles.content,
+        isTablet && styles.contentTablet,
+        isLandscapeTablet && styles.contentTabletLandscape,
+      ]}>
+        <View style={[
+          styles.hero,
+          isLandscapeTablet && styles.heroTabletLandscape,
+        ]}>
           <Text style={styles.brandTitle}>AURORA</Text>
           <Text style={styles.brandSub}>Secure verification</Text>
         </View>
 
-        <View style={styles.card}>
+        <View style={[
+          styles.card,
+          isTablet && styles.cardTablet,
+          isLandscapeTablet && styles.cardTabletLandscape,
+        ]}>
           <Text style={styles.cardTitle}>Enter verification code</Text>
           <Text style={styles.emailLabel}>
             We sent a 6-digit code to{'\n'}
             <Text style={styles.emailValue}>{email}</Text>
           </Text>
 
-          <View style={styles.otpRow}>
+          <View style={[
+            styles.otpRow,
+            isTablet && styles.otpRowTablet,
+            isLandscapeTablet && styles.otpRowTabletLandscape,
+          ]}>
             {digits.map((digit, i) => (
               <TextInput
                 key={i}
                 ref={el => { inputs.current[i] = el }}
                 style={[
                   styles.otpBox,
+                  isTablet && styles.otpBoxTablet,
+                  isLandscapeTablet && styles.otpBoxTabletLandscape,
                   digit ? styles.otpBoxFilled : null,
                 ]}
                 value={digit}
@@ -169,9 +190,26 @@ const styles = StyleSheet.create({
     paddingTop: 88,
     gap: 16,
   },
+  contentTablet: {
+    justifyContent: 'center',
+    paddingTop: 42,
+    paddingBottom: 28,
+    alignItems: 'center',
+    gap: 20,
+  },
+  contentTabletLandscape: {
+    paddingTop: 28,
+    paddingBottom: 20,
+    gap: 16,
+  },
   hero: {
     gap: 8,
     paddingHorizontal: 4,
+  },
+  heroTabletLandscape: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: Colors.cardSurface,
@@ -181,6 +219,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
     gap: 14,
+  },
+  cardTablet: {
+    width: '100%',
+    maxWidth: 920,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+    borderRadius: 28,
+  },
+  cardTabletLandscape: {
+    maxWidth: 760,
+    paddingVertical: 18,
   },
   brandTitle: {
     color: Colors.textPrimary,
@@ -213,6 +262,13 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: 'space-between',
   },
+  otpRowTablet: {
+    gap: 12,
+  },
+  otpRowTabletLandscape: {
+    justifyContent: 'center',
+    gap: 10,
+  },
   otpBox: {
     flex: 1,
     aspectRatio: 1,
@@ -229,6 +285,16 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     textAlignVertical: 'center',
     overflow: 'hidden',
+  },
+  otpBoxTablet: {
+    maxWidth: 124,
+  },
+  otpBoxTabletLandscape: {
+    flex: 0,
+    width: 74,
+    borderRadius: 12,
+    fontSize: 22,
+    lineHeight: 22,
   },
   otpBoxFilled: {
     borderColor: Colors.accent,

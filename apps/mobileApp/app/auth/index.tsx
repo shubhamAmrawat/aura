@@ -10,10 +10,14 @@ import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Colors, Images } from '../../constants'
 import { sendOtp } from '../../lib/authApi'
+import { useLayoutInfo } from '../../hooks/useLayout'
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 
 export default function AuthIndex() {
+  const { width, height, deviceType } = useLayoutInfo()
+  const isTablet = deviceType === 'tablet'
+  const isLandscapeTablet = isTablet && width > height
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
@@ -56,13 +60,24 @@ export default function AuthIndex() {
         style={StyleSheet.absoluteFillObject}
       />
 
-      <View style={styles.content}>
-        <View style={styles.hero}>
+      <View style={[
+        styles.content,
+        isTablet && styles.contentTablet,
+        isLandscapeTablet && styles.contentTabletLandscape,
+      ]}>
+        <View style={[
+          styles.hero,
+          isLandscapeTablet && styles.heroTabletLandscape,
+        ]}>
           <Text style={styles.brandTitle}>AURORA</Text>
           <Text style={styles.brandSub}>Wallpaper experiences crafted for you</Text>
         </View>
 
-        <View style={styles.card}>
+        <View style={[
+          styles.card,
+          isTablet && styles.cardTablet,
+          isLandscapeTablet && styles.cardTabletLandscape,
+        ]}>
           <Text style={styles.cardTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
           <Text style={styles.cardSubtitle}>
             {mode === 'login' ? 'Sign in securely with a one-time code.' : 'Start with your email. We will verify it instantly.'}
@@ -137,9 +152,26 @@ const styles = StyleSheet.create({
     paddingTop: 88,
     gap: 16,
   },
+  contentTablet: {
+    justifyContent: 'center',
+    paddingTop: 42,
+    paddingBottom: 28,
+    alignItems: 'center',
+    gap: 20,
+  },
+  contentTabletLandscape: {
+    paddingTop: 28,
+    paddingBottom: 20,
+    gap: 16,
+  },
   hero: {
     gap: 8,
     paddingHorizontal: 4,
+  },
+  heroTabletLandscape: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
   },
   card: {
     backgroundColor: Colors.cardSurface,
@@ -149,6 +181,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
     gap: 14,
+  },
+  cardTablet: {
+    width: '100%',
+    maxWidth: 920,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+    borderRadius: 28,
+  },
+  cardTabletLandscape: {
+    maxWidth: 760,
+    paddingVertical: 18,
   },
   brandTitle: {
     color: Colors.textPrimary,

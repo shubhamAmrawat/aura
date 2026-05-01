@@ -35,6 +35,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.shubhzx09.aurorawalls",
+      "launchMode": "singleTask",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "navigationBarColor": "#111111",

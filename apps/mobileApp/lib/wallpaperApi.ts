@@ -110,3 +110,16 @@ export async function getSimilarWallpapers(
   );
   return res.data.map(mapSimilarWallpaper);
 }
+
+export async function isWallpaperLiked(wallpaperId: string): Promise<boolean> {
+  const res = await request<{ liked: boolean }>(`/api/likes/${wallpaperId}`);
+  return res.liked;
+}
+
+export async function toggleWallpaperLike(
+  wallpaperId: string
+): Promise<{ liked: boolean; message: string }> {
+  return request<{ liked: boolean; message: string }>(`/api/likes/${wallpaperId}`, {
+    method: "POST",
+  });
+}
