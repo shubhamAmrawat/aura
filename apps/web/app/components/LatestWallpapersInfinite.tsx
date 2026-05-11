@@ -5,8 +5,6 @@ import { Wallpaper } from "@aura/types";
 import WallpaperCard from "./WallpaperCard";
 import WallpaperCardSkeleton from "./WallpaperCardSkeleton";
 import { getWallpapersPage, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
-import AdBanner from "./AdBanner";
-import { Fragment } from "react"; // add this import at the top
 const SKELETON_COUNT = 16;
 /** Expand the viewport’s intersection box downward so loads start well before the footer. */
 const ROOT_MARGIN = "0px 0px 1200px 0px";
@@ -158,17 +156,9 @@ export default function LatestWallpapersInfinite({
         <>
           <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
             {items.map((wallpaper, index) => (
-              <Fragment key={wallpaper.id}>        {/* ✅ key goes HERE on Fragment */}
-                <div className="break-inside-avoid mb-4" style={{ contentVisibility: "auto" }}>
-                  <WallpaperCard wallpaper={wallpaper} priority={index === 0} />
-                </div>
-
-                {(index + 1) % 12 === 0 && (
-                  <div className="break-inside-avoid mb-4">  {/* just like a normal card */}
-                  <AdBanner />
-                </div>
-                )}
-              </Fragment>
+              <div key={wallpaper.id} className="break-inside-avoid mb-4" style={{ contentVisibility: "auto" }}>
+                <WallpaperCard wallpaper={wallpaper} priority={index === 0} />
+              </div>
             ))}
           </div>
           {isLoading ? (
