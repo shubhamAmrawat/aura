@@ -189,6 +189,28 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
             <ArticleBlock key={i} block={block} />
           ))}
         </article>
+
+        {/* Sponsored link */}
+        <div
+          className="mt-10 pt-6 border-t"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <p
+            className="text-[10px] tracking-widest uppercase mb-2"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Sponsored
+          </p>
+          <a
+            href="https://www.profitablecpmratenetwork.com/s8bgf20sa?key=d27c16c95b1e3fb345249d39c22dd4c0"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            className="text-sm transition-opacity hover:opacity-70"
+            style={{ color: "var(--accent)" }}
+          >
+            Explore today&apos;s top deals →
+          </a>
+        </div>
       </div>
 
       {related.length > 0 && (
