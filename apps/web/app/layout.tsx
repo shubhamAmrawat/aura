@@ -68,9 +68,14 @@ export default async function RootLayout({
 
 
         {/* Adsterra Social Bar */}
-        <script
+        {/* <script
           async
           src="https://pl29414403.profitablecpmratenetwork.com/dc/46/48/dc4648ebae0f837bba8aff30ff60e845.js"
+        /> */}
+        {/* Adsterra Popunder - opens behind tab, zero UI interference */}
+        <script
+          async
+          src="https://pl29414401.profitablecpmratenetwork.com/a1/82/36/a1823648dcf054d95003a57567a83a7b.js"
         />
       </head>
       <body>
