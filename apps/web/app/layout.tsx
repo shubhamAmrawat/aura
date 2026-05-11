@@ -69,6 +69,7 @@ export default async function RootLayout({
           async
           src="https://pl29414403.profitablecpmratenetwork.com/dc/46/48/dc4648ebae0f837bba8aff30ff60e845.js"
         />
+        <meta name="p:domain_verify" content="c53fab29b15c022c191c58143241d360"/>
       </head>
       <body>
         <AuthProvider>
