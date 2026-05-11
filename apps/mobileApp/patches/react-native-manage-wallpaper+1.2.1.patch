@@ -1,0 +1,82 @@
+diff --git a/node_modules/react-native-manage-wallpaper/android/src/main/java/com/mmmgbhutta/reactnative/wallpapermanager/ManageWallpaperModule.java b/node_modules/react-native-manage-wallpaper/android/src/main/java/com/mmmgbhutta/reactnative/wallpapermanager/ManageWallpaperModule.java
+index 2d499cd..4d3f645 100644
+--- a/node_modules/react-native-manage-wallpaper/android/src/main/java/com/mmmgbhutta/reactnative/wallpapermanager/ManageWallpaperModule.java
++++ b/node_modules/react-native-manage-wallpaper/android/src/main/java/com/mmmgbhutta/reactnative/wallpapermanager/ManageWallpaperModule.java
+@@ -6,8 +6,10 @@ import android.net.Uri;
+ import android.os.Build;
+ import android.util.Log;
+ import android.util.Base64;
++import android.util.DisplayMetrics;
+ import android.graphics.Bitmap;
+ import android.graphics.BitmapFactory;
++import android.graphics.Rect;
+ import android.graphics.drawable.Drawable;
+ 
+ import androidx.annotation.Nullable;
+@@ -140,12 +142,14 @@ public class ManageWallpaperModule extends ReactContextBaseJavaModule {
+ 
+                 try {
+                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++                        configureDesiredDimensions(mBitmap);
++                        Rect visibleCropHint = getFullBitmapCrop(mBitmap);
+                         if (type.equals("home")) {
+-                            wallpaperManager.setBitmap(mBitmap, null, true, WallpaperManager.FLAG_SYSTEM);
++                            wallpaperManager.setBitmap(mBitmap, visibleCropHint, true, WallpaperManager.FLAG_SYSTEM);
+                         } else if (type.equals("lock")) {
+-                            wallpaperManager.setBitmap(mBitmap, null, true, WallpaperManager.FLAG_LOCK);
++                            wallpaperManager.setBitmap(mBitmap, visibleCropHint, true, WallpaperManager.FLAG_LOCK);
+                         } else {
+-                            wallpaperManager.setBitmap(mBitmap, null, true, WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);   
++                            wallpaperManager.setBitmap(mBitmap, visibleCropHint, true, WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);
+                         }
+                     } else {
+                         wallpaperManager.setBitmap(mBitmap);
+@@ -227,18 +231,44 @@ public class ManageWallpaperModule extends ReactContextBaseJavaModule {
+                 .centerCrop();
+     }
+ 
++    private int[] getScreenSizePx() {
++        DisplayMetrics metrics = mApplicationContext.getResources().getDisplayMetrics();
++        return new int[] { metrics.widthPixels, metrics.heightPixels };
++    }
++
++    // Tell WallpaperManager that the wallpaper canvas should equal the physical
++    // screen size. Without this, launchers reserve a canvas up to ~2x screen
++    // width for parallax, which makes a single-screen bitmap appear scaled-up
++    // and shifted on the home page.
++    private void configureDesiredDimensions(Bitmap bitmap) {
++        try {
++            wallpaperManager.suggestDesiredDimensions(bitmap.getWidth(), bitmap.getHeight());
++        } catch (Exception ignored) {
++            // Older OEM ROMs may throw; safe to ignore — defaults still work.
++        }
++    }
++
++    private Rect getFullBitmapCrop(Bitmap bitmap) {
++        return new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
++    }
++
+     private CustomTarget<Bitmap> getCustomTarget(final String source, final String type) {
+-        return new CustomTarget<Bitmap>(1080, 1920) {
++        int[] screen = getScreenSizePx();
++        final int targetWidth = screen[0] > 0 ? screen[0] : 1080;
++        final int targetHeight = screen[1] > 0 ? screen[1] : 1920;
++        return new CustomTarget<Bitmap>(targetWidth, targetHeight) {
+             @Override
+             public void onResourceReady(Bitmap bitmap, Transition<? super Bitmap> transition) {
+                 try {
+                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++                        configureDesiredDimensions(bitmap);
++                        Rect visibleCropHint = getFullBitmapCrop(bitmap);
+                         if (type.equals("home")) {
+-                            wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM);
++                            wallpaperManager.setBitmap(bitmap, visibleCropHint, true, WallpaperManager.FLAG_SYSTEM);
+                         } else if (type.equals("lock")) {
+-                            wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK);
++                            wallpaperManager.setBitmap(bitmap, visibleCropHint, true, WallpaperManager.FLAG_LOCK);
+                         } else {
+-                            wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);   
++                            wallpaperManager.setBitmap(bitmap, visibleCropHint, true, WallpaperManager.FLAG_LOCK | WallpaperManager.FLAG_SYSTEM);
+                         }
+                     } else {
+                         wallpaperManager.setBitmap(bitmap);

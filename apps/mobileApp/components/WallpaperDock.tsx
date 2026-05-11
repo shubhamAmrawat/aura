@@ -6,9 +6,10 @@ import { downloadWallpaper } from "../lib/downloadWallpaper"
 import { Wallpaper } from "../lib/api"
 import { useToast } from "../lib/ToastContext"
 import { useState } from "react"
-import { applyWallpaper, WallpaperTarget } from "../lib/applyWallpaper"
+import { applyWallpaper, WallpaperCropArea, WallpaperTarget } from "../lib/applyWallpaper"
 import ApplySheet from "./ApplySheet"
 import DetailsSheet from "./DetailsSheet"
+import WallpaperCropSheet from "./WallpaperCropSheet"
 import { ensureMediaLibraryPermission } from "../lib/permissions"
 
 interface DockProps {
@@ -22,6 +23,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [showApplySheet, setShowApplySheet] = useState(false)
+  const [cropTarget, setCropTarget] = useState<WallpaperTarget | null>(null)
   const [showDetailsSheet, setShowDetailsSheet] = useState(false)
   const { showToast } = useToast()
 
@@ -60,21 +62,23 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
   }
 
   // Called when user picks Home / Lock / Both in the sheet
-  const handleApplyTarget = async (target: WallpaperTarget) => {
+  const handleApplyTarget = (target: WallpaperTarget) => {
     setShowApplySheet(false)
+    setCropTarget(target)
+  }
+
+  const handleApplyCrop = async (crop: WallpaperCropArea) => {
+    if (!cropTarget) return
     setApplying(true)
     try {
-      const result = await applyWallpaper(wallpaper.fileUrl, wallpaper.title, target)
+      const result = await applyWallpaper(wallpaper.fileUrl, wallpaper.title, cropTarget, crop)
       if (!result.success) {
         console.log(result.error)
         showToast(result.error ?? "Failed to apply.", { type: "error" , position: "top"})
         return
       }
-      if (result.needsUserConfirmation) {
-        showToast(applySuccessMessages[target], { type: "success", position: "top" })
-        return
-      }
-      showToast(applySuccessMessages[target], { type: "success", position: "top" })
+      showToast(applySuccessMessages[cropTarget], { type: "success", position: "top" })
+      setCropTarget(null)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       console.log(message)
@@ -128,6 +132,15 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
         onClose={() => setShowApplySheet(false)}
         onSelect={handleApplyTarget}
         applying={applying}
+      />
+
+      <WallpaperCropSheet
+        visible={!!cropTarget}
+        wallpaper={wallpaper}
+        target={cropTarget}
+        applying={applying}
+        onClose={() => setCropTarget(null)}
+        onApply={handleApplyCrop}
       />
 
       <DetailsSheet
