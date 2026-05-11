@@ -25,14 +25,29 @@ export default function Footer() {
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 sm:gap-x-6">
           <nav
-            className="flex items-center gap-4 sm:gap-5"
+            className="flex flex-wrap items-center gap-x-4 gap-y-1 sm:gap-x-5"
             aria-label="Footer"
           >
             <Link href="/" className={footerLinkClass}>
               Home
             </Link>
-            <Link href="/privacy" className={footerLinkClass}>
-              Privacy
+            <Link href="/about" className={footerLinkClass}>
+              About
+            </Link>
+            <Link href="/blog" className={footerLinkClass}>
+              Blog
+            </Link>
+            <Link href="/contact" className={footerLinkClass}>
+              Contact
+            </Link>
+            <Link href="/privacy-policy" className={footerLinkClass}>
+              Privacy Policy
+            </Link>
+            <Link href="/terms-of-service" className={footerLinkClass}>
+              Terms
+            </Link>
+            <Link href="/dmca" className={footerLinkClass}>
+              DMCA
             </Link>
           </nav>
           <span
