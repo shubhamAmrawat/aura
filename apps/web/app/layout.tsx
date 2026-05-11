@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   description: "Discover and download premium wallpapers for desktop and mobile. Curated collections, high resolution, free to use.",
   keywords: [
-    "wallpapers", "4K wallpapers", "desktop wallpapers", 
+    "wallpapers", "4K wallpapers", "desktop wallpapers",
     "mobile wallpapers", "free wallpapers", "HD wallpapers",
     "anime wallpapers", "dark wallpapers", "nature wallpapers",
     "minimal wallpapers", "aesthetic wallpapers", "phone wallpapers"
@@ -64,6 +64,13 @@ export default async function RootLayout({
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
           crossOrigin="anonymous"
+        />
+
+
+        {/* Adsterra Social Bar */}
+        <script
+          async
+          src="https://pl29414403.profitablecpmratenetwork.com/dc/46/48/dc4648ebae0f837bba8aff30ff60e845.js"
         />
       </head>
       <body>
