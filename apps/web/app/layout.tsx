@@ -65,18 +65,14 @@ export default async function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
           crossOrigin="anonymous"
         />
-
-
-        {/* Adsterra Social Bar */}
-        {/* <script
-          async
-          src="https://pl29414403.profitablecpmratenetwork.com/dc/46/48/dc4648ebae0f837bba8aff30ff60e845.js"
-        /> */}
-        {/* Adsterra Popunder - opens behind tab, zero UI interference */}
-        <script
-          async
-          src="https://pl29414401.profitablecpmratenetwork.com/a1/82/36/a1823648dcf054d95003a57567a83a7b.js"
-        />
+        {/*
+          NOTE: Adsterra popunder script intentionally removed.
+          Popunder ads attach a global document click listener and hijack the
+          first user interaction on the page — causing every wallpaper card
+          click to open an ad tab instead of the wallpaper detail page.
+          Use only inline banner ads (AdBanner component) which are safely
+          scoped to their own container.
+        */}
       </head>
       <body>
         <AuthProvider>
