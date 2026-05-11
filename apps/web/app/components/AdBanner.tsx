@@ -18,11 +18,10 @@ export default function AdBanner() {
   }, [])
 
   return (
-    <div className="w-full my-6 flex justify-center">
-      <div
-        id="container-fc65c42a017e754be7ff51f918dd69cf"
-        ref={containerRef}
-      />
-    </div>
+    <div
+      id="container-fc65c42a017e754be7ff51f918dd69cf"
+      ref={containerRef}
+      className="w-full overflow-hidden rounded-xl"
+    />
   )
 }

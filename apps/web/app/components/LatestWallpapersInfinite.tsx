@@ -164,12 +164,9 @@ export default function LatestWallpapersInfinite({
                 </div>
 
                 {(index + 1) % 12 === 0 && (
-                  <div
-                    className="break-inside-avoid mb-4"
-                    style={{ columnSpan: "all" }}
-                  >
-                    <AdBanner />
-                  </div>
+                  <div className="break-inside-avoid mb-4">  {/* just like a normal card */}
+                  <AdBanner />
+                </div>
                 )}
               </Fragment>
             ))}
