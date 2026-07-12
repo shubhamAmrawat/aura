@@ -53,12 +53,12 @@ export default async function HomePage() {
         real content for crawlers and AdSense reviewers without disrupting
         the visual rhythm of Hero → grid.
       */}
-      <div
+      {/* <div
         className="w-full px-4 sm:px-8 md:px-12 pt-8 border-t"
         style={{ borderColor: "var(--border)" }}
       >
         <p
-          className="max-w-3xl mx-auto text-sm leading-relaxed text-center"
+          className="max-w-3xl mx-auto text-sm leading-relaxed text-center "
           style={{ color: "var(--text-secondary)" }}
         >
           Aurora is a curated wallpaper discovery platform featuring thousands
@@ -66,7 +66,7 @@ export default async function HomePage() {
           digital artists. Every wallpaper is hand-reviewed for quality. Free
           to explore, free to download.
         </p>
-      </div>
+      </div> */}
 
       <div className="w-full px-4 sm:px-8 md:px-12 py-8">
         <LatestWallpapersInfinite
