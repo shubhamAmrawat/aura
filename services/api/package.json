@@ -4,33 +4,52 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "dev": "tsx watch --env-file=../../.env src/server.ts",
+    "dev:test": "tsx watch --env-file=../../.env.test src/server.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/server.js",
+    "test": "vitest run --config vitest.unit.config.mts",
+    "test:contract": "vitest run --config vitest.contract.config.mts",
+    "test:cleanup": "tsx --env-file=../../.env.test tests/setup/cleanup-cli.ts",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@aura/db": "workspace:*",
     "@aura/types": "workspace:*",
     "@aws-sdk/client-s3": "^3.1021.0",
     "@aws-sdk/s3-request-presigner": "^3.1021.0",
-    "@hono/node-server": "^1.0.0",
     "bcryptjs": "^3.0.3",
     "blurhash": "^2.0.5",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "dotenv": "*",
-    "drizzle-orm": "*",
-    "hono": "^4.0.0",
+    "drizzle-orm": "0.45.1",
+    "express": "^5.3.0",
     "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
     "nodemailer": "^8.0.4",
     "openai": "^6.34.0",
-    "postgres": "*",
-    "sharp": "^0.34.5"
+    "postgres": "3.4.8",
+    "sharp": "^0.34.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.3.0",
     "@types/node": "^20.0.0",
     "@types/nodemailer": "^7.0.11",
+    "@types/supertest": "^7.2.1",
+    "drizzle-kit": "0.31.10",
+    "supertest": "^7.3.1",
     "tsx": "^4.0.0",
-    "typescript": "*"
+    "typescript": "*",
+    "vitest": "^5.0.3"
   }
 }

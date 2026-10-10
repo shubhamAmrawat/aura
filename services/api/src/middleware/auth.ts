@@ -1,37 +1,39 @@
-import { verifyToken } from "../lib/jwt";
+import type { NextFunction, Request, Response } from "express";
+import { verifyToken } from "../utils/jwt";
+import { ApiError } from "../utils/ApiError";
 
-const AURA_TOKEN_COOKIE_PREFIX = "aura_token=";
-
-/** JWT from httpOnly cookie or Authorization (same rules everywhere). */
-export function getAuthTokenFromRequest(c: {
-  req: { header: (name: string) => string | undefined };
-}): string | undefined {
-  const cookieHeader = c.req.header("Cookie") ?? "";
-  const cookiePair = cookieHeader
-    .split(";")
-    .map((s: string) => s.trim())
-    .find((s: string) => s.startsWith(AURA_TOKEN_COOKIE_PREFIX));
-  const cookieToken = cookiePair?.slice(AURA_TOKEN_COOKIE_PREFIX.length);
-
-  const authHeader = c.req.header("Authorization");
-  const headerToken = authHeader?.replace("Bearer ", "");
-
+/** JWT from the httpOnly `aura_token` cookie or `Authorization: Bearer` — cookie wins. */
+export function getAuthToken(req: Request): string | undefined {
+  const cookieToken: string | undefined = req.cookies?.aura_token;
+  const headerToken = req.get("Authorization")?.replace("Bearer ", "");
   return cookieToken || headerToken || undefined;
 }
 
-export const authMiddleware = async (c: any, next: any) => {
+/** 401 unless a valid token is present; sets req.userId / req.userEmail. */
+export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = getAuthToken(req);
+  if (!token) return next(new ApiError(401, "Unauthorized"));
   try {
-    const token = getAuthTokenFromRequest(c);
-
-    if (!token) {
-      return c.json({ error: "Unauthorized" }, 401);
-    }
-
     const payload = verifyToken(token);
-    c.set("userId", payload.userId);
-    c.set("email", payload.email);
-    await next();
+    req.userId = payload.userId;
+    req.userEmail = payload.email;
+    next();
   } catch {
-    return c.json({ error: "Unauthorized" }, 401);
+    next(new ApiError(401, "Unauthorized"));
   }
-};
+}
+
+/** Never rejects; sets req.userId only when a valid token is present. */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const token = getAuthToken(req);
+  if (token) {
+    try {
+      const payload = verifyToken(token);
+      req.userId = payload.userId;
+      req.userEmail = payload.email;
+    } catch {
+      /* invalid token = anonymous */
+    }
+  }
+  next();
+}
