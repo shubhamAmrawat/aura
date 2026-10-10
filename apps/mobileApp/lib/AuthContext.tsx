@@ -32,9 +32,17 @@ export function AuthProvider({children}:{children:ReactNode}){
     }
     restoreSession();
   },[])
+  // Login responses only carry basic fields (no cover, bio, etc.), so load the
+  // full profile from /me right away; fall back to the basic user if that fails.
   const onLogin = async (token: string, user: User) => {
     await saveToken(token);
     setUser(user);
+    try {
+      const { user: full } = await getMe();
+      setUser(full);
+    } catch {
+      // keep the basic user; the next app start will load the full profile
+    }
   };
   
   const onLogout = async () => {

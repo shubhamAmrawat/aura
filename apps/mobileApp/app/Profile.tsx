@@ -88,6 +88,27 @@ export default function Profile() {
     });
   }, [user]);
 
+  // Hooks must run on every render, so these stay above the early returns.
+  const normalizedInitial = useMemo(
+    () => ({
+      displayName: (user?.displayName ?? "").trim(),
+      username: (user?.username ?? "").trim().replace(/^@+/, ""),
+      bio: (user?.bio ?? "").trim(),
+      contactNo: (user?.contactNo ?? "").trim(),
+    }),
+    [user]
+  );
+
+  const normalizedCurrent = useMemo(
+    () => ({
+      displayName: form.displayName.trim(),
+      username: form.username.trim().replace(/^@+/, ""),
+      bio: form.bio.trim(),
+      contactNo: form.contactNo.trim(),
+    }),
+    [form]
+  );
+
   if (!loaded) {
     return (
       <View style={styles.container}>
@@ -114,26 +135,6 @@ export default function Profile() {
   }
 
   const isCreator = Boolean(user.isCreator);
-
-  const normalizedInitial = useMemo(
-    () => ({
-      displayName: (user.displayName ?? "").trim(),
-      username: (user.username ?? "").trim().replace(/^@+/, ""),
-      bio: (user.bio ?? "").trim(),
-      contactNo: (user.contactNo ?? "").trim(),
-    }),
-    [user]
-  );
-
-  const normalizedCurrent = useMemo(
-    () => ({
-      displayName: form.displayName.trim(),
-      username: form.username.trim().replace(/^@+/, ""),
-      bio: form.bio.trim(),
-      contactNo: form.contactNo.trim(),
-    }),
-    [form]
-  );
 
   const hasChanges =
     normalizedCurrent.displayName !== normalizedInitial.displayName ||
