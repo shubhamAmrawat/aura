@@ -15,7 +15,7 @@
 > - Unit tests: **19/19**. Side-by-side diff of 132 edge-case requests: only the 3 accepted deltas below.
 > - Schema drift check: identical drizzle snapshots. Real DB row counts unchanged, 0 test users left.
 > - Phase 7 (manual web testing) ✅. Phase 8 ✅: staging matched prod on 132 probes (3 accepted deltas only); prod deployed 2026-10-10 18:46 IST on Express — read-only contract subset 19/19 against prod, prod cookie domain verified.
-> - Phase 9 (2026-10-10): fixes implemented + tested locally (contract 111/111, unit 22/22, web + mobile typecheck clean). `sessions` table dropped. Pending: staging check of the CF-Connecting-IP rate limiter, then deploy; mobile needs a new build for view/download tracking.
+> - Phase 9 (2026-10-10): fixes implemented + tested locally (contract 111/111, unit 22/22, web + mobile typecheck clean). `sessions` table dropped. Rate limiter verified on staging and prod (Render passes Cloudflare's `CF-Connecting-IP`; spoofed values are rejected by Cloudflare). Deployed to prod and verified: `/view` live, admin endpoints locked (no `ADMIN_SECRET` set), download logging + uploader credit working. Mobile CI moved to Node 22 (eas-cli 24.12 requires it).
 
 ---
 
