@@ -34,18 +34,6 @@ export function createApp() {
     })
   );
 
-  // TEMPORARY (remove after the rate-limit IP check): echoes the caller's own IP-related headers.
-  app.get("/api/_debug/ip", (req, res) => {
-    res.json({
-      xForwardedFor: req.get("x-forwarded-for") ?? null,
-      cfConnectingIp: req.get("cf-connecting-ip") ?? null,
-      trueClientIp: req.get("true-client-ip") ?? null,
-      xRealIp: req.get("x-real-ip") ?? null,
-      forwarded: req.get("forwarded") ?? null,
-      remoteAddress: req.socket.remoteAddress ?? null,
-    });
-  });
-
   app.use(healthRoutes);
   app.use("/api", apiRoutes);
 
