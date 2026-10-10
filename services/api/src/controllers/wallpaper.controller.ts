@@ -66,10 +66,17 @@ export const similar = route("Failed to fetch similar wallpapers", async (req, r
   res.json(result);
 });
 
-/** POST /api/wallpapers/:id/download */
+/** POST /api/wallpapers/:id/download — body (optional): { quality } */
 export const trackDownload = route("Failed to track download", async (req, res) => {
-  await wallpaperService.trackDownload(param(req, "id"));
+  const quality = typeof req.body?.quality === "string" && req.body.quality.trim() ? req.body.quality.trim() : "original";
+  await wallpaperService.trackDownload(param(req, "id"), req.userId, quality);
   res.json({ message: "Download tracked" });
+});
+
+/** POST /api/wallpapers/:id/view */
+export const trackView = route("Failed to track view", async (req, res) => {
+  await wallpaperService.trackView(param(req, "id"));
+  res.json({ message: "View tracked" });
 });
 
 /** POST /api/wallpapers/upload-url → presigned R2 PUT URL */
@@ -83,6 +90,7 @@ export const uploadUrl = route("Failed to generate upload URL", async (req, res)
 export const upload = route("Failed to upload wallpaper", async (req, res) => {
   const userId = authUserId(req);
   await wallpaperService.assertCreator(userId); // before body validation, as before
+  await wallpaperService.assertUploadQuota(userId);
   const input = parseOrThrow(UploadBody, req.body);
 
   const result = await wallpaperService.createWallpaperFromUpload(userId, input);

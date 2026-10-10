@@ -14,7 +14,8 @@
 > - Contract suite: **107/107** against the old Hono API (baseline) **and** against the new Express build (`dist/server.js`).
 > - Unit tests: **19/19**. Side-by-side diff of 132 edge-case requests: only the 3 accepted deltas below.
 > - Schema drift check: identical drizzle snapshots. Real DB row counts unchanged, 0 test users left.
-> - **Remaining for Shubham:** Phase 7 (manual app testing) and Phase 8 (Render commands + merge).
+> - Phase 7 (manual web testing) ✅. Phase 8 ✅: staging matched prod on 132 probes (3 accepted deltas only); prod deployed 2026-10-10 18:46 IST on Express — read-only contract subset 19/19 against prod, prod cookie domain verified.
+> - Phase 9 (2026-10-10): fixes implemented + tested locally (contract 111/111, unit 22/22, web + mobile typecheck clean). `sessions` table dropped. Pending: staging check of the CF-Connecting-IP rate limiter, then deploy; mobile needs a new build for view/download tracking.
 
 ---
 
@@ -320,6 +321,18 @@ Run the API locally against the real DB (same safety rules: use a test account `
 ---
 
 ## Phase 9 — After migration (separate tasks, one at a time, each with a test first)
+
+**Done (2026-10-10):**
+- Account delete now removes the user's likes (like counts decremented), collections, uploads (+ their likes/collection entries/downloads, R2 files), OTPs, avatar/cover; own download history kept anonymously.
+- Admin secret fails closed when `ADMIN_SECRET` is unset.
+- Upload limit: 10 wallpapers / user / rolling hour (counted in the DB) → 429 `Upload limit reached. Try again in an hour.`
+- Rate limiter keyed by `CF-Connecting-IP` (Cloudflare) or socket IP — `X-Forwarded-For` no longer trusted.
+- Views: new `POST /api/wallpapers/:id/view` (approved only), called by the web wallpaper page and the mobile detail screen.
+- Downloads: every download logged in `downloads` (with `quality`); counter + uploader's `total_downloads` +1 at most once per user+wallpaper per 24h (anonymous always counts); mobile now reports downloads.
+- Dropped the unused, empty `sessions` table (CLIP `embedding` column kept on purpose). Removed unused deps `nodemailer`, `@types/nodemailer`, `@aura/types` from the API.
+- HNSW index: **not added** — search/similar order by a combined score, so Postgres can't use a vector index for them; 1968 rows scan fast.
+
+Original list:
 
 0. **The 10 uploads/hour limit never worked** (Hono `upload*` pattern never matched). Not ported; decide whether to enable it (`express-rate-limit` on `/api/wallpapers/upload*`). Test `99-rate-limit` documents current behaviour.
 0. If `ADMIN_SECRET` is ever unset, the admin endpoints accept requests with no header (`undefined === undefined`). Make the check fail closed.

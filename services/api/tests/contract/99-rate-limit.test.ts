@@ -7,7 +7,7 @@ useTestCleanup();
 
 const rand = () => Math.floor(Math.random() * 250) + 1;
 
-describe("rate limiting (in-memory, keyed by x-forwarded-for)", () => {
+describe("rate limiting (in-memory, keyed by CF-Connecting-IP / socket IP)", () => {
   it("100 requests/min per IP, then 429", async () => {
     const ip = `192.168.${rand()}.${rand()}`;
     for (let i = 0; i < 100; i++) {
@@ -19,13 +19,15 @@ describe("rate limiting (in-memory, keyed by x-forwarded-for)", () => {
     expect((await api("GET", "/health")).status).toBe(200);
   });
 
-  it("KNOWN BUG (Phase 9): the 10/hour upload limiter never fires", async () => {
-    // Hono's "/api/wallpapers/upload*" pattern never matches the real routes, so in prod
-    // uploads are only covered by the global 100/min limit. Express keeps this behaviour.
-    const ip = `172.20.${rand()}.${rand()}`;
-    for (let i = 0; i < 12; i++) {
-      const r = await api("POST", "/api/wallpapers/upload-url", { ip, json: { fileType: "image/png" } });
-      expect(r.status).toBe(401);
+  it("X-Forwarded-For can no longer be used to dodge the limit", async () => {
+    const ip = `192.169.${rand()}.${rand()}`;
+    for (let i = 0; i < 100; i++) {
+      const r = await api("GET", "/health", { ip, headers: { "x-forwarded-for": `9.9.${rand()}.${rand()}` } });
+      expect(r.status).toBe(200);
     }
+    expectError(
+      await api("GET", "/health", { ip, headers: { "x-forwarded-for": "8.8.8.8" } }),
+      429, "Too many requests. Please slow down."
+    );
   });
 });

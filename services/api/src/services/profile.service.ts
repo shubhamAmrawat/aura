@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { env } from "../config/env";
 import { collections, collectionWallpapers, downloads, likes, otps, users, wallpapers } from "../models";
@@ -144,10 +144,19 @@ export async function confirmPasswordChange(userId: string, otp: unknown, newPas
 
 // ─── Account ───────────────────────────────────────────────
 
+/** R2 object key for a public URL we own, or null. */
+function r2KeyFromUrl(url: string | null): string | null {
+  const base = (env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
+  if (!url || !base || !url.startsWith(`${base}/`)) return null;
+  return url.slice(base.length + 1);
+}
+
 /**
- * Delete the account after a password check.
- * KNOWN BUG (kept for parity, see plan Phase 9): rows in likes/collections/wallpapers
- * referencing the user make this fail with a foreign-key error.
+ * Delete the account after a password check, together with everything it owns:
+ * likes (like counts are decremented), collections, uploaded wallpapers (and every
+ * like / collection entry / download row pointing at them), OTPs, then the user.
+ * The user's own download history is kept anonymously (user_id → NULL).
+ * DB work runs in one transaction; R2 files are removed afterwards (best effort).
  */
 export async function deleteAccount(userId: string, password: unknown) {
   const user = await getUserOrThrow(userId);
@@ -156,8 +165,50 @@ export async function deleteAccount(userId: string, password: unknown) {
   const valid = await bcrypt.compare(password as string, user.passwordHash);
   if (!valid) throw new ApiError(400, "Incorrect password.");
 
-  await deleteOldImage(userId, "avatar", user.avatarUrl);
-  await db.delete(users).where(eq(users.id, user.id));
+  const uploads = await db
+    .select({ id: wallpapers.id, fileUrl: wallpapers.fileUrl })
+    .from(wallpapers)
+    .where(eq(wallpapers.uploaderId, userId));
+  const uploadIds = uploads.map((w) => w.id);
+
+  await db.transaction(async (tx) => {
+    // 1. The user's likes on other wallpapers: keep like_count in sync, then remove.
+    await tx.execute(sql`
+      UPDATE wallpapers SET like_count = GREATEST(like_count - 1, 0)
+      WHERE id IN (SELECT wallpaper_id FROM likes WHERE user_id = ${userId})`);
+    await tx.delete(likes).where(eq(likes.userId, userId));
+
+    // 2. The user's collections.
+    const owned = tx.select({ id: collections.id }).from(collections).where(eq(collections.userId, userId));
+    await tx.delete(collectionWallpapers).where(inArray(collectionWallpapers.collectionId, owned));
+    await tx.delete(collections).where(eq(collections.userId, userId));
+
+    // 3. The user's uploads and everything that references them.
+    if (uploadIds.length > 0) {
+      await tx.delete(likes).where(inArray(likes.wallpaperId, uploadIds));
+      await tx.delete(downloads).where(inArray(downloads.wallpaperId, uploadIds));
+      await tx.delete(collectionWallpapers).where(inArray(collectionWallpapers.wallpaperId, uploadIds));
+      await tx
+        .update(collections)
+        .set({ coverWallpaperId: null })
+        .where(inArray(collections.coverWallpaperId, uploadIds));
+      await tx.delete(wallpapers).where(inArray(wallpapers.id, uploadIds));
+    }
+
+    // 4. Anonymise the user's own download history, drop OTPs, delete the user.
+    await tx.update(downloads).set({ userId: null }).where(eq(downloads.userId, userId));
+    await tx.delete(otps).where(eq(otps.email, user.email));
+    await tx.delete(users).where(eq(users.id, userId));
+  });
+
+  const keys = [
+    ...uploads.map((w) => r2KeyFromUrl(w.fileUrl)),
+    r2KeyFromUrl(user.avatarUrl),
+    r2KeyFromUrl(user.coverUrl),
+  ].filter((k): k is string => k !== null);
+  await Promise.all(
+    keys.map((key) => deleteFile(key).catch((e) => console.error("[r2] Account delete cleanup failed:", key, e)))
+  );
 }
 
 // ─── My uploads ────────────────────────────────────────────

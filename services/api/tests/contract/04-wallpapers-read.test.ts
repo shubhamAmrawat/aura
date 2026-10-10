@@ -194,18 +194,68 @@ describe("GET /api/wallpapers/:id/similar", () => {
 });
 
 describe("POST /api/wallpapers/:id/download", () => {
-  it("increments download_count (test wallpaper only)", async () => {
-    const before = await sql<{ n: number }[]>`SELECT download_count AS n FROM wallpapers WHERE id = ${pendingId}`;
-    const res = await api("POST", `/api/wallpapers/${pendingId}/download`);
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ message: "Download tracked" });
-    const after = await sql<{ n: number }[]>`SELECT download_count AS n FROM wallpapers WHERE id = ${pendingId}`;
-    expect(after[0]!.n).toBe(before[0]!.n + 1);
+  const counts = async (id: string) => {
+    const [w] = await sql<{ n: number }[]>`SELECT download_count AS n FROM wallpapers WHERE id = ${id}`;
+    const [u] = await sql<{ n: number }[]>`SELECT total_downloads AS n FROM users WHERE id = ${owner.id}`;
+    const [d] = await sql<{ n: number }[]>`SELECT COUNT(*)::int AS n FROM downloads WHERE wallpaper_id = ${id}`;
+    return { wallpaper: w!.n, uploader: u!.n, rows: d!.n };
+  };
+
+  it("anonymous downloads always count, are logged, and credit the uploader", async () => {
+    const before = await counts(pendingId);
+    for (let i = 0; i < 2; i++) {
+      const res = await api("POST", `/api/wallpapers/${pendingId}/download`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ message: "Download tracked" });
+    }
+    const after = await counts(pendingId);
+    expect(after).toEqual({ wallpaper: before.wallpaper + 2, uploader: before.uploader + 2, rows: before.rows + 2 });
+    const rows = await sql`SELECT user_id, quality FROM downloads WHERE wallpaper_id = ${pendingId} ORDER BY created_at DESC LIMIT 1`;
+    expect(rows[0]).toEqual({ user_id: null, quality: "original" });
   });
 
-  it("unknown id still 200, malformed id 500", async () => {
+  it("logged-in user counts once per 24h (every download still logged with quality)", async () => {
+    const downloader = await createUser("wp-downloader");
+    const before = await counts(pendingId);
+    await api("POST", `/api/wallpapers/${pendingId}/download`, { token: downloader.token, json: { quality: "4k" } });
+    await api("POST", `/api/wallpapers/${pendingId}/download`, { cookie: downloader.cookie });
+    const after = await counts(pendingId);
+    expect(after).toEqual({ wallpaper: before.wallpaper + 1, uploader: before.uploader + 1, rows: before.rows + 2 });
+    const rows = await sql<{ quality: string }[]>`
+      SELECT quality FROM downloads WHERE user_id = ${downloader.id} ORDER BY created_at`;
+    expect(rows.map((r) => r.quality)).toEqual(["4k", "original"]);
+  });
+
+  it("unknown id still 200 (no-op), malformed id 500", async () => {
     expect((await api("POST", `/api/wallpapers/${NONEXISTENT_UUID}/download`)).body).toEqual({ message: "Download tracked" });
     expectError(await api("POST", "/api/wallpapers/not-a-uuid/download"), 500, "Failed to track download");
+  });
+});
+
+describe("POST /api/wallpapers/:id/view", () => {
+  const views = async (id: string) =>
+    (await sql<{ n: number }[]>`SELECT view_count AS n FROM wallpapers WHERE id = ${id}`)[0]!.n;
+
+  it("counts views on approved wallpapers only", async () => {
+    // Approved fixture is dated 2000-01-01 and has no embedding, so it sorts last in every
+    // feed and never appears in semantic/similar results; it's deleted right after.
+    const approvedId = await createTestWallpaper(owner, { status: "approved", noEmbedding: true, createdAt: new Date("2000-01-01") });
+    try {
+      const res = await api("POST", `/api/wallpapers/${approvedId}/view`);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ message: "View tracked" });
+      await api("POST", `/api/wallpapers/${approvedId}/view`);
+      expect(await views(approvedId)).toBe(2);
+    } finally {
+      await sql`DELETE FROM wallpapers WHERE id = ${approvedId}`;
+    }
+    await api("POST", `/api/wallpapers/${pendingId}/view`);
+    expect(await views(pendingId)).toBe(0);
+  });
+
+  it("unknown id 200 (no-op), malformed id 500", async () => {
+    expect((await api("POST", `/api/wallpapers/${NONEXISTENT_UUID}/view`)).body).toEqual({ message: "View tracked" });
+    expectError(await api("POST", "/api/wallpapers/not-a-uuid/view"), 500, "Failed to track view");
   });
 });
 

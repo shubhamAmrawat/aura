@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { optionalAuth, requireAuth } from "../middleware/auth";
 import { requireAdminSecret } from "../middleware/adminSecret";
 import * as wallpapers from "../controllers/wallpaper.controller";
 
@@ -14,4 +14,5 @@ wallpaperRoutes.post("/trending/recalculate", requireAdminSecret, wallpapers.rec
 wallpaperRoutes.post("/reembed-text", requireAdminSecret, wallpapers.reembedText);
 wallpaperRoutes.get("/:id/similar", wallpapers.similar);
 wallpaperRoutes.get("/:id", wallpapers.getOne);
-wallpaperRoutes.post("/:id/download", wallpapers.trackDownload);
+wallpaperRoutes.post("/:id/download", optionalAuth, wallpapers.trackDownload);
+wallpaperRoutes.post("/:id/view", wallpapers.trackView);

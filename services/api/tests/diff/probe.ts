@@ -16,7 +16,7 @@ const NEW = process.env.NEW_URL!;
 type Probe = { method: string; path: string; body?: string; headers?: Record<string, string>; ignore?: string[] };
 
 async function call(base: string, p: Probe) {
-  const headers: Record<string, string> = { "x-forwarded-for": `10.77.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, ...(p.headers ?? {}) };
+  const headers: Record<string, string> = { "cf-connecting-ip": `10.77.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`, ...(p.headers ?? {}) };
   if (p.body !== undefined && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
   const res = await fetch(base + p.path, { method: p.method, headers, body: p.body });
   const text = await res.text();

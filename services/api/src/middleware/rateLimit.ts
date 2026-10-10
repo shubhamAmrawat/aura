@@ -12,21 +12,20 @@ setInterval(() => {
   for (const [ip, rec] of requestCounts) if (now > rec.resetAt) requestCounts.delete(ip);
 }, 5 * 60_000).unref();
 
-function getIp(req: Request): string {
-  return (
-    req.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.get("x-real-ip") ??
-    "unknown"
-  );
+/**
+ * Client IP used as the rate-limit key.
+ * In production every request reaches Render through Cloudflare, which sets
+ * CF-Connecting-IP to the real client address (clients can't override it).
+ * X-Forwarded-For is NOT used: its first entry is whatever the client sent.
+ * Locally (no Cloudflare) the socket address is used.
+ */
+export function getClientIp(req: Request): string {
+  return req.get("cf-connecting-ip")?.trim() || req.socket.remoteAddress || "unknown";
 }
 
-/**
- * Global limit: 100 requests / minute / IP.
- * NOTE: the old API also declared a 10/hour upload limiter, but its route pattern
- * never matched, so it never ran. It is intentionally not ported (see plan, Phase 9).
- */
+/** Global limit: 100 requests / minute / client IP. */
 export function globalRateLimit(req: Request, res: Response, next: NextFunction) {
-  const ip = getIp(req);
+  const ip = getClientIp(req);
   const now = Date.now();
   const record = requestCounts.get(ip);
 

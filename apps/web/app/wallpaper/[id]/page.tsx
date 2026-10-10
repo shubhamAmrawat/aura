@@ -9,6 +9,7 @@ import {
 } from "@/app/wallpaper/SimilarWallpapersSection";
 import { ContextMenuBlock } from "@/app/wallpaper/ContextMenuBlock";
 import { getContrastColor } from "@/lib/color";
+import { ViewTracker } from "@/app/wallpaper/ViewTracker";
 
 interface WallpaperPageProps {
   params: Promise<{ id: string }>;
@@ -98,6 +99,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
 
   return (
     <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
+      <ViewTracker wallpaperId={wallpaper.id} />
       <BackButton wallpaper={wallpaper} />
 
       {isPortrait ? (

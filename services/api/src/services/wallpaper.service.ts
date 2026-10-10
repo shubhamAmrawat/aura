@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../config/db";
-import { categories, users, wallpapers } from "../models";
+import { categories, downloads, users, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { screenFilterSql, type ScreenFilter } from "../utils/screenFilter";
 import { extractImageMetadata } from "../utils/imageMetadata";
@@ -175,17 +175,83 @@ export async function getSimilar(id: string, params: { limit: number; offset: nu
   return { data: hasMore ? rows.slice(0, params.limit) : rows, hasMore };
 }
 
-export async function trackDownload(id: string) {
+/** Count a view (approved wallpapers only). */
+export async function trackView(id: string) {
   await db
     .update(wallpapers)
-    .set({ downloadCount: sql`${wallpapers.downloadCount} + 1` })
-    .where(eq(wallpapers.id, id));
+    .set({ viewCount: sql`${wallpapers.viewCount} + 1` })
+    .where(and(eq(wallpapers.id, id), eq(wallpapers.status, "approved")));
+}
+
+const DOWNLOAD_DEDUPE_HOURS = 24;
+
+/**
+ * Record a download.
+ * - Every download is logged in `downloads` (userId is null for anonymous clients).
+ * - The public counter (wallpapers.download_count) and the uploader's profile stat
+ *   (users.total_downloads) go up at most once per user + wallpaper per 24h.
+ *   Anonymous downloads always count (there is no identity to dedupe on).
+ * Unknown wallpaper ids are a no-op (same 200 response as before).
+ */
+export async function trackDownload(id: string, userId: string | undefined, quality = "original") {
+  const [wallpaper] = await db
+    .select({ id: wallpapers.id, uploaderId: wallpapers.uploaderId })
+    .from(wallpapers)
+    .where(eq(wallpapers.id, id))
+    .limit(1);
+  if (!wallpaper) return;
+
+  await db.transaction(async (tx) => {
+    let counts = true;
+    if (userId) {
+      const recent = await tx
+        .select({ id: downloads.id })
+        .from(downloads)
+        .where(
+          and(
+            eq(downloads.userId, userId),
+            eq(downloads.wallpaperId, id),
+            sql`${downloads.createdAt} > NOW() - make_interval(hours => ${DOWNLOAD_DEDUPE_HOURS})`
+          )
+        )
+        .limit(1);
+      counts = recent.length === 0;
+    }
+
+    await tx.insert(downloads).values({ userId: userId ?? null, wallpaperId: id, quality });
+
+    if (counts) {
+      await tx
+        .update(wallpapers)
+        .set({ downloadCount: sql`${wallpapers.downloadCount} + 1` })
+        .where(eq(wallpapers.id, id));
+      if (wallpaper.uploaderId) {
+        await tx
+          .update(users)
+          .set({ totalDownloads: sql`${users.totalDownloads} + 1` })
+          .where(eq(users.id, wallpaper.uploaderId));
+      }
+    }
+  });
 }
 
 // ─── Upload ────────────────────────────────────────────────
 
 export function createUploadUrl(userId: string, fileType: string) {
   return generateUploadUrl("wallpapers", fileType, userId);
+}
+
+const UPLOADS_PER_HOUR = 10;
+
+/** Max 10 wallpapers created per user in any rolling hour (counted from the DB, survives restarts). */
+export async function assertUploadQuota(userId: string) {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(wallpapers)
+    .where(and(eq(wallpapers.uploaderId, userId), sql`${wallpapers.createdAt} > NOW() - INTERVAL '1 hour'`));
+  if ((row?.n ?? 0) >= UPLOADS_PER_HOUR) {
+    throw new ApiError(429, "Upload limit reached. Try again in an hour.");
+  }
 }
 
 export async function assertCreator(userId: string) {

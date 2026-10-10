@@ -3,6 +3,7 @@ import { api } from "../setup/http";
 import { sql } from "../setup/db";
 import { createUser, makeCreator, type TestUser } from "../setup/auth";
 import { pngOf } from "../setup/images";
+import { createTestWallpaper } from "../setup/fixtures";
 import { expectError, expectKeys } from "../setup/assert";
 import { useTestCleanup } from "../setup/lifecycle";
 
@@ -64,6 +65,22 @@ describe("POST /api/wallpapers/upload", () => {
     expectError(await api("POST", "/api/wallpapers/upload", { token: t, json: { title: "x", fileUrl: "u", key: "k" } }), 400, "Category is required");
     expectError(
       await api("POST", "/api/wallpapers/upload", { token: t, json: { title: "x", fileUrl: "u", key: `wallpapers/${viewer.id}/a.png`, categoryId } }),
+      400, "Invalid file key"
+    );
+  });
+
+  it("limits each user to 10 uploads per hour", async () => {
+    const busy = await createUser("up-busy");
+    await makeCreator(busy);
+    for (let i = 0; i < 10; i++) await createTestWallpaper(busy);
+    expectError(
+      await api("POST", "/api/wallpapers/upload", { token: busy.token, json: { title: "x", fileUrl: "u", key: "k", categoryId } }),
+      429, "Upload limit reached. Try again in an hour."
+    );
+    // uploads older than an hour don't count
+    await sql`UPDATE wallpapers SET created_at = NOW() - INTERVAL '2 hours' WHERE uploader_id = ${busy.id}`;
+    expectError(
+      await api("POST", "/api/wallpapers/upload", { token: busy.token, json: { title: "x", fileUrl: "u", key: "k", categoryId } }),
       400, "Invalid file key"
     );
   });

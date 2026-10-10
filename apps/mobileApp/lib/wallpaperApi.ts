@@ -255,6 +255,24 @@ export async function getSearchAutocomplete(params: {
   return res.data ?? [];
 }
 
+/** Count a view of a wallpaper (fire-and-forget; errors are ignored). */
+export async function trackWallpaperView(wallpaperId: string): Promise<void> {
+  try {
+    await request(`/api/wallpapers/${wallpaperId}/view`, { method: "POST" });
+  } catch {
+    // tracking must never affect the UI
+  }
+}
+
+/** Report a completed download (sends the auth token if logged in, for 24h dedupe). */
+export async function trackWallpaperDownload(wallpaperId: string): Promise<void> {
+  try {
+    await request(`/api/wallpapers/${wallpaperId}/download`, { method: "POST" });
+  } catch {
+    // tracking must never affect the UI
+  }
+}
+
 export async function isWallpaperLiked(wallpaperId: string): Promise<boolean> {
   const res = await request<{ liked: boolean }>(`/api/likes/${wallpaperId}`);
   return res.liked;

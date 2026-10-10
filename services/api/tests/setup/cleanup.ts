@@ -66,7 +66,6 @@ export async function cleanupTestData(emailPattern: string) {
         DELETE FROM downloads WHERE user_id = ANY(${ids}::uuid[]) OR wallpaper_id = ANY(${wpIds}::uuid[])`).count;
       c.collections = (await tx`DELETE FROM collections WHERE id = ANY(${colIds}::uuid[])`).count;
       c.wallpapers = (await tx`DELETE FROM wallpapers WHERE id = ANY(${wpIds}::uuid[])`).count;
-      c.sessions = (await tx`DELETE FROM sessions WHERE user_id = ANY(${ids}::uuid[])`).count;
       c.users = (await tx`DELETE FROM users WHERE id = ANY(${ids}::uuid[])`).count;
     }
     // OTPs can exist without a user (e.g. send-otp tests that never sign up)

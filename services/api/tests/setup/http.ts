@@ -13,11 +13,11 @@ type Options = {
   json?: unknown;          // JSON body
   form?: FormData;         // multipart body
   headers?: Record<string, string>;
-  ip?: string;             // x-forwarded-for (rate limiter key)
+  ip?: string;             // CF-Connecting-IP (rate limiter key)
 };
 
-// The API rate-limits 100 req/min per x-forwarded-for value. Each request gets a
-// random IP unless the test pins one (only the rate-limit test does that).
+// The API rate-limits 100 req/min per client IP, read from CF-Connecting-IP (set by
+// Cloudflare in prod). Locally each request gets a random IP unless the test pins one.
 function randomIp(): string {
   const o = () => Math.floor(Math.random() * 250) + 1;
   return `10.${o()}.${o()}.${o()}`;
@@ -29,7 +29,7 @@ export async function api<T = any>(
   opts: Options = {}
 ): Promise<ApiResponse<T>> {
   const headers: Record<string, string> = {
-    "x-forwarded-for": opts.ip ?? randomIp(),
+    "cf-connecting-ip": opts.ip ?? randomIp(),
     ...(opts.headers ?? {}),
   };
   if (opts.token) headers["Authorization"] = `Bearer ${opts.token}`;

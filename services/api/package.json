@@ -16,7 +16,6 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@aura/types": "workspace:*",
     "@aws-sdk/client-s3": "^3.1021.0",
     "@aws-sdk/s3-request-presigner": "^3.1021.0",
     "bcryptjs": "^3.0.3",
@@ -29,7 +28,6 @@
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",
-    "nodemailer": "^8.0.4",
     "openai": "^6.34.0",
     "postgres": "3.4.8",
     "sharp": "^0.34.5",
@@ -44,7 +42,6 @@
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^20.0.0",
-    "@types/nodemailer": "^7.0.11",
     "@types/supertest": "^7.2.1",
     "drizzle-kit": "0.31.10",
     "supertest": "^7.3.1",

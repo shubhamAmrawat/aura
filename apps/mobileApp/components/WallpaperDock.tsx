@@ -3,6 +3,7 @@ import { BlurView } from "expo-blur"
 import { Pressable, StyleSheet, Text } from "react-native"
 import { Colors } from "../constants"
 import { downloadWallpaper } from "../lib/downloadWallpaper"
+import { trackWallpaperDownload } from "../lib/wallpaperApi"
 import { Wallpaper } from "../lib/api"
 import { useToast } from "../lib/ToastContext"
 import { useState } from "react"
@@ -50,6 +51,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
         showToast(downloadResult.error ?? "Failed to add to Gallery.", { type: "error" , position: "top"})
         return
       }
+      void trackWallpaperDownload(wallpaper.id)
       showToast("Successfully added to your Gallery", { type: "success", position: "top" })
     } finally {
       setDownloading(false)

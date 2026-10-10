@@ -220,12 +220,32 @@ describe("DELETE /api/profile (account)", () => {
     expect((await sql`SELECT 1 FROM users WHERE id = ${fresh.id}`).length).toBe(0);
   });
 
-  it("KNOWN BUG (Phase 9): account with a like fails with 500 (FK)", async () => {
-    const liker = await createUser("prof-liker");
-    const wp = await createTestWallpaper(liker);
-    await api("POST", `/api/likes/${wp}`, { token: liker.token });
-    const res = await api("DELETE", "/api/profile", { token: liker.token, json: { password: liker.password } });
-    expect(res.status).toBe(500);
-    expect((await sql`SELECT 1 FROM users WHERE id = ${liker.id}`).length).toBe(1);
+  it("deletes an account that has likes, collections and uploads (and everything they own)", async () => {
+    const owner = await createUser("prof-del-owner");
+    const someoneElse = await createUser("prof-del-other");
+    const othersWp = await createTestWallpaper(someoneElse);   // liked by owner
+    const ownWp = await createTestWallpaper(owner);            // owner's upload
+    await api("POST", `/api/likes/${othersWp}`, { token: owner.token });
+    await api("POST", `/api/likes/${ownWp}`, { token: someoneElse.token });
+    const col = await api("POST", "/api/collections", { token: owner.token, json: { title: "mine" } });
+    await api("POST", `/api/collections/${col.body.collection.id}/wallpapers`, { token: owner.token, json: { wallpaperId: othersWp } });
+    const otherCol = await api("POST", "/api/collections", { token: someoneElse.token, json: { title: "theirs" } });
+    await api("POST", `/api/collections/${otherCol.body.collection.id}/wallpapers`, { token: someoneElse.token, json: { wallpaperId: ownWp } });
+    await api("POST", `/api/wallpapers/${othersWp}/download`, { token: owner.token });
+
+    const res = await api("DELETE", "/api/profile", { token: owner.token, json: { password: owner.password } });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ message: "Account deleted successfully." });
+
+    expect((await sql`SELECT 1 FROM users WHERE id = ${owner.id}`).length).toBe(0);
+    expect((await sql`SELECT 1 FROM likes WHERE user_id = ${owner.id}`).length).toBe(0);
+    expect((await sql`SELECT 1 FROM collections WHERE user_id = ${owner.id}`).length).toBe(0);
+    expect((await sql`SELECT 1 FROM wallpapers WHERE id = ${ownWp}`).length).toBe(0);
+    const [liked] = await sql<{ n: number }[]>`SELECT like_count AS n FROM wallpapers WHERE id = ${othersWp}`;
+    expect(liked!.n).toBe(0);
+    const [cover] = await sql<{ c: string | null }[]>`SELECT cover_wallpaper_id AS c FROM collections WHERE id = ${otherCol.body.collection.id}`;
+    expect(cover!.c).toBeNull();
+    const dl = await sql<{ user_id: string | null }[]>`SELECT user_id FROM downloads WHERE wallpaper_id = ${othersWp}`;
+    expect(dl).toEqual([{ user_id: null }]);
   });
 });

@@ -1,7 +1,7 @@
   import { router, useLocalSearchParams } from "expo-router";
   import { useEffect, useMemo, useRef, useState } from "react";
   import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-  import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike } from "../../lib/wallpaperApi";
+  import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike, trackWallpaperView } from "../../lib/wallpaperApi";
   import { Wallpaper } from "../../lib/api";
   import { LinearGradient } from "expo-linear-gradient";
   import { getContrastColor, hexToRgba } from "../../utils/color";
@@ -152,6 +152,14 @@
       fetchWallpaper();
       fetchSimilarWallpapers();
     }, [id, screen, seedWallpaper]);
+
+    // Count one view per wallpaper shown in this screen (including carousel swipes).
+    const viewedIds = useRef(new Set<string>());
+    useEffect(() => {
+      if (!activeWallpaperId || viewedIds.current.has(activeWallpaperId)) return;
+      viewedIds.current.add(activeWallpaperId);
+      void trackWallpaperView(activeWallpaperId);
+    }, [activeWallpaperId]);
 
     useEffect(() => {
       if (!user || !activeWallpaperId) {
