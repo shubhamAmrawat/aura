@@ -26,6 +26,11 @@ export const users = pgTable("users", {
   totalDownloads: integer("total_downloads").notNull().default(0),
   totalUploads: integer("total_uploads").notNull().default(0),
   usernameChangedAt: timestamp("username_changed_at"),
+  /** Google account id (ID token `sub`) — set when the user signs in with Google */
+  googleId: text("google_id").unique(),
+  /** Password-login lockout: 5 failures → locked for 15 minutes */
+  failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   

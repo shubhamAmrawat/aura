@@ -28,6 +28,9 @@ export interface ProfileUser {
   totalUploads: number;
   usernameChangedAt: string | null;
   createdAt: string;
+  /** false for accounts created with Google that never set a password */
+  hasPassword?: boolean;
+  googleLinked?: boolean;
 }
 
 export interface UpdateProfilePayload {
@@ -178,12 +181,22 @@ export async function uploadCoverDirect(file: File): Promise<string> {
   return data.coverUrl;
 }
 
-export async function deleteAccount(password: string): Promise<void> {
+/** Confirm with { password }, or { otp } for accounts without a password. */
+export async function deleteAccount(proof: { password: string } | { otp: string }): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/profile`, {
     method: "DELETE",
     headers: jsonHeaders(),
     credentials: "include",
-    body: JSON.stringify({ password }),
+    body: JSON.stringify(proof),
+  });
+  await parseJson(response);
+}
+
+/** Emails a deletion code (only for accounts without a password). */
+export async function sendDeleteAccountCode(): Promise<void> {
+  const response = await fetch(`${getApiUrl()}/api/profile/delete/otp`, {
+    method: "POST",
+    credentials: "include",
   });
   await parseJson(response);
 }

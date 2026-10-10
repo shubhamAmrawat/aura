@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import AvatarCropper from "@/app/components/AvatarCropper";
+import AvatarImage from "@/app/components/AvatarImage";
 import {
   confirmAvatarUpload,
   confirmPasswordChange,
   deleteAccount,
   getAvatarUploadUrl,
+  sendDeleteAccountCode,
   getProfile,
   type ProfileUser,
   updateProfile,
@@ -23,6 +25,7 @@ import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 import { getLikedWallpapers } from "@/lib/likesApi";
 import { becomeCreator } from "@/lib/api";
+import { forgotPassword, resetPassword } from "@/lib/authApi";
 import UserUploadsSection from "@/app/components/UserUploadsSection";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -162,21 +165,20 @@ function AvatarHoverButton({ avatarUrl, initials, uploading, onClick }: {
       style={{ cursor: "pointer" }}
       onClick={onClick}
     >
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt="Avatar"
-          className="w-24 h-24 rounded-full object-cover"
-          style={{ border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
-        />
-      ) : (
-        <div
-          className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold"
-          style={{ background: "var(--accent)", color: "var(--bg-primary)", border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
-        >
-          {initials}
-        </div>
-      )}
+      <AvatarImage
+        src={avatarUrl}
+        alt="Avatar"
+        className="w-24 h-24 rounded-full object-cover"
+        style={{ border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
+        fallback={
+          <div
+            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold"
+            style={{ background: "var(--accent)", color: "var(--bg-primary)", border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
+          >
+            {initials}
+          </div>
+        }
+      />
       <div
         className="absolute inset-0 rounded-full flex items-center justify-center transition-opacity duration-200"
         style={{ background: "rgba(0,0,0,0.55)", opacity: hovered || uploading ? 1 : 0 }}
@@ -223,6 +225,8 @@ export default function ProfilePage() {
   const [pwLoading, setPwLoading] = useState(false);
 
   const [delPw, setDelPw] = useState("");
+  const [delOtp, setDelOtp] = useState("");
+  const [delCodeSent, setDelCodeSent] = useState(false);
   const [delConfirm, setDelConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [becomingCreator, setBecomingCreator] = useState(false);
@@ -388,6 +392,23 @@ export default function ProfilePage() {
     [authUser, setAuthUser, cropMode, toast]
   );
 
+  // Accounts created with Google have no password: they set one via an emailed code.
+  const noPassword = profile?.hasPassword === false;
+
+  async function handleSendSetPasswordCode() {
+    if (!profile) return;
+    setPwLoading(true);
+    try {
+      await forgotPassword(profile.email);
+      setPwStep("confirm");
+      toast("Code sent to your email.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to send code.", "error");
+    } finally {
+      setPwLoading(false);
+    }
+  }
+
   async function handleVerifyPassword() {
     if (!currentPw) return;
     setPwLoading(true);
@@ -407,10 +428,15 @@ export default function ProfilePage() {
     if (newPw !== confirmPw) { toast("Passwords do not match.", "error"); return; }
     setPwLoading(true);
     try {
-      await confirmPasswordChange(otp, newPw);
+      if (noPassword && profile) {
+        await resetPassword({ email: profile.email, otp, newPassword: newPw });
+        setProfile((p) => (p ? { ...p, hasPassword: true } : p));
+      } else {
+        await confirmPasswordChange(otp, newPw);
+      }
       setCurrentPw(""); setOtp(""); setNewPw(""); setConfirmPw("");
       setPwStep("idle");
-      toast("Password changed.");
+      toast(noPassword ? "Password set. You can now also sign in with email + password." : "Password changed.");
     } catch (err: unknown) {
       toast(err instanceof Error ? err.message : "Failed to change password.", "error");
     } finally {
@@ -435,10 +461,13 @@ export default function ProfilePage() {
 
   async function handleDeleteAccount() {
     if (delConfirm !== "DELETE") { toast('Type "DELETE" to confirm.', "error"); return; }
-    if (!delPw) { toast("Password is required.", "error"); return; }
+    if (noPassword ? delOtp.length !== 6 : !delPw) {
+      toast(noPassword ? "Enter the 6-digit code from your email." : "Password is required.", "error");
+      return;
+    }
     setDeleting(true);
     try {
-      await deleteAccount(delPw);
+      await deleteAccount(noPassword ? { otp: delOtp } : { password: delPw });
       setAuthUser(null);
       await refreshUser();
       router.push("/");
@@ -446,6 +475,16 @@ export default function ProfilePage() {
       toast(err instanceof Error ? err.message : "Failed to delete account.", "error");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleSendDeleteCode() {
+    try {
+      await sendDeleteAccountCode();
+      setDelCodeSent(true);
+      toast("Code sent to your email.");
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : "Failed to send code.", "error");
     }
   }
 
@@ -655,12 +694,16 @@ export default function ProfilePage() {
                       <IcLock />
                       <div>
                         <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Password</p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Change via email OTP verification</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {noPassword
+                            ? "You sign in with Google. Set a password to also sign in with email."
+                            : "Change via email OTP verification"}
+                        </p>
                       </div>
                     </div>
                     {pwStep === "idle" && (
-                      <button onClick={() => setPwStep("verify")} className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium px-4 flex items-center justify-center gap-2 transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                        Change password
+                      <button onClick={() => (noPassword ? handleSendSetPasswordCode() : setPwStep("verify"))} disabled={pwLoading} className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium px-4 flex items-center justify-center gap-2 transition-colors hover:bg-white/5 disabled:opacity-40" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                        {noPassword ? (pwLoading ? "Sending code…" : "Set a password") : "Change password"}
                       </button>
                     )}
                     {pwStep === "verify" && (
@@ -681,7 +724,7 @@ export default function ProfilePage() {
                         <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" style={{ ...inputStyleBase, borderColor: confirmPw && newPw && confirmPw === newPw ? "#40C057" : confirmPw && newPw && confirmPw.length >= newPw.length && confirmPw !== newPw ? "#ef4444" : "var(--border)" }} />
                         <div className="flex gap-2">
                           <button onClick={() => { setPwStep("idle"); setOtp(""); setNewPw(""); setConfirmPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
-                          <button onClick={handleChangePassword} disabled={pwLoading || otp.length !== 6 || !newPw || !confirmPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Updating…" : "Update password"}</button>
+                          <button onClick={handleChangePassword} disabled={pwLoading || otp.length !== 6 || !newPw || !confirmPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Saving…" : noPassword ? "Set password" : "Update password"}</button>
                         </div>
                       </div>
                     )}
@@ -694,9 +737,19 @@ export default function ProfilePage() {
                       Permanently deletes your account, avatar, and all data. This cannot be undone.
                     </p>
                     <div className="space-y-3">
-                      <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
+                      {noPassword ? (
+                        delCodeSent ? (
+                          <input value={delOtp} onChange={(e) => setDelOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code from your email" className="tracking-widest text-center" style={inputStyleBase} />
+                        ) : (
+                          <button onClick={handleSendDeleteCode} className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                            Email me a confirmation code
+                          </button>
+                        )
+                      ) : (
+                        <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
+                      )}
                       <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder='Type "DELETE" to confirm' style={{ ...inputStyleBase, borderColor: delConfirm === "DELETE" ? "#ef4444" : "var(--border)" }} />
-                      <button onClick={handleDeleteAccount} disabled={deleting || !delPw || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
+                      <button onClick={handleDeleteAccount} disabled={deleting || (noPassword ? delOtp.length !== 6 : !delPw) || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
                         {deleting ? "Deleting account…" : "Delete my account"}
                       </button>
                     </div>

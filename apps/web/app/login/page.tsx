@@ -1,6 +1,7 @@
 "use client";
 
-import { login, sendOtp, signup, verifyOtp } from "@/lib/authApi";
+import { forgotPassword, login, loginWithGoogle, loginWithPassword, resetPassword, sendOtp, signup, verifyOtp, verifyResetCode } from "@/lib/authApi";
+import GoogleSignIn from "@/app/components/GoogleSignIn";
 import { queueToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -48,6 +49,112 @@ function LoginContent() {
     !passwordsMatch &&
     (confirmTouched || confirmPassword.length >= password.length);
   const { refreshUser } = useAuth();
+  // Sign-in method: password (default) · otp (code by email) · forgot → code → reset
+  const [view, setView] = useState<"password" | "otp" | "forgot" | "code" | "reset">(
+    searchParams.get("view") === "forgot" ? "forgot" : "password"
+  );
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
+  const [confirmNewTouched, setConfirmNewTouched] = useState(false);
+  const newPasswordTooShort = newPassword.length > 0 && newPassword.length < 8;
+  const newPasswordsMatch = newPassword.length >= 8 && newPassword === confirmNewPassword;
+  const showNewMismatch =
+    confirmNewPassword.length > 0 &&
+    !newPasswordsMatch &&
+    (confirmNewTouched || confirmNewPassword.length >= newPassword.length);
+  const [info, setInfo] = useState("");
+  // Live email validation (same rule as the API)
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const showEmailError = email.length > 0 && !emailValid && emailTouched;
+  const resetFlow = mode === "login" && (view === "forgot" || view === "code" || view === "reset");
+
+  const goTo = (v: typeof view) => { setView(v); setStep(1); setError(""); setInfo(""); setOtp(""); };
+
+  const finishLogin = async (message: string) => {
+    await refreshUser();
+    queueToast(message, "success");
+    setNavigating(true);
+    router.push(next ? decodeURIComponent(next) : "/");
+  };
+
+  const handleGoogle = async (credential: string) => {
+    setLoading(true);
+    setError("");
+    try {
+      const { isNewUser } = await loginWithGoogle(credential);
+      await finishLogin(isNewUser ? "Account created! Welcome to Aurora" : "Welcome back!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await loginWithPassword({ email, password: loginPassword });
+      await finishLogin("Welcome back!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
+    }
+  };
+
+  const handleForgot = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await forgotPassword(email);
+      setInfo("If an account exists for this email, we've sent a 6-digit code.");
+      setResetCode("");
+      setView("code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyResetCode = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await verifyResetCode({ email, otp: resetCode });
+      setInfo("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setConfirmNewTouched(false);
+      setView("reset");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async () => {
+    if (newPassword.length < 8) { setError("Password must be at least 8 characters"); return; }
+    if (newPassword !== confirmNewPassword) { setError("Passwords do not match"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      await resetPassword({ email, newPassword });
+      await loginWithPassword({ email, password: newPassword });
+      await finishLogin("Password updated. Welcome back!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+      setLoading(false);
+    }
+  };
+
   const handleSendOTP = async () => {
     setLoading(true);
     setError("");
@@ -213,22 +320,43 @@ function LoginContent() {
                 className="text-[28px] font-bold leading-tight mb-1.5"
                 style={{ color: "var(--text-primary)" }}
               >
-                {step === 1 && (mode === "login" ? "Welcome back" : "Join Aurora")}
-                {step === 2 && "Check your inbox"}
-                {step === 3 && "Almost there"}
+                {mode === "login" && view === "forgot" && "Reset your password"}
+                {mode === "login" && view === "code" && "Check your inbox"}
+                {mode === "login" && view === "reset" && "Choose a new password"}
+                {!resetFlow && (
+                  <>
+                    {step === 1 && (mode === "login" ? "Welcome back" : "Join Aurora")}
+                    {step === 2 && "Check your inbox"}
+                    {step === 3 && "Almost there"}
+                  </>
+                )}
               </h2>
               <p
                 className="text-sm leading-relaxed"
                 style={{ color: "var(--text-secondary)" }}
               >
-                {step === 1 && mode === "login" && "Enter your email to continue"}
+                {step === 1 && mode === "login" && view === "password" && "Sign in to continue"}
+                {step === 1 && mode === "login" && view === "otp" && "We'll email you a sign-in code"}
+                {mode === "login" && view === "forgot" && "Enter your email and we'll send you a code"}
+                {mode === "login" && view === "code" && (
+                  <>Enter the code sent to <span style={{ color: "var(--text-primary)" }}>{email}</span></>
+                )}
+                {mode === "login" && view === "reset" && (
+                  <>Set a new password for <span style={{ color: "var(--text-primary)" }}>{email}</span></>
+                )}
                 {step === 1 && mode === "signup" && "Create your account to get started"}
-                {step === 2 && (
+                {step === 2 && !resetFlow && (
                   <>We sent a code to <span style={{ color: "var(--text-primary)" }}>{email}</span></>
                 )}
                 {step === 3 && "Set up your profile to finish"}
               </p>
             </div>
+
+            {info && !error && (
+              <p className="text-xs mb-5 px-1" style={{ color: "var(--text-secondary)" }}>
+                {info}
+              </p>
+            )}
 
             {/* error */}
             {error && (
@@ -243,48 +371,291 @@ function LoginContent() {
             {/* ── STEP 1 ── */}
             {step === 1 && (
               <div className="flex flex-col gap-3">
-                <div
-                  className="flex rounded-lg p-0.5"
-                  style={{ background: "var(--bg-elevated)" }}
-                >
-                  {(["login", "signup"] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { setMode(m); setError(""); }}
-                      className="flex-1 py-2 text-xs font-medium tracking-wider uppercase rounded-md transition-all duration-200"
-                      style={{
-                        background: mode === m ? "var(--accent)" : "transparent",
-                        color: mode === m ? "var(--bg-primary)" : "var(--text-secondary)",
-                      }}
-                    >
-                      {m === "login" ? "Sign in" : "Sign up"}
-                    </button>
-                  ))}
+                {(mode === "signup" || view === "password" || view === "otp") && (
+                  <div
+                    className="flex rounded-lg p-0.5"
+                    style={{ background: "var(--bg-elevated)" }}
+                  >
+                    {(["login", "signup"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => { setMode(m); setError(""); setInfo(""); if (m === "login") setView("password"); }}
+                        className="flex-1 py-2 text-xs font-medium tracking-wider uppercase rounded-md transition-all duration-200"
+                        style={{
+                          background: mode === m ? "var(--accent)" : "transparent",
+                          color: mode === m ? "var(--bg-primary)" : "var(--text-secondary)",
+                        }}
+                      >
+                        {m === "login" ? "Sign in" : "Sign up"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Google (One Tap suggests the signed-in account) */}
+                {(mode === "signup" || view === "password" || view === "otp") && (
+                  <>
+                    <div className="mt-2">
+                      <GoogleSignIn
+                        key={mode}
+                        context={mode === "signup" ? "signup" : "signin"}
+                        onCredential={handleGoogle}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 my-1">
+                      <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+                      <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--text-muted)" }}>or</span>
+                      <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+                    </div>
+                  </>
+                )}
+
+                {!(mode === "login" && (view === "code" || view === "reset")) && (
+                <div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value.trim()); setError(""); }}
+                    placeholder="your@email.com"
+                    autoComplete="email"
+                    className="w-full px-4 py-3 rounded-lg text-sm transition-all"
+                    style={{
+                      ...inputStyle,
+                      borderColor: showEmailError ? "#ef4444" : emailFocused ? "var(--accent)" : "var(--border)",
+                    }}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => { setEmailFocused(false); setEmailTouched(true); }}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter") return;
+                      setEmailTouched(true);
+                      if (!emailValid) return;
+                      if (mode === "signup" || view === "otp") handleSendOTP();
+                      else if (view === "forgot") handleForgot();
+                    }}
+                  />
+                  {showEmailError && (
+                    <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
+                      Enter a valid email address
+                    </p>
+                  )}
                 </div>
+                )}
 
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="w-full px-4 py-3 rounded-lg text-sm transition-all"
-                  style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendOTP()}
-                />
+                {/* Sign in with password (default) */}
+                {mode === "login" && view === "password" && (
+                  <>
+                    <div className="relative">
+                      <input
+                        type={showLoginPassword ? "text" : "password"}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Password"
+                        autoComplete="current-password"
+                        className="w-full px-4 py-3 pr-11 rounded-lg text-sm transition-all"
+                        style={inputStyle}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                        onKeyDown={(e) => e.key === "Enter" && emailValid && loginPassword && handlePasswordLogin()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-opacity hover:opacity-60"
+                        style={{ color: "var(--text-muted)" }}
+                        tabIndex={-1}
+                        aria-label={showLoginPassword ? "Hide password" : "Show password"}
+                      >
+                        {showLoginPassword ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={handlePasswordLogin}
+                      disabled={loading || !emailValid || !loginPassword}
+                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
+                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                    >
+                      {loading ? "Signing in..." : "Sign in"}
+                    </button>
+                    <div className="flex items-center justify-between mt-1">
+                      <button onClick={() => goTo("forgot")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
+                        Forgot password?
+                      </button>
+                      <button onClick={() => goTo("otp")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
+                        Sign in with a code instead
+                      </button>
+                    </div>
+                  </>
+                )}
 
-                <button
-                  onClick={handleSendOTP}
-                  disabled={loading || !email}
-                  className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                  style={{
-                    background: "var(--accent)",
-                    color: "var(--bg-primary)",
-                  }}
-                >
-                  {loading ? "Sending..." : "Continue"}
-                </button>
+                {/* Sign in with an emailed code, or sign up */}
+                {(mode === "signup" || view === "otp") && (
+                  <>
+                    <button
+                      onClick={handleSendOTP}
+                      disabled={loading || !emailValid}
+                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
+                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                    >
+                      {loading ? "Sending..." : mode === "login" ? "Email me a code" : "Continue"}
+                    </button>
+                    {mode === "login" && (
+                      <button onClick={() => goTo("password")} className="text-xs self-end mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
+                        Use password instead
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Forgot password: request a code */}
+                {mode === "login" && view === "forgot" && (
+                  <>
+                    <button
+                      onClick={handleForgot}
+                      disabled={loading || !emailValid}
+                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
+                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                    >
+                      {loading ? "Sending..." : "Send reset code"}
+                    </button>
+                    <button onClick={() => goTo("password")} className="text-xs self-start mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
+                      ← Back to sign in
+                    </button>
+                  </>
+                )}
+
+                {/* Forgot step 2: enter the emailed code */}
+                {mode === "login" && view === "code" && (
+                  <>
+                    <input
+                      type="text"
+                      value={resetCode}
+                      onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      autoComplete="one-time-code"
+                      className="w-full px-4 py-3 rounded-lg text-sm tracking-widest text-center transition-all"
+                      style={inputStyle}
+                      onKeyDown={(e) => e.key === "Enter" && resetCode.length === 6 && handleVerifyResetCode()}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleVerifyResetCode}
+                      disabled={loading || resetCode.length !== 6}
+                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
+                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                    >
+                      {loading ? "Verifying..." : "Verify code"}
+                    </button>
+                    <div className="flex items-center justify-between mt-1">
+                      <button onClick={() => goTo("forgot")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
+                        ← Change email
+                      </button>
+                      <button onClick={handleForgot} disabled={loading} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
+                        Resend code
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Forgot step 3: new password (code already verified) */}
+                {mode === "login" && view === "reset" && (
+                  <>
+                    {/* New password: eye toggle + live length hint */}
+                    <div>
+                      <div className="relative">
+                        <input
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
+                          placeholder="New password (min 8 characters)"
+                          autoComplete="new-password"
+                          className="w-full px-4 py-3 pr-11 rounded-lg text-sm transition-all"
+                          style={{ ...inputStyle, borderColor: newPasswordTooShort ? "#ef4444" : "var(--border)" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword((v) => !v)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-opacity hover:opacity-60"
+                          style={{ color: "var(--text-muted)" }}
+                          tabIndex={-1}
+                          aria-label={showNewPassword ? "Hide password" : "Show password"}
+                        >
+                          {showNewPassword ? <EyeOffIcon /> : <EyeIcon />}
+                        </button>
+                      </div>
+                      {newPasswordTooShort && (
+                        <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
+                          At least 8 characters ({8 - newPassword.length} more)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Confirm: eye toggle + live match / mismatch */}
+                    <div>
+                      <div className="relative">
+                        <input
+                          type={showConfirmNewPassword ? "text" : "password"}
+                          value={confirmNewPassword}
+                          onChange={(e) => { setConfirmNewPassword(e.target.value); setError(""); }}
+                          onBlur={() => setConfirmNewTouched(true)}
+                          placeholder="Repeat new password"
+                          autoComplete="new-password"
+                          className="w-full px-4 py-3 pr-[4.5rem] rounded-lg text-sm transition-all"
+                          style={{
+                            ...inputStyle,
+                            borderColor: !confirmNewPassword
+                              ? "var(--border)"
+                              : newPasswordsMatch
+                                ? "#40C057"
+                                : showNewMismatch
+                                  ? "#ef4444"
+                                  : "var(--border)",
+                          }}
+                          onKeyDown={(e) => e.key === "Enter" && newPasswordsMatch && handleReset()}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                          {confirmNewPassword && newPasswordsMatch && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#40C057" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                          {confirmNewPassword && showNewMismatch && (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="18" y1="6" x2="6" y2="18" />
+                              <line x1="6" y1="6" x2="18" y2="18" />
+                            </svg>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmNewPassword((v) => !v)}
+                            className="p-0.5 transition-opacity hover:opacity-60"
+                            style={{ color: "var(--text-muted)" }}
+                            tabIndex={-1}
+                            aria-label={showConfirmNewPassword ? "Hide password" : "Show password"}
+                          >
+                            {showConfirmNewPassword ? <EyeOffIcon /> : <EyeIcon />}
+                          </button>
+                        </div>
+                      </div>
+                      {showNewMismatch && (
+                        <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
+                          Passwords do not match
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleReset}
+                      disabled={loading || !newPasswordsMatch}
+                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
+                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                    >
+                      {loading ? "Saving..." : "Set new password"}
+                    </button>
+                    <button onClick={() => goTo("forgot")} className="text-xs self-start mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
+                      ← Start over
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

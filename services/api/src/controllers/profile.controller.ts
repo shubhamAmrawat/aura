@@ -36,6 +36,8 @@ export async function getProfile(req: Request, res: Response) {
       totalUploads: user.totalUploads,
       usernameChangedAt: user.usernameChangedAt,
       createdAt: user.createdAt,
+      hasPassword: user.passwordHash !== null,
+      googleLinked: user.googleId !== null,
     },
   });
 }
@@ -112,8 +114,15 @@ export async function confirmPasswordChange(req: Request, res: Response) {
 
 // ─── Account ───────────────────────────────────────────────
 
+/** Accounts without a password (Google sign-up) confirm deletion with an emailed code. */
+export async function sendDeleteAccountOtp(req: Request, res: Response) {
+  await profileService.sendDeleteAccountOtp(authUserId(req));
+  res.json({ message: "We've sent a code to your email." });
+}
+
+/** DELETE /api/profile — body { password } or, for accounts without a password, { otp } */
 export async function deleteAccount(req: Request, res: Response) {
-  await profileService.deleteAccount(authUserId(req), req.body?.password);
+  await profileService.deleteAccount(authUserId(req), { password: req.body?.password, otp: req.body?.otp });
   res.json({ message: "Account deleted successfully." });
 }
 

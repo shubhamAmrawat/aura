@@ -24,7 +24,7 @@ function escapeHtml(s: string): string {
 
 function buildOtpEmailHtml(
   otp: string,
-  type: "signup" | "login" | "password_reset"
+  type: "signup" | "login" | "password_reset" | "account_delete"
 ): string {
   const safeOtp = escapeHtml(otp);
 
@@ -43,6 +43,11 @@ function buildOtpEmailHtml(
       eyebrow: "Security",
       title: "Reset your password",
       lead: "We received a request to reset the password for your Aurora account. Use this code to continue.",
+    },
+    account_delete: {
+      eyebrow: "Security",
+      title: "Confirm account deletion",
+      lead: "We received a request to permanently delete your Aurora account. Use this code to confirm. If this wasn't you, ignore this email.",
     },
   }[type];
 
@@ -136,7 +141,7 @@ function buildOtpEmailHtml(
 export async function sendOTPEmail(
   email: string,
   otp: string,
-  type: "signup" | "login" | "password_reset"
+  type: "signup" | "login" | "password_reset" | "account_delete"
 ): Promise<void> {
   // Test-only: EMAIL_TRANSPORT=log prints the OTP instead of calling Brevo
   if (env.EMAIL_TRANSPORT === "log") {
@@ -148,6 +153,7 @@ export async function sendOTPEmail(
     signup: "Verify your Aurora account",
     login: "Your Aurora login code",
     password_reset: "Reset your Aurora password",
+    account_delete: "Confirm deleting your Aurora account",
   };
 
   const htmlContent = buildOtpEmailHtml(otp, type);

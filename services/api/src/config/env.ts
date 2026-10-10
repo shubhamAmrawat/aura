@@ -25,6 +25,9 @@ const EnvSchema = z.object({
   BREVO_FROM_EMAIL: z.string().optional(),
   EMAIL_TRANSPORT: z.string().optional(),
 
+  // Google sign-in: Web OAuth client ID(s). Comma-separate to also accept e.g. an Android client.
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
   // AI + moderation
   OPENAI_API_KEY: z.string().optional(),
   SIGHTENGINE_API_USER: z.string().optional(),

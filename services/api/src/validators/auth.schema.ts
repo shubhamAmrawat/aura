@@ -32,4 +32,31 @@ export const PasswordLength = z.custom<string>(
   "Password must be at least 8 characters"
 );
 
-export type OtpType = "signup" | "login" | "password_reset";
+export type OtpType = "signup" | "login" | "password_reset" | "account_delete";
+
+// ─── Password login, Google, forgot/reset ──────────────────
+
+export const PasswordLoginBody = z.object({
+  email: required("Email and password are required"),
+  password: required("Email and password are required"),
+});
+
+export const GoogleLoginBody = z.object({
+  credential: z.custom<string>((v) => typeof v === "string" && v.length > 0, "Google credential is required"),
+});
+
+export const ForgotPasswordBody = z.object({
+  email: required("Email is required"),
+});
+
+export const VerifyResetCodeBody = z.object({
+  email: required("Email and code are required"),
+  otp: required("Email and code are required"),
+});
+
+/** otp is optional: omit it after verifying via /forgot-password/verify. */
+export const ResetPasswordBody = z.object({
+  email: required("Email and new password are required"),
+  otp: z.unknown().optional(),
+  newPassword: required("Email and new password are required"),
+});

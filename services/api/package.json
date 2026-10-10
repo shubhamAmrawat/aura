@@ -13,7 +13,8 @@
     "test:cleanup": "tsx --env-file=../../.env.test tests/setup/cleanup-cli.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "test:integration": "vitest run --config vitest.integration.config.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1021.0",
@@ -25,6 +26,7 @@
     "dotenv": "*",
     "drizzle-orm": "0.45.1",
     "express": "^5.3.0",
+    "google-auth-library": "^10.9.1",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.12.1",
     "multer": "^2.4.0",

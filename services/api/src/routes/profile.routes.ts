@@ -13,6 +13,7 @@ const HARD_CAP = 25 * 1024 * 1024;
 profileRoutes.get("/", profile.getProfile);
 profileRoutes.put("/", profile.updateProfile);
 profileRoutes.delete("/", profile.deleteAccount);
+profileRoutes.post("/delete/otp", profile.sendDeleteAccountOtp);
 
 profileRoutes.post("/avatar/upload-url", profile.imageUploadUrl("avatar"));
 profileRoutes.put("/avatar", profile.confirmImage("avatar"));

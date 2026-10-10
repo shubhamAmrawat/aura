@@ -4,7 +4,18 @@ import { parseOrThrow } from "../utils/validate";
 import { setAuthCookie, clearAuthCookie } from "../utils/cookies";
 import { verifyToken } from "../utils/jwt";
 import { getAuthToken } from "../middleware/auth";
-import { EmailFormat, PasswordLength, SendOtpBody, SignupBody, VerifyOtpBody } from "../validators/auth.schema";
+import {
+  EmailFormat,
+  ForgotPasswordBody,
+  GoogleLoginBody,
+  PasswordLength,
+  PasswordLoginBody,
+  ResetPasswordBody,
+  SendOtpBody,
+  SignupBody,
+  VerifyOtpBody,
+  VerifyResetCodeBody,
+} from "../validators/auth.schema";
 import * as authService from "../services/auth.service";
 
 export const sendOtp = route("Failed to send OTP", async (req, res) => {
@@ -81,6 +92,8 @@ export const me = route(
         totalDownloads: user.totalDownloads,
         totalUploads: user.totalUploads,
         createdAt: user.createdAt,
+        hasPassword: user.passwordHash !== null,
+        googleLinked: user.googleId !== null,
       },
     });
   },
@@ -114,3 +127,60 @@ export const becomeCreator = route(
   },
   401
 );
+
+/** Same shape as the OTP /login response. */
+function loginResponse(user: { id: string; email: string; username: string; displayName: string; avatarUrl: string | null }, token: string) {
+  return {
+    message: "Logged in successfully",
+    token,
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+    },
+  };
+}
+
+/** POST /api/auth/login/password { email, password } */
+export const loginWithPassword = route("Failed to login", async (req, res) => {
+  const { email, password } = parseOrThrow(PasswordLoginBody, req.body);
+  if (typeof email !== "string" || typeof password !== "string") {
+    throw new ApiError(401, "Invalid email or password.");
+  }
+  const { user, token } = await authService.loginWithPassword(email, password);
+  setAuthCookie(res, token);
+  res.json(loginResponse(user, token));
+});
+
+/** POST /api/auth/google { credential } — Google Identity Services ID token */
+export const loginWithGoogle = route("Google sign-in failed.", async (req, res) => {
+  const { credential } = parseOrThrow(GoogleLoginBody, req.body);
+  const { user, token, isNewUser } = await authService.loginWithGoogle(credential);
+  setAuthCookie(res, token);
+  res.json({ ...loginResponse(user, token), isNewUser });
+});
+
+/** POST /api/auth/forgot-password { email } — always the same answer */
+export const forgotPassword = route("Failed to send reset code", async (req, res) => {
+  const { email } = parseOrThrow(ForgotPasswordBody, req.body);
+  parseOrThrow(EmailFormat, email);
+  await authService.forgotPassword(email);
+  res.json({ message: "If an account exists, we've sent a code." });
+});
+
+/** POST /api/auth/forgot-password/verify { email, otp } — step 2 of reset */
+export const verifyResetCode = route("Failed to verify code", async (req, res) => {
+  const { email, otp } = parseOrThrow(VerifyResetCodeBody, req.body);
+  await authService.verifyResetCode(String(email), otp);
+  res.json({ message: "Code verified", verified: true });
+});
+
+/** POST /api/auth/reset-password { email, otp?, newPassword } */
+export const resetPassword = route("Failed to reset password", async (req, res) => {
+  const { email, otp, newPassword } = parseOrThrow(ResetPasswordBody, req.body);
+  parseOrThrow(PasswordLength, newPassword);
+  await authService.resetPassword(String(email), otp ?? null, String(newPassword));
+  res.json({ message: "Password reset successfully. You can now log in." });
+});

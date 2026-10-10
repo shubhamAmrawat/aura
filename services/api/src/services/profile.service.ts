@@ -158,12 +158,23 @@ function r2KeyFromUrl(url: string | null): string | null {
  * The user's own download history is kept anonymously (user_id → NULL).
  * DB work runs in one transaction; R2 files are removed afterwards (best effort).
  */
-export async function deleteAccount(userId: string, password: unknown) {
+export async function sendDeleteAccountOtp(userId: string) {
   const user = await getUserOrThrow(userId);
-  if (!user.passwordHash) throw new ApiError(400, "No password set for this account.");
+  if (user.passwordHash) throw new ApiError(400, "Use your password to delete your account.");
+  await issueOtp(user.email, "account_delete");
+}
 
-  const valid = await bcrypt.compare(password as string, user.passwordHash);
-  if (!valid) throw new ApiError(400, "Incorrect password.");
+export async function deleteAccount(userId: string, proof: { password?: unknown; otp?: unknown }) {
+  const user = await getUserOrThrow(userId);
+
+  if (user.passwordHash) {
+    const valid = await bcrypt.compare(proof.password as string, user.passwordHash);
+    if (!valid) throw new ApiError(400, "Incorrect password.");
+  } else {
+    // Google-only account: confirm with the code from POST /api/profile/delete/otp
+    if (!proof.otp) throw new ApiError(400, "Verification code is required.");
+    await checkOtp(user.email, "account_delete", proof.otp, () => "Incorrect OTP.");
+  }
 
   const uploads = await db
     .select({ id: wallpapers.id, fileUrl: wallpapers.fileUrl })

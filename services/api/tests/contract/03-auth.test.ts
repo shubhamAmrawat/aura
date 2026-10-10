@@ -198,8 +198,10 @@ describe("GET /api/auth/me", () => {
     expectKeys(res.body, ["user"]);
     expectKeys(res.body.user, [
       "id", "email", "username", "displayName", "avatarUrl", "coverUrl", "bio",
-      "isCreator", "isPro", "totalDownloads", "totalUploads", "createdAt",
+      "isCreator", "isPro", "totalDownloads", "totalUploads", "createdAt", "hasPassword", "googleLinked",
     ]);
+    expect(res.body.user.hasPassword).toBe(true);
+    expect(res.body.user.googleLinked).toBe(false);
     expect(res.body.user.id).toBe(a.id);
     const both = await api("GET", "/api/auth/me", { token: a.token, cookie: b.cookie });
     expect(both.body.user.id).toBe(b.id);

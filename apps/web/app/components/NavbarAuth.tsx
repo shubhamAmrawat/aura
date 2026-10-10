@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
+import AvatarImage from "@/app/components/AvatarImage";
 
 const NavbarAuth = () => {
   const router = useRouter();
@@ -75,22 +76,19 @@ const NavbarAuth = () => {
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
       >
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt={user.displayName || "Avatar"}
-            width={32}
-            height={32}
-            className="w-8 h-8 rounded-full object-cover"
-          />
-        ) : (
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-          >
-            {user.displayName?.[0]?.toUpperCase()}
-          </div>
-        )}
+        <AvatarImage
+          src={user.avatarUrl}
+          alt={user.displayName || "Avatar"}
+          className="w-8 h-8 rounded-full object-cover"
+          fallback={
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+              style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+            >
+              {user.displayName?.[0]?.toUpperCase()}
+            </div>
+          }
+        />
         <svg
           width="12"
           height="12"
@@ -120,20 +118,19 @@ const NavbarAuth = () => {
             }}
           >
             <div className="px-4 py-3.5 flex items-center gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt={user.displayName || "Avatar"}
-                  className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                  style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-                >
-                  {user.displayName?.[0]?.toUpperCase()}
-                </div>
-              )}
+              <AvatarImage
+                src={user.avatarUrl}
+                alt={user.displayName || "Avatar"}
+                className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                fallback={
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                    style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                  >
+                    {user.displayName?.[0]?.toUpperCase()}
+                  </div>
+                }
+              />
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
                   {user.displayName}
