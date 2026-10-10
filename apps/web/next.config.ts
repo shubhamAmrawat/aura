@@ -39,6 +39,10 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "cdn.aurora-walls.com",
+      },
+      {
+        protocol: "https",
         hostname: "**.r2.dev",
       },
       {

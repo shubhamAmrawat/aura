@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-// All wallpaper files live on our own R2 bucket. Accept only URLs whose
-// hostname matches this env var (or *.r2.dev as a fallback) to prevent SSRF.
+// All wallpaper files live on our own R2 bucket. Accept only URLs on our CDN
+// domain (or NEXT_PUBLIC_R2_PUBLIC_URL / the legacy *.r2.dev) to prevent SSRF.
+const CDN_HOST = "cdn.aurora-walls.com";
 function isAllowedFileUrl(raw: string): boolean {
   try {
     const { hostname, protocol } = new URL(raw);
     if (protocol !== "https:") return false;
+    if (hostname === CDN_HOST) return true;
 
     // Explicit CDN domain configured in env
     const configured = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
