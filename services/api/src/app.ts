@@ -8,7 +8,6 @@ import { notFound } from "./middleware/notFound";
 import { errorHandler } from "./middleware/errorHandler";
 import { healthRoutes } from "./routes/health.routes";
 import { apiRoutes } from "./routes";
-import { requireAdminSecret } from "./middleware/adminSecret";
 
 export const ALLOWED_ORIGINS = [
   "https://www.aurora-walls.com",
@@ -35,8 +34,8 @@ export function createApp() {
     })
   );
 
-  // TEMPORARY (remove after the rate-limit IP check): shows which client-IP headers reach the app.
-  app.get("/api/_debug/ip", requireAdminSecret, (req, res) => {
+  // TEMPORARY (remove after the rate-limit IP check): echoes the caller's own IP-related headers.
+  app.get("/api/_debug/ip", (req, res) => {
     res.json({
       xForwardedFor: req.get("x-forwarded-for") ?? null,
       cfConnectingIp: req.get("cf-connecting-ip") ?? null,
