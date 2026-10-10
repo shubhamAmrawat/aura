@@ -93,7 +93,8 @@ describe("POST /api/wallpapers/upload", () => {
       json: { title: "tiny", fileUrl, key, categoryId, width: 150, height: 300, fileSizeBytes: 100, fileType: "image/png" },
     });
     expectError(res, 400, "Image must be at least 200×200 pixels.");
-    expect((await fetch(fileUrl)).status).toBe(404);
+    // cache-bust: the CDN edge may still hold the copy the API fetched to read its size
+    expect((await fetch(`${fileUrl}?nocache=${Date.now()}`)).status).toBe(404);
   });
 
   it("full pipeline: stored as PENDING with extracted metadata, hidden from feeds", async () => {

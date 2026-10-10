@@ -40,3 +40,37 @@ export async function signup(
     body: JSON.stringify(payload),
   });
 }
+
+type LoginResponse = { message: string, token: string, user: User }
+
+/** Email + password sign-in. */
+export async function loginWithPassword(payload: { email: string, password: string }): Promise<LoginResponse> {
+  return await request<LoginResponse>("/api/auth/login/password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Forgot step 1: always answers the same (never reveals if the email exists). */
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return await request<{ message: string }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** Forgot step 2: check the emailed code (stays valid for 15 minutes). */
+export async function verifyResetCode(payload: { email: string, otp: string }): Promise<{ message: string, verified: boolean }> {
+  return await request<{ message: string, verified: boolean }>("/api/auth/forgot-password/verify", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Forgot step 3: set the new password (code already verified). */
+export async function resetPassword(payload: { email: string, newPassword: string }): Promise<{ message: string }> {
+  return await request<{ message: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

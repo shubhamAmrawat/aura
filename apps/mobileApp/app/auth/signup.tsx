@@ -12,6 +12,9 @@ import { Colors, Images } from '../../constants'
 import { signup } from '../../lib/authApi'
 import { useAuth } from '../../lib/AuthContext'
 import { useLayoutInfo } from '../../hooks/useLayout'
+import { MIN_PASSWORD_LENGTH } from '../../lib/validation'
+import PasswordField from '../../components/auth/PasswordField'
+import FieldHint from '../../components/auth/FieldHint'
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 
@@ -24,6 +27,14 @@ export default function SignupScreen() {
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [confirmTouched, setConfirmTouched] = useState(false)
+  const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH
+  const passwordsMatch = password.length >= MIN_PASSWORD_LENGTH && password === confirmPassword
+  const showMismatch =
+    confirmPassword.length > 0 && !passwordsMatch &&
+    (confirmTouched || confirmPassword.length >= password.length)
+  const canSubmit = !!username.trim() && !!displayName.trim() && passwordsMatch
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,8 +42,11 @@ export default function SignupScreen() {
     if (!username.trim() || !displayName.trim() || !password.trim()) {
       setError('All fields are required'); return
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters'); return
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`); return
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match'); return
     }
     setError('')
     setLoading(true)
@@ -132,25 +146,36 @@ export default function SignupScreen() {
               />
             </View>
 
-            <View style={styles.inputRow}>
-              <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password (min 8 characters)"
-                placeholderTextColor={Colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                underlineColorAndroid="transparent"
-              />
-            </View>
+            <PasswordField
+              placeholder={`Password (min ${MIN_PASSWORD_LENGTH} characters)`}
+              value={password}
+              onChangeText={(t) => { setPassword(t); setError('') }}
+              status={tooShort ? 'error' : 'idle'}
+              autoComplete="new-password"
+              textContentType="newPassword"
+            />
+            <FieldHint text={tooShort && `At least ${MIN_PASSWORD_LENGTH} characters (${MIN_PASSWORD_LENGTH - password.length} more)`} />
+
+            <PasswordField
+              placeholder="Repeat password"
+              value={confirmPassword}
+              onChangeText={(t) => { setConfirmPassword(t); setError('') }}
+              onBlur={() => setConfirmTouched(true)}
+              status={!confirmPassword ? 'idle' : passwordsMatch ? 'ok' : showMismatch ? 'error' : 'idle'}
+              showStatusIcon
+              autoComplete="new-password"
+              textContentType="newPassword"
+              returnKeyType="go"
+              onSubmitEditing={handleSignup}
+            />
+            <FieldHint text={showMismatch && 'Passwords do not match'} />
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Pressable
-              style={({ pressed }) => [styles.button, pressed && { opacity: 0.9 }]}
+              style={({ pressed }) => [styles.button, !canSubmit && { opacity: 0.45 }, pressed && canSubmit && { opacity: 0.9 }]}
               onPress={handleSignup}
-              disabled={loading}
+              disabled={loading || !canSubmit}
             >
               {loading
                 ? <ActivityIndicator color={Colors.bgPrimary} size="small" />

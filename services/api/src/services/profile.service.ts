@@ -4,7 +4,7 @@ import { db } from "../config/db";
 import { env } from "../config/env";
 import { collections, collectionWallpapers, downloads, likes, otps, users, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
-import { buildObjectKey, deleteFile, generateUploadUrl, uploadFileToKey } from "../integrations/r2";
+import { buildObjectKey, deleteFile, generateUploadUrl, keyFromPublicUrl, uploadFileToKey } from "../integrations/r2";
 import { generateWallpaperTextEmbedding } from "../integrations/openai";
 import { checkOtp, findUserById, issueOtp } from "./auth.service";
 
@@ -71,11 +71,8 @@ export function createImageUploadUrl(userId: string, kind: ImageKind, fileType: 
 async function deleteOldImage(userId: string, kind: ImageKind, oldUrl: string | null) {
   if (!oldUrl) return;
   try {
-    const prefix = `${env.R2_PUBLIC_URL}/`;
-    if (oldUrl.startsWith(prefix)) {
-      const oldKey = oldUrl.slice(prefix.length);
-      if (oldKey.startsWith(`${IMAGE[kind].folder}/${userId}/`)) await deleteFile(oldKey);
-    }
+    const oldKey = keyFromPublicUrl(oldUrl);
+    if (oldKey?.startsWith(`${IMAGE[kind].folder}/${userId}/`)) await deleteFile(oldKey);
   } catch (error) {
     console.error(`Failed to cleanup previous ${kind}`, error);
   }
@@ -144,12 +141,7 @@ export async function confirmPasswordChange(userId: string, otp: unknown, newPas
 
 // ─── Account ───────────────────────────────────────────────
 
-/** R2 object key for a public URL we own, or null. */
-function r2KeyFromUrl(url: string | null): string | null {
-  const base = (env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
-  if (!url || !base || !url.startsWith(`${base}/`)) return null;
-  return url.slice(base.length + 1);
-}
+const r2KeyFromUrl = keyFromPublicUrl;
 
 /**
  * Delete the account after a password check, together with everything it owns:
@@ -311,9 +303,8 @@ export async function deleteUpload(userId: string, wallpaperId: string) {
 
   await db.delete(wallpapers).where(eq(wallpapers.id, wallpaperId));
 
-  const r2PublicUrl = (env.R2_PUBLIC_URL ?? "").replace(/\/$/, "");
-  if (r2PublicUrl && existing.fileUrl.startsWith(r2PublicUrl)) {
-    const key = existing.fileUrl.slice(r2PublicUrl.length + 1);
+  const key = keyFromPublicUrl(existing.fileUrl);
+  if (key) {
     await deleteFile(key).catch((e) => console.error("[r2] Delete file failed (non-fatal):", e));
   }
 

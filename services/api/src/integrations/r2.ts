@@ -55,6 +55,27 @@ export async function uploadFileToKey(
   return `${env.R2_PUBLIC_URL}/${key}`;
 }
 
+// The bucket's old public dev address (rows saved before cdn.aurora-walls.com).
+const LEGACY_PUBLIC_HOST = "pub-7a9b0809a66e45e99632a890f4327988.r2.dev";
+
+/**
+ * R2 object key for a public URL that points at our bucket, or null.
+ * Accepts the current R2_PUBLIC_URL and the legacy r2.dev address.
+ */
+export function keyFromPublicUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const { hostname, pathname, protocol } = new URL(url);
+    if (protocol !== "https:") return null;
+    const own = env.R2_PUBLIC_URL ? new URL(env.R2_PUBLIC_URL).hostname : null;
+    if (hostname !== own && hostname !== LEGACY_PUBLIC_HOST) return null;
+    const key = decodeURIComponent(pathname.replace(/^\/+/, ""));
+    return key || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteFile(key: string): Promise<void> {
   const command = new DeleteObjectCommand({
     Bucket: env.R2_BUCKET_NAME!,

@@ -9,8 +9,13 @@ import { router } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Colors, Images } from '../../constants'
-import { sendOtp } from '../../lib/authApi'
+import { loginWithPassword, sendOtp } from '../../lib/authApi'
 import { useLayoutInfo } from '../../hooks/useLayout'
+import { useAuth } from '../../lib/AuthContext'
+import { useToast } from '../../lib/ToastContext'
+import { isValidEmail } from '../../lib/validation'
+import PasswordField from '../../components/auth/PasswordField'
+import FieldHint from '../../components/auth/FieldHint'
 
 const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 
@@ -18,20 +23,54 @@ export default function AuthIndex() {
   const { width, height, deviceType } = useLayoutInfo()
   const isTablet = deviceType === 'tablet'
   const isLandscapeTablet = isTablet && width > height
+  const { onLogin } = useAuth()
+  const { showToast } = useToast()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
+  const [emailTouched, setEmailTouched] = useState(false)
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSendOtp = async () => {
-    if (!email.trim()) { setError('Please enter your email'); return }
+  const emailValid = isValidEmail(email)
+  const showEmailError = email.length > 0 && !emailValid && emailTouched
+  const busy = loading || sendingCode
+
+  const switchMode = (next: 'login' | 'signup') => {
+    setMode(next)
+    setError('')
+    setPassword('')
+  }
+
+  // Sign up, or "sign in with a code instead": email a code → OTP screen
+  const handleSendOtp = async (type: 'login' | 'signup') => {
+    setEmailTouched(true)
+    if (!emailValid) return
+    setError('')
+    setSendingCode(true)
+    try {
+      await sendOtp({ email: email.trim(), type })
+      router.push({ pathname: '/auth/otp', params: { email: email.trim(), type } })
+    } catch (e: any) {
+      setError(e.message || 'Failed to send code')
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  const handlePasswordLogin = async () => {
+    setEmailTouched(true)
+    if (!emailValid || !password) return
     setError('')
     setLoading(true)
     try {
-      await sendOtp({ email: email.trim(), type: mode })
-      router.push({ pathname: '/auth/otp', params: { email: email.trim(), type: mode } })
+      const res = await loginWithPassword({ email: email.trim(), password })
+      await onLogin(res.token, res.user)
+      showToast('Welcome back!', { type: 'success' })
+      router.replace('/(tabs)')
     } catch (e: any) {
-      setError(e.message || 'Failed to send OTP')
+      setError(e.message || 'Sign in failed')
     } finally {
       setLoading(false)
     }
@@ -80,13 +119,13 @@ export default function AuthIndex() {
         ]}>
           <Text style={styles.cardTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
           <Text style={styles.cardSubtitle}>
-            {mode === 'login' ? 'Sign in securely with a one-time code.' : 'Start with your email. We will verify it instantly.'}
+            {mode === 'login' ? 'Sign in with your email and password.' : 'Start with your email. We will verify it instantly.'}
           </Text>
 
           <View style={styles.segmented}>
             <Pressable
               style={[styles.segBtn, mode === 'login' && styles.segBtnActive]}
-              onPress={() => { setMode('login'); setError('') }}
+              onPress={() => switchMode('login')}
             >
               <Text style={[styles.segText, mode === 'login' && styles.segTextActive]}>
                 Sign In
@@ -94,7 +133,7 @@ export default function AuthIndex() {
             </Pressable>
             <Pressable
               style={[styles.segBtn, mode === 'signup' && styles.segBtnActive]}
-              onPress={() => { setMode('signup'); setError('') }}
+              onPress={() => switchMode('signup')}
             >
               <Text style={[styles.segText, mode === 'signup' && styles.segTextActive]}>
                 Sign Up
@@ -102,35 +141,87 @@ export default function AuthIndex() {
             </Pressable>
           </View>
 
-          <View style={styles.inputRow}>
+          <View style={[styles.inputRow, showEmailError && styles.inputRowError]}>
             <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
               placeholderTextColor={Colors.textMuted}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(t) => { setEmail(t.trim()); setError('') }}
+              onBlur={() => setEmailTouched(true)}
               keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
               autoCapitalize="none"
               autoCorrect={false}
+              returnKeyType={mode === 'login' ? 'next' : 'go'}
+              onSubmitEditing={() => { if (mode === 'signup') handleSendOtp('signup') }}
               underlineColorAndroid="transparent"
             />
           </View>
+          <FieldHint text={showEmailError && 'Enter a valid email address'} />
+
+          {mode === 'login' && (
+            <PasswordField
+              placeholder="Password"
+              value={password}
+              onChangeText={(t) => { setPassword(t); setError('') }}
+              autoComplete="current-password"
+              textContentType="password"
+              returnKeyType="go"
+              onSubmitEditing={handlePasswordLogin}
+            />
+          )}
 
           {error ? (
             <Text style={styles.error}>{error}</Text>
           ) : null}
 
-          <Pressable
-            style={({ pressed }) => [styles.button, pressed && { opacity: 0.9 }]}
-            onPress={handleSendOtp}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-              : <Text style={styles.buttonText}>Continue</Text>
-            }
-          </Pressable>
+          {mode === 'login' ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                (!emailValid || !password) && styles.buttonDisabled,
+                pressed && { opacity: 0.9 },
+              ]}
+              onPress={handlePasswordLogin}
+              disabled={busy || !emailValid || !password}
+            >
+              {loading
+                ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
+                : <Text style={styles.buttonText}>Sign In</Text>
+              }
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.button, !emailValid && styles.buttonDisabled, pressed && { opacity: 0.9 }]}
+              onPress={() => handleSendOtp('signup')}
+              disabled={busy || !emailValid}
+            >
+              {sendingCode
+                ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
+                : <Text style={styles.buttonText}>Continue</Text>
+              }
+            </Pressable>
+          )}
+
+          {mode === 'login' && (
+            <View style={styles.linkRow}>
+              <Pressable
+                hitSlop={8}
+                disabled={busy}
+                onPress={() => router.push({ pathname: '/auth/forgot', params: { email: emailValid ? email.trim() : '' } })}
+              >
+                <Text style={styles.linkMuted}>Forgot password?</Text>
+              </Pressable>
+              <Pressable hitSlop={8} disabled={busy} onPress={() => handleSendOtp('login')}>
+                {sendingCode
+                  ? <ActivityIndicator color={Colors.accent} size="small" />
+                  : <Text style={styles.linkAccent}>Sign in with a code instead</Text>}
+              </Pressable>
+            </View>
+          )}
 
           <Text style={styles.footerCopy}>By continuing, you agree to Aurora terms and privacy policy.</Text>
         </View>
@@ -258,10 +349,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingVertical: 12,
   },
+  inputRowError: {
+    borderColor: '#E05252',
+  },
   error: {
     color: '#E05252',
     fontSize: 12,
     textAlign: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  linkMuted: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+  linkAccent: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: Colors.accent,
