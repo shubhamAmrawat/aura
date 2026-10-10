@@ -175,7 +175,7 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(200);
     expectKeys(res.body, ["message", "token", "user"]);
     expect(res.body.message).toBe("Logged in successfully");
-    expectKeys(res.body.user, ["id", "email", "username", "displayName", "avatarUrl"]);
+    expectKeys(res.body.user, ["id", "email", "username", "displayName", "avatarUrl", "role"]);
     expect(res.body.user.id).toBe(u.id);
     expect(res.headers.get("set-cookie")).toBe(COOKIE_DEV(res.body.token));
     const otps = await sql`SELECT 1 FROM otps WHERE email = ${u.email} AND type = 'login'`;
@@ -198,7 +198,7 @@ describe("GET /api/auth/me", () => {
     expectKeys(res.body, ["user"]);
     expectKeys(res.body.user, [
       "id", "email", "username", "displayName", "avatarUrl", "coverUrl", "bio",
-      "isCreator", "isPro", "totalDownloads", "totalUploads", "createdAt", "hasPassword", "googleLinked",
+      "isCreator", "isPro", "totalDownloads", "totalUploads", "createdAt", "hasPassword", "googleLinked", "role",
     ]);
     expect(res.body.user.hasPassword).toBe(true);
     expect(res.body.user.googleLinked).toBe(false);

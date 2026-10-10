@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/profile", "/upload", "/login"],
+      disallow: ["/profile", "/upload", "/login", "/admin"],
     },
     sitemap: "https://www.aurora-walls.com/sitemap.xml",
   };

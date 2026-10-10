@@ -29,7 +29,7 @@ describe("POST /api/auth/login/password", () => {
     expect(res.status).toBe(200);
     expectKeys(res.body, ["message", "token", "user"]);
     expect(res.body.message).toBe("Logged in successfully");
-    expectKeys(res.body.user, ["id", "email", "username", "displayName", "avatarUrl"]);
+    expectKeys(res.body.user, ["id", "email", "username", "displayName", "avatarUrl", "role"]);
     expect(res.body.user.id).toBe(u.id);
     expect(res.headers.get("set-cookie")).toBe(`aura_token=${res.body.token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax`);
     const me = await api("GET", "/api/auth/me", { token: res.body.token });

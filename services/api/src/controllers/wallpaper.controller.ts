@@ -103,7 +103,7 @@ export const upload = route("Failed to upload wallpaper", async (req, res) => {
   }
 
   res.json({
-    wallpaper: result.wallpaper,
+    wallpaper: wallpaperService.withoutReviewFields(result.wallpaper),
     moderationStatus: result.moderationStatus,
     message:
       result.moderationStatus === "approved"

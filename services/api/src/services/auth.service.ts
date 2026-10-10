@@ -106,7 +106,7 @@ export async function signup(input: { email: string; username: string; displayNa
     .returning();
   if (!created) throw new ApiError(500, "Failed to create user");
 
-  const token = generateToken({ userId: created.id, email: created.email });
+  const token = generateToken({ userId: created.id, email: created.email, role: created.role });
   return { user: created, token };
 }
 
@@ -122,7 +122,7 @@ export async function login(email: string) {
   const user = await findUserByEmail(email);
   if (!user) throw new ApiError(404, "User not found");
 
-  const token = generateToken({ userId: user.id, email: user.email });
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role });
   return { user, token };
 }
 
@@ -182,7 +182,7 @@ export async function loginWithPassword(email: string, password: string) {
   if (user.failedLoginAttempts > 0 || user.lockedUntil) {
     await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
   }
-  const token = generateToken({ userId: user.id, email: user.email });
+  const token = generateToken({ userId: user.id, email: user.email, role: user.role });
   return { user, token };
 }
 
@@ -240,7 +240,7 @@ export async function loginWithGoogle(credential: string) {
     return {
       user: finalUser,
       isNewUser,
-      token: generateToken({ userId: finalUser.id, email: finalUser.email }),
+      token: generateToken({ userId: finalUser.id, email: finalUser.email, role: finalUser.role }),
     };
   };
 

@@ -8,6 +8,7 @@ import {
   pgEnum,
   jsonb,
   real,
+  index,
 } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { customType } from "drizzle-orm/pg-core";
@@ -87,4 +88,10 @@ export const wallpapers = pgTable("wallpapers", {
   embedding: vector("embedding", 512),
   /** OpenAI text-embedding-3-small on title+description+tags — for /search semantic search */
   textEmbedding: vector("text_embedding", 512),
-});
+  /** Why moderation didn't auto-approve (shown in the admin review queue) */
+  moderationReason: text("moderation_reason"),
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  /** Set on reject; the file is deleted from R2 30 days later */
+  rejectedAt: timestamp("rejected_at"),
+}, (t) => [index("wallpapers_status_created_at_idx").on(t.status, t.createdAt)]);

@@ -46,7 +46,7 @@ export async function checkImageSafety(imageUrl: string): Promise<ModerationResu
     if (nudityScore > 0.4 || violenceScore > 0.4) {
       return {
         status: "pending",
-        reason: "Image flagged for manual review",
+        reason: `Flagged for manual review (nudity ${nudityScore.toFixed(2)}, violence ${violenceScore.toFixed(2)})`,
       };
     }
 

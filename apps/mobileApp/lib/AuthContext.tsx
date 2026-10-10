@@ -10,6 +10,8 @@ type AuthContextType = {
   onLogout: () => Promise<void>
   setUser: (nextUser: User | null | ((prev: User | null) => User | null)) => void
 };
+const ADMIN_ONLY_WEB = "Admin accounts can only sign in on the web dashboard.";
+
 export const AuthContext = createContext<AuthContextType | null>(null); 
 
 
@@ -22,7 +24,12 @@ export function AuthProvider({children}:{children:ReactNode}){
         const token = await getToken(); 
         if(token){
           const {user}= await getMe(); 
-          setUser(user);
+          if (user.role === "admin") {
+            // Admin accounts only use the web dashboard
+            await deleteToken();
+          } else {
+            setUser(user);
+          }
         }
       } catch{
         await deleteToken(); 
@@ -35,6 +42,9 @@ export function AuthProvider({children}:{children:ReactNode}){
   // Login responses only carry basic fields (no cover, bio, etc.), so load the
   // full profile from /me right away; fall back to the basic user if that fails.
   const onLogin = async (token: string, user: User) => {
+    if (user.role === "admin") {
+      throw new Error(ADMIN_ONLY_WEB);
+    }
     await saveToken(token);
     setUser(user);
     try {

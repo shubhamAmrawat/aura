@@ -17,6 +17,7 @@ export type User = {
   totalUploads?: number
   usernameChangedAt?: string | null
   createdAt?: string
+  role?: "user" | "admin"
 }
 export type Wallpaper = {
   id: string

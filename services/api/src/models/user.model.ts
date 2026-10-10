@@ -5,7 +5,9 @@ import {
   integer,
   boolean,
   timestamp,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 
 export const users = pgTable("users", {
@@ -31,7 +33,9 @@ export const users = pgTable("users", {
   /** Password-login lockout: 5 failures → locked for 15 minutes */
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: timestamp("locked_until"),
+  /** "user" | "admin" — admins can use /api/admin (set via scripts/make-admin.mts) */
+  role: text("role").notNull().default("user"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   
-}); 
+}, (t) => [check("users_role_check", sql`${t.role} IN ('user', 'admin')`)]); 

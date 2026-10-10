@@ -38,6 +38,7 @@ export async function getProfile(req: Request, res: Response) {
       createdAt: user.createdAt,
       hasPassword: user.passwordHash !== null,
       googleLinked: user.googleId !== null,
+      role: user.role,
     },
   });
 }

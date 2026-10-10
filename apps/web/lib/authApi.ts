@@ -86,7 +86,7 @@ export function loginWithPassword(payload: { email: string; password: string }) 
 }
 
 /** Google Identity Services credential (ID token) → Aurora session. */
-export function loginWithGoogle(credential: string): Promise<{ isNewUser: boolean }> {
+export function loginWithGoogle(credential: string): Promise<{ isNewUser: boolean; user?: { role?: string } }> {
   return postJson("/api/auth/google", { credential }, "Google sign-in failed.");
 }
 

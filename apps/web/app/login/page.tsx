@@ -77,19 +77,20 @@ function LoginContent() {
 
   const goTo = (v: typeof view) => { setView(v); setStep(1); setError(""); setInfo(""); setOtp(""); };
 
-  const finishLogin = async (message: string) => {
+  /** After login: admins always land on /admin; everyone else on ?next= or /. */
+  const finishLogin = async (message: string, role?: string) => {
     await refreshUser();
     queueToast(message, "success");
     setNavigating(true);
-    router.push(next ? decodeURIComponent(next) : "/");
+    router.push(role === "admin" ? "/admin" : next ? decodeURIComponent(next) : "/");
   };
 
   const handleGoogle = async (credential: string) => {
     setLoading(true);
     setError("");
     try {
-      const { isNewUser } = await loginWithGoogle(credential);
-      await finishLogin(isNewUser ? "Account created! Welcome to Aurora" : "Welcome back!");
+      const { isNewUser, user } = await loginWithGoogle(credential);
+      await finishLogin(isNewUser ? "Account created! Welcome to Aurora" : "Welcome back!", user?.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
       setLoading(false);
@@ -100,8 +101,8 @@ function LoginContent() {
     setLoading(true);
     setError("");
     try {
-      await loginWithPassword({ email, password: loginPassword });
-      await finishLogin("Welcome back!");
+      const res = await loginWithPassword({ email, password: loginPassword });
+      await finishLogin("Welcome back!", res.user?.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -147,8 +148,8 @@ function LoginContent() {
     setError("");
     try {
       await resetPassword({ email, newPassword });
-      await loginWithPassword({ email, password: newPassword });
-      await finishLogin("Password updated. Welcome back!");
+      const res = await loginWithPassword({ email, password: newPassword });
+      await finishLogin("Password updated. Welcome back!", res.user?.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
@@ -215,11 +216,8 @@ function LoginContent() {
     setLoading(true);
     setError("");
     try {
-      await login({ email });
-      await refreshUser();
-      queueToast("Welcome back!", "success");
-      setNavigating(true);
-      router.push(next ? decodeURIComponent(next) : "/");
+      const res = await login({ email });
+      await finishLogin("Welcome back!", res.user?.role);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);

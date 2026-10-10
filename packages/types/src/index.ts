@@ -35,6 +35,8 @@ export interface User {
   totalDownloads: number;
   totalUploads: number;
   createdAt: string;
+  /** "admin" can open /admin (API enforces it) */
+  role?: "user" | "admin";
 }
 
 export interface Collection {

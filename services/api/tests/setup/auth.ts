@@ -51,3 +51,9 @@ export async function makeCreator(user: TestUser): Promise<void> {
   const res = await api("PUT", "/api/auth/become-creator", { token: user.token });
   if (res.status !== 200) throw new Error(`become-creator failed ${res.status}: ${res.text}`);
 }
+
+/** Give a TEST user the admin role (direct DB write — there is no API for this). */
+export async function makeAdmin(user: TestUser): Promise<void> {
+  if (!user.email.startsWith("aura-test+")) throw new Error(`Refusing to promote non-test user ${user.email}`);
+  await sql`UPDATE users SET role = 'admin' WHERE id = ${user.id}`;
+}

@@ -39,7 +39,7 @@ describe("GET/PUT /api/profile", () => {
     expect(res.status).toBe(200);
     expectKeys(res.body.user, [
       "id", "email", "username", "displayName", "avatarUrl", "coverUrl", "bio", "contactNo", "isCreator",
-      "isPro", "totalDownloads", "totalUploads", "usernameChangedAt", "createdAt", "hasPassword", "googleLinked",
+      "isPro", "totalDownloads", "totalUploads", "usernameChangedAt", "createdAt", "hasPassword", "googleLinked", "role",
     ]);
     expect(res.body.user.id).toBe(user.id);
   });

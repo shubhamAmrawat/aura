@@ -98,12 +98,18 @@ export async function listTrending(params: { limit: number; offset: number; scre
     .offset(params.offset);
 }
 
+/** Remove admin-only review fields before a wallpaper goes into a public response. */
+export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSelect>>(row: T) {
+  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, ...rest } = row;
+  return rest;
+}
+
 /** Single wallpaper (any status), without the large textEmbedding vector. */
 export async function getWallpaper(id: string) {
   const [record] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
   if (!record) throw new ApiError(404, "Wallpaper not found");
   const { textEmbedding: _textEmbedding, ...wallpaper } = record;
-  return wallpaper;
+  return withoutReviewFields(wallpaper);
 }
 
 /**
@@ -336,6 +342,7 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
       likeCount: 0,
       viewCount: 0,
       status: moderation.status,
+      moderationReason: moderation.status === "pending" ? moderation.reason : null,
       ...(textEmbedding ? { textEmbedding } : {}),
     })
     .returning();

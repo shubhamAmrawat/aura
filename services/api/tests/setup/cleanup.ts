@@ -65,6 +65,12 @@ export async function cleanupTestData(emailPattern: string) {
       c.downloads = (await tx`
         DELETE FROM downloads WHERE user_id = ANY(${ids}::uuid[]) OR wallpaper_id = ANY(${wpIds}::uuid[])`).count;
       c.collections = (await tx`DELETE FROM collections WHERE id = ANY(${colIds}::uuid[])`).count;
+      c.reviews_nulled = (await tx`
+        UPDATE wallpapers SET reviewed_by = NULL WHERE reviewed_by = ANY(${ids}::uuid[])`).count;
+      c.admin_actions = (await tx`
+        DELETE FROM admin_actions
+        WHERE admin_id = ANY(${ids}::uuid[])
+           OR target_id = ANY(${[...ids, ...wpIds]}::text[])`).count;
       c.wallpapers = (await tx`DELETE FROM wallpapers WHERE id = ANY(${wpIds}::uuid[])`).count;
       c.users = (await tx`DELETE FROM users WHERE id = ANY(${ids}::uuid[])`).count;
     }

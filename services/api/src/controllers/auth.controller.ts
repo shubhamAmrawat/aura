@@ -61,6 +61,7 @@ export const login = route("Failed to login", async (req, res) => {
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      role: user.role,
     },
   });
 });
@@ -94,6 +95,7 @@ export const me = route(
         createdAt: user.createdAt,
         hasPassword: user.passwordHash !== null,
         googleLinked: user.googleId !== null,
+        role: user.role,
       },
     });
   },
@@ -129,7 +131,7 @@ export const becomeCreator = route(
 );
 
 /** Same shape as the OTP /login response. */
-function loginResponse(user: { id: string; email: string; username: string; displayName: string; avatarUrl: string | null }, token: string) {
+function loginResponse(user: { id: string; email: string; username: string; displayName: string; avatarUrl: string | null; role: string }, token: string) {
   return {
     message: "Logged in successfully",
     token,
@@ -139,6 +141,7 @@ function loginResponse(user: { id: string; email: string; username: string; disp
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
+      role: user.role,
     },
   };
 }

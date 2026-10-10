@@ -198,8 +198,10 @@ export async function deleteAccount(userId: string, proof: { password?: unknown;
       await tx.delete(wallpapers).where(inArray(wallpapers.id, uploadIds));
     }
 
-    // 4. Anonymise the user's own download history, drop OTPs, delete the user.
+    // 4. Anonymise the user's own download history and reviews, drop OTPs, delete the user.
+    //    (admin_actions.admin_id is ON DELETE SET NULL, so the audit log is kept.)
     await tx.update(downloads).set({ userId: null }).where(eq(downloads.userId, userId));
+    await tx.update(wallpapers).set({ reviewedBy: null }).where(eq(wallpapers.reviewedBy, userId));
     await tx.delete(otps).where(eq(otps.email, user.email));
     await tx.delete(users).where(eq(users.id, userId));
   });
