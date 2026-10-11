@@ -149,3 +149,47 @@ export const FeaturedLimitBody = z.object({
     .min(1, "limit must be a number from 1 to 10")
     .max(10, "limit must be a number from 1 to 10"),
 });
+
+// ─── Bulk upload (Phase 4) ──────────────────────────────────
+
+export const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+export const UPLOAD_MAX_FILES = 50;
+const UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const uploadType = z.enum(UPLOAD_TYPES, { message: "Only JPEG, PNG and WebP images are allowed." });
+const uploadSize = z
+  .number({ message: "fileSizeBytes must be a number" })
+  .int("fileSizeBytes must be a whole number")
+  .min(1, "The file is empty.")
+  .max(UPLOAD_MAX_BYTES, "Each file must be 25 MB or smaller.");
+
+export const UploadUrlsBody = z.object({
+  files: z
+    .array(z.object({ fileType: uploadType, fileSizeBytes: uploadSize }), { message: "files must be a list" })
+    .min(1, `Send 1 to ${UPLOAD_MAX_FILES} files at a time.`)
+    .max(UPLOAD_MAX_FILES, `Send 1 to ${UPLOAD_MAX_FILES} files at a time.`),
+});
+
+export const AdminUploadBody = z
+  .object({
+    key: z.string({ message: "key is required" }).min(1, "key is required"),
+    fileUrl: z.string({ message: "fileUrl is required" }).min(1, "fileUrl is required"),
+    fileType: uploadType,
+    fileSizeBytes: uploadSize,
+    width: z.number().int().min(0).optional(),
+    height: z.number().int().min(0).optional(),
+    title: z.string({ message: "Title is required" }).trim().min(1, "Title is required").max(120, "Title can be at most 120 characters"),
+    description: z
+      .string()
+      .trim()
+      .max(1000, "Description can be at most 1000 characters")
+      .nullable()
+      .optional()
+      .transform((v) => v || null),
+    tags: tagList.default([]),
+    categoryId: z.string({ message: "Category is required" }).regex(UUID, "Category is required"),
+    isPremium: z.boolean({ message: "isPremium must be true or false" }).default(false),
+    isAiGenerated: z.boolean({ message: "isAiGenerated must be true or false" }).default(false),
+    publish: z.boolean({ message: "publish must be true or false" }).default(true),
+  })
+  .strict();
+export type AdminUploadInput = z.output<typeof AdminUploadBody>;

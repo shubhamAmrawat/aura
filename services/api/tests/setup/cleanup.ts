@@ -49,7 +49,11 @@ export async function cleanupTestData(emailPattern: string) {
   const counts = await sql.begin(async (tx) => {
     const c: Record<string, number> = {};
     if (ids.length) {
-      const wp = await tx<{ id: string }[]>`SELECT id FROM wallpapers WHERE uploader_id = ANY(${ids}::uuid[])`;
+      // Admin uploads have no uploader; they're found by the admin's R2 folder in the file URL
+      const adminFolders = ids.map((id) => `%/wallpapers/admin/${id}/%`);
+      const wp = await tx<{ id: string }[]>`
+        SELECT id FROM wallpapers
+        WHERE uploader_id = ANY(${ids}::uuid[]) OR file_url LIKE ANY(${adminFolders}::text[])`;
       const wpIds = wp.map((w) => w.id);
       const col = await tx<{ id: string }[]>`SELECT id FROM collections WHERE user_id = ANY(${ids}::uuid[])`;
       const colIds = col.map((x) => x.id);
@@ -86,6 +90,7 @@ export async function cleanupTestData(emailPattern: string) {
       for (const folder of ["avatars", "covers", "wallpapers"]) {
         r2Deleted += await deleteR2Prefix(client, `${folder}/${id}/`);
       }
+      r2Deleted += await deleteR2Prefix(client, `wallpapers/admin/${id}/`);
     }
   }
   return { ...counts, r2Objects: r2Deleted };

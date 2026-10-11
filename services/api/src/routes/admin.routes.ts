@@ -4,6 +4,7 @@ import * as stats from "../controllers/admin/stats.controller";
 import * as review from "../controllers/admin/review.controller";
 import * as wallpapers from "../controllers/admin/wallpapers.controller";
 import * as featured from "../controllers/admin/featured.controller";
+import * as uploads from "../controllers/admin/upload.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -30,3 +31,7 @@ adminRoutes.delete("/wallpapers/:id", wallpapers.remove);
 adminRoutes.get("/featured", featured.get);
 adminRoutes.put("/featured/order", featured.order);
 adminRoutes.put("/featured/limit", featured.limit);
+
+// Bulk upload (Phase 4)
+adminRoutes.post("/uploads/urls", uploads.urls);
+adminRoutes.post("/uploads", uploads.create);

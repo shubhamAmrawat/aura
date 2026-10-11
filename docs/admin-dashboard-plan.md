@@ -9,6 +9,16 @@
 > in reserve); add/remove. Saves refresh the home hero instantly. `wallpapers.featured_order` + `site_settings`
 > (migration `2026-10-11-featured-order.sql`, applied). Public `GET /api/featured`; admin `GET /api/admin/featured`,
 > `PUT /api/admin/featured/order`, `PUT /api/admin/featured/limit`. Contract 15 (8/8) + browser-tested.
+>
+> **Phase 4 — Bulk upload (2026-10-11, built + tested locally):** `/admin/upload`. `POST /api/admin/uploads/urls`
+> presigns a whole batch (1–50 files, 1-hour links, each locked to its declared size ≤ 25 MB, keys under
+> `wallpapers/admin/<adminId>/`); `POST /api/admin/uploads` creates one wallpaper per file (one request each →
+> short requests, no Render timeouts, stays under the 100 req/min limit). Same pipeline as creator uploads; no hourly
+> quota; Sightengine never blocks (returned as a warning); duplicate warning (same pixels + bytes). Publish now
+> (approved, admin = reviewer) or hold for review (pending). Admin uploads have **no uploader** (like the seeded
+> wallpapers) — the admin is in `reviewed_by` + the audit log (`wallpaper.upload`). Web: drop zone, batch defaults,
+> per-file title/category/tags, 3 parallel, auto-retry ×2 (fresh link on a failed PUT), retry failed, summary.
+> Contract 16 (8/8) + browser test incl. simulated network failures. No DB migration.
 
 ## Where we are today (checked against code + prod DB)
 

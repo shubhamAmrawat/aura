@@ -15,7 +15,8 @@ const r2Client = new S3Client({
 export async function generateUploadUrl(
   folder: string,
   fileType: string,
-  ownerId?: string
+  ownerId?: string,
+  opts: { expiresIn?: number; contentLength?: number } = {}
 ): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
   const key = buildObjectKey(folder, fileType, ownerId);
 
@@ -23,10 +24,15 @@ export async function generateUploadUrl(
     Bucket: env.R2_BUCKET_NAME!,
     Key: key,
     ContentType: fileType,
+    // Signed into the URL when given: R2 refuses a body of any other size
+    ...(opts.contentLength ? { ContentLength: opts.contentLength } : {}),
   });
 
-  // presigned URL expires in 5 minutes
-  const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 300 });
+  // presigned URL expires in 5 minutes unless the caller asks for longer
+  const uploadUrl = await getSignedUrl(r2Client, command, {
+    expiresIn: opts.expiresIn ?? 300,
+    ...(opts.contentLength ? { signableHeaders: new Set(["content-length", "content-type"]) } : {}),
+  });
 
   // the public URL where the file will be accessible after upload
   const fileUrl = `${env.R2_PUBLIC_URL}/${key}`;

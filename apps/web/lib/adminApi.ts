@@ -267,3 +267,68 @@ export async function refreshHomeHero(): Promise<boolean> {
     return false;
   }
 }
+
+// ─── Bulk upload ────────────────────────────────────────────
+
+export const UPLOAD_MAX_BYTES = 25 * 1024 * 1024;
+export const UPLOAD_MAX_FILES = 50;
+export const UPLOAD_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+export const UPLOAD_MIN_EDGE = 200;
+
+export type UploadSlot = { uploadUrl: string; fileUrl: string; key: string };
+export type AdminUploadPayload = {
+  key: string;
+  fileUrl: string;
+  fileType: string;
+  fileSizeBytes: number;
+  width: number;
+  height: number;
+  title: string;
+  tags: string[];
+  categoryId: string;
+  isPremium: boolean;
+  isAiGenerated: boolean;
+  publish: boolean;
+};
+export type AdminUploadResult = {
+  wallpaper: { id: string; title: string; fileUrl: string; status: string; width: number; height: number; isMobile: boolean; dominantColor: string };
+  moderation: { status: string; reason: string | null };
+  warnings: string[];
+};
+
+/** Raw response (status kept) so the uploader can decide what's worth retrying. */
+export type Attempt<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
+
+async function adminAttempt<T>(path: string, body: unknown): Promise<Attempt<T>> {
+  try {
+    const res = await fetch(`${API}/api/admin${path}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    return res.ok ? { ok: true, data: data as T } : { ok: false, status: res.status, error: data.error || `Request failed (${res.status})` };
+  } catch {
+    return { ok: false, status: 0, error: "Network error" };
+  }
+}
+
+export const requestUploadSlots = (files: { fileType: string; fileSizeBytes: number }[]) =>
+  adminAttempt<{ items: UploadSlot[]; expiresIn: number }>("/uploads/urls", { files });
+
+export const createAdminUpload = (payload: AdminUploadPayload) => adminAttempt<AdminUploadResult>("/uploads", payload);
+
+/** PUT a file straight to R2 with progress. Resolves with the HTTP status (0 = network error). */
+export function putFileToStorage(url: string, file: File, onProgress: (fraction: number) => void): Promise<number> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onload = () => resolve(xhr.status);
+    xhr.onerror = () => resolve(0);
+    xhr.onabort = () => resolve(0);
+    xhr.send(file);
+  });
+}
