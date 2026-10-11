@@ -12,6 +12,8 @@ export function ViewTracker({ wallpaperId }: { wallpaperId: string }) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/wallpapers/${wallpaperId}/view`, {
       method: "POST",
       keepalive: true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source: "web" }),
     }).catch(() => {});
   }, [wallpaperId]);
 

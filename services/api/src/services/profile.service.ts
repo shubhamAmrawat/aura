@@ -7,6 +7,7 @@ import { ApiError } from "../utils/ApiError";
 import { buildObjectKey, deleteFile, generateUploadUrl, keyFromPublicUrl, uploadFileToKey } from "../integrations/r2";
 import { generateWallpaperTextEmbedding } from "../integrations/openai";
 import { checkOtp, findUserById, issueOtp } from "./auth.service";
+import { removeWallpaper } from "./wallpaperRemoval.service";
 
 export type ImageKind = "avatar" | "cover";
 
@@ -295,23 +296,5 @@ export async function updateUpload(
 /** Delete an upload: dependents first, then the row, then the R2 file; decrement counter. */
 export async function deleteUpload(userId: string, wallpaperId: string) {
   const existing = await findOwnUpload(userId, wallpaperId);
-
-  await Promise.all([
-    db.delete(likes).where(eq(likes.wallpaperId, wallpaperId)),
-    db.delete(downloads).where(eq(downloads.wallpaperId, wallpaperId)),
-    db.delete(collectionWallpapers).where(eq(collectionWallpapers.wallpaperId, wallpaperId)),
-    db.update(collections).set({ coverWallpaperId: null }).where(eq(collections.coverWallpaperId, wallpaperId)),
-  ]);
-
-  await db.delete(wallpapers).where(eq(wallpapers.id, wallpaperId));
-
-  const key = keyFromPublicUrl(existing.fileUrl);
-  if (key) {
-    await deleteFile(key).catch((e) => console.error("[r2] Delete file failed (non-fatal):", e));
-  }
-
-  await db
-    .update(users)
-    .set({ totalUploads: sql`GREATEST(${users.totalUploads} - 1, 0)` })
-    .where(eq(users.id, userId));
+  await removeWallpaper({ id: wallpaperId, fileUrl: existing.fileUrl, uploaderId: userId });
 }

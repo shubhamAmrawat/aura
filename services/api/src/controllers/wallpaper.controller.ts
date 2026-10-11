@@ -66,16 +66,16 @@ export const similar = route("Failed to fetch similar wallpapers", async (req, r
   res.json(result);
 });
 
-/** POST /api/wallpapers/:id/download — body (optional): { quality } */
+/** POST /api/wallpapers/:id/download — body (optional): { quality, source: "web" | "mobile" } */
 export const trackDownload = route("Failed to track download", async (req, res) => {
   const quality = typeof req.body?.quality === "string" && req.body.quality.trim() ? req.body.quality.trim() : "original";
-  await wallpaperService.trackDownload(param(req, "id"), req.userId, quality);
+  await wallpaperService.trackDownload(param(req, "id"), req.userId, quality, wallpaperService.toClientSource(req.body?.source));
   res.json({ message: "Download tracked" });
 });
 
-/** POST /api/wallpapers/:id/view */
+/** POST /api/wallpapers/:id/view — body (optional): { source: "web" | "mobile" } */
 export const trackView = route("Failed to track view", async (req, res) => {
-  await wallpaperService.trackView(param(req, "id"));
+  await wallpaperService.trackView(param(req, "id"), wallpaperService.toClientSource(req.body?.source));
   res.json({ message: "View tracked" });
 });
 

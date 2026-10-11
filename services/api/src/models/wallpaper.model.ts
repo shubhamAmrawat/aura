@@ -94,4 +94,6 @@ export const wallpapers = pgTable("wallpapers", {
   reviewedAt: timestamp("reviewed_at"),
   /** Set on reject; the file is deleted from R2 30 days later */
   rejectedAt: timestamp("rejected_at"),
+  /** Admin's reason when rejecting (moderationReason is the automatic check's) */
+  reviewNote: text("review_note"),
 }, (t) => [index("wallpapers_status_created_at_idx").on(t.status, t.createdAt)]);

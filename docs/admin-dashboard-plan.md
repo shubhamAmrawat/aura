@@ -1,15 +1,8 @@
 # AURA — Admin Dashboard Plan
 
-> **Status (2026-10-10):** Phase 1 built and tested locally (DB migration applied to prod — additive, backup
-> `backups/aura_public_20261010_2339_pre_admin.dump`). Tests: contract 133/133 (incl. 8 new admin), unit 25/25,
-> integration 8/8; web tsc + eslint + `next build` clean. Next: make yourself admin → manual test → deploy → Phase 2.
->
-> **Goal:** One place (`aurora-walls.com/admin`) to run the platform without touching the database:
-> review uploads, manage wallpapers and categories, bulk-upload new wallpapers, manage users,
-> and see how the site is doing.
->
-> **Rules:** everything is enforced by the API (the web page is only a UI); every admin change is
-> written to an audit log; existing public endpoints don't change.
+> **Status (2026-10-11):** Phase 1 live. Phase 2 (review queue) built and tested locally — migration
+> `2026-10-11-admin-phase2.sql` applied (adds `wallpapers.review_note`). Tests: contract 144/144, integration 9/9,
+> unit 25/25, browser test of the review page; web tsc + eslint + build clean. Next: deploy → Phase 3.
 
 ## Where we are today (checked against code + prod DB)
 

@@ -7,10 +7,10 @@ const n = (v: unknown) => Number(v ?? 0);
 export async function getOverview() {
   const [usersRow, wallpapersRow, downloadsRow, likesRow] = await Promise.all([
     db.execute(sql`
-      SELECT count(*) AS total,
-             count(*) FILTER (WHERE created_at > now() - interval '7 days')  AS new_7d,
-             count(*) FILTER (WHERE created_at > now() - interval '30 days') AS new_30d,
-             count(*) FILTER (WHERE is_creator) AS creators,
+      SELECT count(*) FILTER (WHERE role = 'user') AS total,
+             count(*) FILTER (WHERE role = 'user' AND created_at > now() - interval '7 days')  AS new_7d,
+             count(*) FILTER (WHERE role = 'user' AND created_at > now() - interval '30 days') AS new_30d,
+             count(*) FILTER (WHERE role = 'user' AND is_creator) AS creators,
              count(*) FILTER (WHERE role = 'admin') AS admins
       FROM users`),
     db.execute(sql`

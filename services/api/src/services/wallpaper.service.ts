@@ -100,7 +100,7 @@ export async function listTrending(params: { limit: number; offset: number; scre
 
 /** Remove admin-only review fields before a wallpaper goes into a public response. */
 export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSelect>>(row: T) {
-  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, ...rest } = row;
+  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, reviewNote: _n, ...rest } = row;
   return rest;
 }
 
@@ -182,11 +182,22 @@ export async function getSimilar(id: string, params: { limit: number; offset: nu
 }
 
 /** Count a view (approved wallpapers only). */
-export async function trackView(id: string) {
-  await db
+/** Which client reported a view/download. Anything else is stored as "unknown". */
+export type ClientSource = "web" | "mobile" | "unknown";
+export const toClientSource = (v: unknown): ClientSource => (v === "web" || v === "mobile" ? v : "unknown");
+
+/** Count a view: the public counter + the daily log (IST date) used by the dashboard. */
+export async function trackView(id: string, source: ClientSource = "unknown") {
+  const updated = await db
     .update(wallpapers)
     .set({ viewCount: sql`${wallpapers.viewCount} + 1` })
-    .where(and(eq(wallpapers.id, id), eq(wallpapers.status, "approved")));
+    .where(and(eq(wallpapers.id, id), eq(wallpapers.status, "approved")))
+    .returning({ id: wallpapers.id });
+  if (updated.length === 0) return;
+  await db.execute(sql`
+    INSERT INTO wallpaper_views_daily (wallpaper_id, day, source, views)
+    VALUES (${id}, (now() AT TIME ZONE 'Asia/Kolkata')::date, ${source}, 1)
+    ON CONFLICT (wallpaper_id, day, source) DO UPDATE SET views = wallpaper_views_daily.views + 1`);
 }
 
 const DOWNLOAD_DEDUPE_HOURS = 24;
@@ -199,7 +210,7 @@ const DOWNLOAD_DEDUPE_HOURS = 24;
  *   Anonymous downloads always count (there is no identity to dedupe on).
  * Unknown wallpaper ids are a no-op (same 200 response as before).
  */
-export async function trackDownload(id: string, userId: string | undefined, quality = "original") {
+export async function trackDownload(id: string, userId: string | undefined, quality = "original", source: ClientSource = "unknown") {
   const [wallpaper] = await db
     .select({ id: wallpapers.id, uploaderId: wallpapers.uploaderId })
     .from(wallpapers)
@@ -224,7 +235,7 @@ export async function trackDownload(id: string, userId: string | undefined, qual
       counts = recent.length === 0;
     }
 
-    await tx.insert(downloads).values({ userId: userId ?? null, wallpaperId: id, quality });
+    await tx.insert(downloads).values({ userId: userId ?? null, wallpaperId: id, quality, source });
 
     if (counts) {
       await tx

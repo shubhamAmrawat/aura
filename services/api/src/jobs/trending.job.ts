@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "../config/db";
+import { purgeExpiredRejected } from "../services/admin/review.service";
 /**
  * Trending score formula:
  * 
@@ -77,6 +78,8 @@ async function runJob() {
     console.log("[scheduler] Running trending score recalculation...");
     const result = await recalculateTrendingScores();
     console.log(`[scheduler] Done — ${result.updated} wallpapers updated in ${result.durationMs}ms`);
+    const { purged } = await purgeExpiredRejected();
+    if (purged > 0) console.log(`[scheduler] Purged ${purged} wallpapers rejected over 30 days ago`);
   } catch (error) {
     console.error("[scheduler] Trending recalculation failed:", error);
   } finally {

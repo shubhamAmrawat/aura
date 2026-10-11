@@ -15,9 +15,11 @@ const icon = (d: React.ReactNode) => (
   </svg>
 );
 
+const logoutIcon = icon(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>);
+
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: icon(<><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></>) },
-  { href: "/admin/review", label: "Review queue", soon: true, icon: icon(<><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>) },
+  { href: "/admin/review", label: "Review queue", icon: icon(<><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>) },
   { href: "/admin/wallpapers", label: "Wallpapers", soon: true, icon: icon(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></>) },
   { href: "/admin/upload", label: "Bulk upload", soon: true, icon: icon(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>) },
   { href: "/admin/categories", label: "Categories", soon: true, icon: icon(<><path d="M4 4h6v6H4z" /><path d="M14 4h6v6h-6z" /><path d="M4 14h6v6H4z" /><path d="M14 14h6v6h-6z" /></>) },
@@ -37,12 +39,15 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   const isAdmin = user?.role === "admin";
   const loggingOut = useRef(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     if (loaded && !isAdmin && !loggingOut.current) router.replace("/");
   }, [loaded, isAdmin, router]);
 
   const handleLogout = async () => {
+    setSigningOut(true);
     loggingOut.current = true;
     await logout();
     // Full page load so the middleware sees the cleared cookie.
@@ -120,10 +125,17 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{user.displayName}</p>
-            <button onClick={handleLogout} className="text-[11px] transition-opacity hover:opacity-70" style={{ color: "var(--text-muted)" }}>
-              Log out
-            </button>
+            <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>{user.email}</p>
           </div>
+          <button
+            onClick={() => setConfirmLogout(true)}
+            className="p-2 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: "var(--text-secondary)" }}
+            title="Log out"
+            aria-label="Log out"
+          >
+            {logoutIcon}
+          </button>
         </div>
       </aside>
 
@@ -149,12 +161,68 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         {menuOpen && (
           <div className="md:hidden px-4 py-3" style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)" }}>
             {nav}
-            <button onClick={handleLogout} className="block text-xs mt-3 px-3" style={{ color: "var(--text-muted)" }}>Log out</button>
+            <button
+              onClick={() => setConfirmLogout(true)}
+              className="flex items-center gap-3 w-full px-3 py-2 mt-2 rounded-lg text-sm hover:bg-white/5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {logoutIcon}
+              Log out
+            </button>
           </div>
         )}
 
-        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 max-w-7xl w-full">{children}</main>
+        <main className="flex-1 px-4 md:px-8 py-6 md:py-8 w-full">{children}</main>
       </div>
+
+      {confirmLogout && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={() => !signingOut && setConfirmLogout(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-title"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.key === "Escape" && !signingOut && setConfirmLogout(false)}
+            className="w-[min(380px,92vw)] rounded-xl p-5 flex flex-col gap-4"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-hover)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>
+                {logoutIcon}
+              </div>
+              <div>
+                <p id="logout-title" className="font-semibold" style={{ color: "var(--text-primary)" }}>Log out?</p>
+                <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+                  You&apos;ll be signed out of the admin dashboard on this browser.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                autoFocus
+                disabled={signingOut}
+                onClick={() => setConfirmLogout(false)}
+                className="text-sm px-3 py-2 rounded-lg hover:bg-white/5 disabled:opacity-40"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={signingOut}
+                onClick={() => void handleLogout()}
+                className="text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-60"
+                style={{ background: "#ef4444", color: "#fff" }}
+              >
+                {signingOut ? "Logging out…" : "Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

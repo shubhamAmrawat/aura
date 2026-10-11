@@ -82,7 +82,7 @@ describe("review fields stay private", () => {
     const res = await api("GET", `/api/wallpapers/${wpId}`);
     expect(res.status).toBe(200);
     const body = JSON.stringify(res.body);
-    for (const k of ["moderationReason", "reviewedBy", "reviewedAt", "rejectedAt"]) expect(body).not.toContain(k);
+    for (const k of ["moderationReason", "reviewedBy", "reviewedAt", "rejectedAt", "reviewNote"]) expect(body).not.toContain(k);
   });
 });
 

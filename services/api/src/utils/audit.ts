@@ -6,7 +6,8 @@ type Executor = Pick<typeof db, "insert">;
 /** Write one audit-log row for an admin change. Pass `tx` to make it part of a transaction. */
 export async function logAdminAction(
   entry: {
-    adminId: string;
+    /** null = done by the system (jobs, scripts) */
+    adminId: string | null;
     action: string;
     targetType?: string;
     targetId?: string;
