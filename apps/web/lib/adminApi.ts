@@ -223,3 +223,47 @@ export async function getCategoryOptions(): Promise<CategoryOption[]> {
   if (!res.ok) throw new Error(data.error || "Failed to load categories");
   return (data.data ?? []) as CategoryOption[];
 }
+
+// ─── Featured (home page hero) ──────────────────────────────
+
+export type FeaturedItem = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  dominantColor: string;
+  width: number;
+  height: number;
+  format: string;
+  tags: string[];
+  status: "approved" | "pending" | "rejected";
+  isMobile: boolean;
+  featuredOrder: number | null;
+  createdAt: string;
+};
+export type FeaturedState = { limit: number; maxLimit: number; items: FeaturedItem[] };
+
+async function adminPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API}/api/admin${path}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data as T;
+}
+
+export const getFeatured = () => adminGet<FeaturedState>("/featured");
+export const saveFeaturedOrder = (ids: string[]) => adminPut<FeaturedState>("/featured/order", { ids });
+export const saveFeaturedLimit = (limit: number) => adminPut<FeaturedState>("/featured/limit", { limit });
+
+/** Ask the web app to refresh the cached home-page hero right away (same-origin, admin cookie). */
+export async function refreshHomeHero(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/revalidate-featured", { method: "POST", credentials: "include" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

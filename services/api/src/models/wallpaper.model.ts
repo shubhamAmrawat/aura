@@ -96,4 +96,6 @@ export const wallpapers = pgTable("wallpapers", {
   rejectedAt: timestamp("rejected_at"),
   /** Admin's reason when rejecting (moderationReason is the automatic check's) */
   reviewNote: text("review_note"),
+  /** Position on the home page hero (1 = first). Set only while isFeatured. */
+  featuredOrder: integer("featured_order"),
 }, (t) => [index("wallpapers_status_created_at_idx").on(t.status, t.createdAt)]);

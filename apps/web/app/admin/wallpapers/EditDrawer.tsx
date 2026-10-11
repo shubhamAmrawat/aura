@@ -14,6 +14,7 @@ import {
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, Toggle, inputStyle } from "../_components/ui";
+import WallpaperLightbox from "../_components/WallpaperLightbox";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 const fmtDate = (iso: string) => new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -58,6 +59,7 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [statusBusy, setStatusBusy] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -71,10 +73,10 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
   }, [id]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !confirmDelete && !rejecting) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && !confirmDelete && !rejecting && !previewing) onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, confirmDelete, rejecting]);
+  }, [onClose, confirmDelete, rejecting, previewing]);
 
   const patch = useMemo<WallpaperPatch>(() => {
     if (!w || !form) return {};
@@ -195,7 +197,14 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
             <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
               <div className="flex gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={w.fileUrl} alt={w.title} className="w-28 rounded-lg object-cover shrink-0" style={{ background: w.dominantColor, aspectRatio: `${w.width} / ${w.height}`, maxHeight: 200 }} />
+                <img
+                  src={w.fileUrl}
+                  alt={w.title}
+                  onClick={() => setPreviewing(true)}
+                  className="w-28 rounded-lg object-cover shrink-0 cursor-zoom-in transition-opacity hover:opacity-85"
+                  style={{ background: w.dominantColor, aspectRatio: `${w.width} / ${w.height}`, maxHeight: 200 }}
+                  title="View full size"
+                />
                 <div className="min-w-0 flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
                   <p>{w.width}×{w.height} ({resolutionOf(w.width, w.height).label}) · {w.format.toUpperCase()} · {w.fileSizeBytes >= 1048576 ? `${(w.fileSizeBytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(w.fileSizeBytes / 1024))} KB`}</p>
                   <p>By {w.uploader ? `@${w.uploader.username}` : "no uploader (seeded)"}</p>
@@ -206,11 +215,9 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
                   <p style={{ color: w.hasTextEmbedding ? "var(--text-muted)" : "#eab308" }}>
                     {w.hasTextEmbedding ? "In search" : "Not in search yet"} · {w.hasVisionEmbedding ? "Similar-vibes ready" : "No similar-vibes data"}
                   </p>
-                  {w.status === "approved" && (
-                    <a href={`/wallpaper/${w.id}`} target="_blank" rel="noreferrer" className="mt-1 hover:underline" style={{ color: "var(--accent)" }}>
-                      Open on site ↗
-                    </a>
-                  )}
+                  <button onClick={() => setPreviewing(true)} className="mt-1 self-start hover:underline" style={{ color: "var(--accent)" }}>
+                    View full size
+                  </button>
                 </div>
               </div>
 
@@ -300,6 +307,8 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
           </>
         )}
       </aside>
+
+      {previewing && w && <WallpaperLightbox wallpaper={w} onClose={() => setPreviewing(false)} />}
 
       {confirmDelete && w && (
         <ConfirmDialog

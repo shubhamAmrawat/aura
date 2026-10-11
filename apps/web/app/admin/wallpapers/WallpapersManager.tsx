@@ -18,13 +18,13 @@ import {
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, inputStyle } from "../_components/ui";
 import EditDrawer from "./EditDrawer";
+import WallpaperLightbox, { type LightboxWallpaper } from "../_components/WallpaperLightbox";
 
 const PAGE = 50;
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "2-digit" });
 
 const FLAG_KEYS = [
-  { key: "featured", label: "Featured" },
   { key: "premium", label: "Premium" },
   { key: "ai", label: "AI" },
 ] as const;
@@ -53,7 +53,6 @@ export default function WallpapersManager() {
     status: (params.get("status") as WallpaperFilters["status"]) ?? "all",
     categoryId: params.get("categoryId") ?? undefined,
     uploader: params.get("uploader") ?? undefined,
-    featured: params.get("featured") === "true" ? "true" : undefined,
     premium: params.get("premium") === "true" ? "true" : undefined,
     mobile: (params.get("mobile") as "true" | "false") ?? undefined,
     ai: params.get("ai") === "true" ? "true" : undefined,
@@ -82,6 +81,7 @@ export default function WallpapersManager() {
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
+  const [preview, setPreview] = useState<LightboxWallpaper | null>(null);
   const [search, setSearch] = useState(filters.q ?? "");
   const [uploader, setUploader] = useState(filters.uploader ?? "");
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -134,7 +134,7 @@ export default function WallpapersManager() {
   const selectedItems = items.filter((w) => selected.has(w.id));
   const anyUnfeatured = selectedItems.some((w) => !w.isFeatured);
   const anyFeatured = selectedItems.some((w) => w.isFeatured);
-  const activeFilterCount = [filters.q, filters.categoryId, filters.uploader, filters.featured, filters.premium, filters.mobile, filters.ai, filters.resolution].filter(Boolean).length + (filters.status !== "all" ? 1 : 0);
+  const activeFilterCount = [filters.q, filters.categoryId, filters.uploader, filters.premium, filters.mobile, filters.ai, filters.resolution].filter(Boolean).length + (filters.status !== "all" ? 1 : 0);
 
   const toggle = (id: string) => setSelected((prev) => {
     const n = new Set(prev);
@@ -273,7 +273,15 @@ export default function WallpapersManager() {
                   <td className="px-2 py-2">
                     <div className="flex items-center gap-3 min-w-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={w.fileUrl} alt="" loading="lazy" className="w-12 h-12 rounded object-contain shrink-0" style={{ background: w.dominantColor }} title={w.isMobile ? "Mobile (portrait)" : "Desktop (landscape)"} />
+                      <img
+                        src={w.fileUrl}
+                        alt=""
+                        loading="lazy"
+                        onClick={(e) => { e.stopPropagation(); setPreview(w); }}
+                        className="w-12 h-12 rounded object-contain shrink-0 cursor-zoom-in transition-transform hover:scale-105"
+                        style={{ background: w.dominantColor }}
+                        title="View full size"
+                      />
                       <div className="min-w-0">
                         <p className="truncate max-w-[320px]" style={{ color: "var(--text-primary)" }} title={w.title}>{w.title}</p>
                         <p className="text-[11px] truncate max-w-[320px]" style={{ color: "var(--text-muted)" }}>
@@ -357,6 +365,8 @@ export default function WallpapersManager() {
       {editing && (
         <EditDrawer id={editing} categories={categories} onClose={() => setEditing(null)} onChanged={onChanged} onDeleted={onDeleted} />
       )}
+
+      {preview && <WallpaperLightbox wallpaper={preview} onClose={() => setPreview(null)} />}
 
       {confirmBulkDelete && (
         <ConfirmDialog

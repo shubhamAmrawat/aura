@@ -4,6 +4,11 @@
 > Phase 3 (wallpaper management) built and tested locally — contract tests 14-admin-wallpapers (12/12),
 > browser-tested list/filters/edit drawer/bulk/delete. Status changes stay on the review endpoints
 > (approve / reject / restore), PATCH edits metadata + flags only. Next: deploy → Phase 4 (bulk upload).
+>
+> **Featured (2026-10-11):** `/admin/featured` — drag (or ↑/↓, keyboard) to order; home-page limit 1–10 (the rest wait
+> in reserve); add/remove. Saves refresh the home hero instantly. `wallpapers.featured_order` + `site_settings`
+> (migration `2026-10-11-featured-order.sql`, applied). Public `GET /api/featured`; admin `GET /api/admin/featured`,
+> `PUT /api/admin/featured/order`, `PUT /api/admin/featured/limit`. Contract 15 (8/8) + browser-tested.
 
 ## Where we are today (checked against code + prod DB)
 
@@ -102,7 +107,7 @@
 - `GET /admin/actions` (filter by admin, action, target, date) + web table; each row links to its target.
 
 ### Later (not v1)
-Festival drops (scheduled featured sets — builds on Phase 3 + 5), user reports/flagging, email to uploaders on approve/reject, homepage hero ordering, banning, multiple admin roles.
+Festival drops (scheduled featured sets — builds on Phase 3 + 5), user reports/flagging, email to uploaders on approve/reject, banning, multiple admin roles.
 
 ## 3. Security
 - API is the only gate (`requireAdmin` on the whole `/api/admin` router); UI checks are cosmetic.

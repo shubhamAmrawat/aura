@@ -100,7 +100,7 @@ export async function listTrending(params: { limit: number; offset: number; scre
 
 /** Remove admin-only review fields before a wallpaper goes into a public response. */
 export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSelect>>(row: T) {
-  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, reviewNote: _n, ...rest } = row;
+  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, reviewNote: _n, featuredOrder: _o, ...rest } = row;
   return rest;
 }
 

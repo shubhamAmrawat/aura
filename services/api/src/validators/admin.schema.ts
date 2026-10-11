@@ -133,3 +133,19 @@ export const WallpaperBulkBody = z
       ctx.addIssue({ code: "custom", message: "Enter at least one tag.", path: ["tags"] });
     }
   });
+
+// ─── Featured (home page hero) ──────────────────────────────
+
+export const FeaturedOrderBody = z.object({
+  ids: z
+    .array(z.string().regex(UUID, "Invalid wallpaper id"), { message: "ids must be a list of wallpaper ids" })
+    .max(500, "Too many wallpapers"),
+});
+
+export const FeaturedLimitBody = z.object({
+  limit: z
+    .number({ message: "limit must be a number from 1 to 10" })
+    .int("limit must be a number from 1 to 10")
+    .min(1, "limit must be a number from 1 to 10")
+    .max(10, "limit must be a number from 1 to 10"),
+});

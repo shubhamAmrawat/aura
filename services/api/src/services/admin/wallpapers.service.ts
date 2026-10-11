@@ -5,6 +5,7 @@ import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { generateWallpaperTextEmbedding } from "../../integrations/openai";
 import { removeWallpaper } from "../wallpaperRemoval.service";
+import { nextFeaturedOrder } from "../featured.service";
 
 export type WallpaperListFilters = {
   q?: string;
@@ -215,8 +216,10 @@ export async function updateWallpaper(adminId: string, id: string, patch: Wallpa
 
   if (Object.keys(changes).length === 0) return getWallpaperDetail(id);
 
-  const set = Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.to]));
+  const set: Record<string, unknown> = Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.to]));
   await db.transaction(async (tx) => {
+    // Featuring puts it at the end of the home-page order; unfeaturing removes its position
+    if ("isFeatured" in changes) set.featuredOrder = changes.isFeatured!.to ? await nextFeaturedOrder(tx) : null;
     await tx.update(wallpapers).set({ ...set, updatedAt: new Date() }).where(eq(wallpapers.id, id));
     await logAdminAction(
       { adminId, action: "wallpaper.update", targetType: "wallpaper", targetId: id, details: { title: patch.title ?? current.title, changes } },

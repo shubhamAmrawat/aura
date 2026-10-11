@@ -10,6 +10,7 @@ import {
   type ReviewStatus,
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
+import WallpaperLightbox from "../_components/WallpaperLightbox";
 
 const PAGE = 24;
 const PRESET_REASONS = [
@@ -365,7 +366,7 @@ export default function ReviewQueuePage() {
         </div>
       )}
 
-      {preview && <PreviewModal item={preview} onClose={() => setPreview(null)} />}
+      {preview && <WallpaperLightbox wallpaper={preview} onClose={() => setPreview(null)} />}
       {rejectTarget && (
         <RejectModal
           count={rejectTarget.ids.length}
@@ -383,23 +384,6 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="max-h-full">{children}</div>
     </div>
-  );
-}
-
-function PreviewModal({ item, onClose }: { item: ReviewItem; onClose: () => void }) {
-  return (
-    <Overlay onClose={onClose}>
-      <div className="flex flex-col items-center gap-3 max-h-[92vh]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.fileUrl} alt={item.title} className="max-h-[80vh] max-w-[92vw] object-contain rounded-lg" />
-        <div className="text-center">
-          <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{item.title}</p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-            {item.width}×{item.height} · {item.format.toUpperCase()} · {item.tags.length ? item.tags.join(", ") : "no tags"}
-          </p>
-        </div>
-      </div>
-    </Overlay>
   );
 }
 

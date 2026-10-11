@@ -69,12 +69,17 @@ export async function getWallpapers(
 /** Paginated list for infinite scroll; uses `hasMore` from the API. */
 export const getWallpapersPage = getWallpapers;
 
+/** Home page hero: admin-chosen order and count. Refreshed instantly when an admin saves (tag "featured"). */
 export async function getFeaturedWallpapers(): Promise<Wallpaper[]> {
-  const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(
-    `${getApiUrl()}/api/wallpapers?featured=true&limit=5`,
-    { next: { revalidate: 120, tags: ["wallpapers", "featured"] } }
-  );
-  return data;
+  const init = { next: { revalidate: 120, tags: ["wallpapers", "featured"] } };
+  try {
+    const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(`${getApiUrl()}/api/featured`, init);
+    return data;
+  } catch {
+    // Older API without /api/featured: fall back to the previous behaviour
+    const { data } = await fetchJsonOrThrow<{ data: Wallpaper[] }>(`${getApiUrl()}/api/wallpapers?featured=true&limit=5`, init);
+    return data;
+  }
 }
 
 /**
