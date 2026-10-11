@@ -1,8 +1,9 @@
 # AURA — Admin Dashboard Plan
 
-> **Status (2026-10-11):** Phase 1 live. Phase 2 (review queue) built and tested locally — migration
-> `2026-10-11-admin-phase2.sql` applied (adds `wallpapers.review_note`). Tests: contract 144/144, integration 9/9,
-> unit 25/25, browser test of the review page; web tsc + eslint + build clean. Next: deploy → Phase 3.
+> **Status (2026-10-11):** Phases 1–2 live; Overview redesigned (charts + daily view/download tracking).
+> Phase 3 (wallpaper management) built and tested locally — contract tests 14-admin-wallpapers (12/12),
+> browser-tested list/filters/edit drawer/bulk/delete. Status changes stay on the review endpoints
+> (approve / reject / restore), PATCH edits metadata + flags only. Next: deploy → Phase 4 (bulk upload).
 
 ## Where we are today (checked against code + prod DB)
 

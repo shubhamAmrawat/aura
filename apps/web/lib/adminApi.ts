@@ -107,3 +107,119 @@ export type BulkResult = { action: string; succeeded: number; failed: number; re
 
 export const bulkReview = (ids: string[], action: "approve" | "reject", reason?: string) =>
   adminPost<BulkResult>("/review/bulk", { ids, action, reason });
+
+// ─── Wallpaper management ───────────────────────────────────
+
+async function adminSend<T>(method: "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API}/api/admin${path}`, {
+    method,
+    credentials: "include",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data as T;
+}
+
+export type AdminWallpaper = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  dominantColor: string;
+  width: number;
+  height: number;
+  fileSizeBytes: number;
+  format: string;
+  status: "approved" | "pending" | "rejected";
+  tags: string[];
+  isFeatured: boolean;
+  isPremium: boolean;
+  isMobile: boolean;
+  isAiGenerated: boolean;
+  downloadCount: number;
+  likeCount: number;
+  viewCount: number;
+  trendingScore: number;
+  createdAt: string;
+  category: { id: string; name: string } | null;
+  uploader: { id: string; username: string } | null;
+};
+
+export type AdminWallpaperDetail = AdminWallpaper & {
+  description: string | null;
+  palette: string[];
+  moderationReason: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  rejectedAt: string | null;
+  updatedAt: string;
+  hasVisionEmbedding: boolean;
+  hasTextEmbedding: boolean;
+};
+
+export type Resolution = "4k" | "qhd" | "fhd" | "hd" | "low";
+
+/** Same tiers as the API: by the image's longer edge. */
+export const RESOLUTIONS: { value: Resolution; label: string; hint: string; min: number }[] = [
+  { value: "4k", label: "4K+", hint: "3840px and up", min: 3840 },
+  { value: "qhd", label: "QHD", hint: "2560–3839px", min: 2560 },
+  { value: "fhd", label: "Full HD", hint: "1920–2559px", min: 1920 },
+  { value: "hd", label: "HD", hint: "1280–1919px", min: 1280 },
+  { value: "low", label: "Low", hint: "under 1280px", min: 0 },
+];
+
+export const resolutionOf = (w: number, h: number) => RESOLUTIONS.find((r) => Math.max(w, h) >= r.min)!;
+
+export type WallpaperFilters = {
+  q?: string;
+  status?: "all" | "approved" | "pending" | "rejected";
+  categoryId?: string;
+  uploader?: string;
+  featured?: "true" | "false";
+  premium?: "true" | "false";
+  mobile?: "true" | "false";
+  ai?: "true" | "false";
+  resolution?: Resolution;
+  sort?: "newest" | "oldest" | "downloads" | "likes" | "views" | "trending" | "title";
+  limit?: number;
+  offset?: number;
+};
+
+export function listAdminWallpapers(f: WallpaperFilters) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  return adminGet<{ data: AdminWallpaper[]; total: number; hasMore: boolean }>(`/wallpapers?${qs}`);
+}
+
+export const getAdminWallpaper = (id: string) => adminGet<AdminWallpaperDetail>(`/wallpapers/${id}`);
+
+export type WallpaperPatch = Partial<{
+  title: string;
+  description: string | null;
+  tags: string[];
+  categoryId: string | null;
+  isFeatured: boolean;
+  isPremium: boolean;
+  isMobile: boolean;
+  isAiGenerated: boolean;
+}>;
+
+export const updateAdminWallpaper = (id: string, patch: WallpaperPatch) =>
+  adminSend<AdminWallpaperDetail>("PATCH", `/wallpapers/${id}`, patch);
+
+export const deleteAdminWallpaper = (id: string) => adminSend<{ id: string; deleted: true }>("DELETE", `/wallpapers/${id}`);
+
+export type WallpaperBulkAction = "feature" | "unfeature" | "setCategory" | "addTags" | "removeTags" | "delete";
+
+export const bulkUpdateWallpapers = (ids: string[], action: WallpaperBulkAction, opts: { categoryId?: string | null; tags?: string[] } = {}) =>
+  adminPost<BulkResult>("/wallpapers/bulk", { ids, action, ...opts });
+
+export type CategoryOption = { id: string; name: string; slug: string };
+
+export async function getCategoryOptions(): Promise<CategoryOption[]> {
+  const res = await fetch(`${API}/api/categories`, { cache: "no-store" });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Failed to load categories");
+  return (data.data ?? []) as CategoryOption[];
+}

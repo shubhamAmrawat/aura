@@ -336,8 +336,9 @@ export default function ReviewQueuePage() {
 
       {/* Bulk action bar */}
       {selectedIds.length > 0 && (
+        <div className="fixed bottom-4 left-0 right-0 md:left-60 z-40 flex justify-center px-4 pointer-events-none">
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 md:left-[calc(50%+7.5rem)] z-40 flex items-center gap-3 px-4 py-3 rounded-xl"
+          className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl whitespace-nowrap"
           style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-hover)", boxShadow: "0 16px 48px rgba(0,0,0,0.5)" }}
         >
           <span className="text-sm tabular-nums" style={{ color: "var(--text-primary)" }}>{selectedIds.length} selected</span>
@@ -360,6 +361,7 @@ export default function ReviewQueuePage() {
           <button onClick={() => setSelected(new Set())} className="text-xs px-2 py-2" style={{ color: "var(--text-muted)" }}>
             Clear
           </button>
+        </div>
         </div>
       )}
 
