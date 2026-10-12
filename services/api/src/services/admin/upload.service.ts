@@ -1,13 +1,14 @@
 import { and, eq, ne } from "drizzle-orm";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
-import { categories, wallpapers } from "../../models";
+import { categories, categorySuggestions, wallpapers } from "../../models";
 import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { deleteFile, generateUploadUrl } from "../../integrations/r2";
 import { checkImageSafety } from "../../integrations/sightengine";
 import { generateVisionEmbedding } from "../../integrations/openai";
 import { extractImageMetadata } from "../../utils/imageMetadata";
+import { CATEGORY_AI_MODEL, classifyWallpaperCategory } from "../categoryAi.service";
 import type { AdminUploadInput } from "../../validators/admin.schema";
 
 const MIN_IMAGE_DIMENSION = 200;
@@ -40,6 +41,8 @@ export type AdminUploadResult = {
     createdAt: Date;
   };
   moderation: { status: "approved" | "pending" | "rejected"; reason: string | null };
+  /** where it was filed; `auto` = picked by the AI */
+  category: { id: string; name: string; auto: boolean };
   warnings: string[];
 };
 
@@ -59,17 +62,36 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   }
   if (!env.R2_PUBLIC_URL || fileUrl !== `${env.R2_PUBLIC_URL}/${key}`) throw new ApiError(400, "fileUrl does not match the key");
 
-  const [category] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, input.categoryId)).limit(1);
-  if (!category) throw new ApiError(400, "Category not found");
+  const auto = input.categoryId === "auto";
+  const allCats = await db.select({ id: categories.id, slug: categories.slug, name: categories.name }).from(categories);
+  const chosen = auto ? null : allCats.find((c) => c.id === input.categoryId);
+  if (!auto && !chosen) throw new ApiError(400, "Category not found");
 
-  const [moderation, metadata, embedding] = await Promise.all([
+  const [moderation, metadata, embedding, aiPick] = await Promise.all([
     checkImageSafety(fileUrl),
     extractImageMetadata(fileUrl),
     generateVisionEmbedding(fileUrl, { title: input.title, description: input.description, tags: input.tags }).catch((err) => {
       console.error("[embedding] Vision embedding failed during admin upload:", err);
       return null;
     }),
+    auto
+      ? classifyWallpaperCategory(
+          { imageUrl: fileUrl, title: input.title, description: input.description, tags: input.tags },
+          allCats.filter((c) => c.slug !== "uncategorized")
+        ).catch((err) => {
+          console.error("[category-ai] failed during admin upload:", err);
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
+
+  // "auto": the AI's pick, else Uncategorized (it then shows up in the review list), else a clear error
+  const fallback = allCats.find((c) => c.slug === "uncategorized");
+  const category = chosen ?? allCats.find((c) => c.id === aiPick?.categoryId) ?? fallback;
+  if (!category) {
+    await deleteFile(key).catch(() => {});
+    throw new ApiError(400, "The AI couldn't pick a category. Choose one and upload again.");
+  }
 
   const width = metadata.width || input.width || 0;
   const height = metadata.height || input.height || 0;
@@ -92,6 +114,8 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
     );
   }
   if (!embedding) warnings.push("Search vector missing — “Similar” results stay empty until re-embedded.");
+  const autoFellBack = auto && !aiPick?.categoryId;
+  if (autoFellBack) warnings.push("The AI couldn't pick a category — filed under Uncategorized (see Categories → AI suggestions).");
 
   // Same pixel size + same byte size as an existing wallpaper → almost certainly the same file
   const [dupe] = await db
@@ -118,7 +142,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         height,
         fileSizeBytes: input.fileSizeBytes,
         format,
-        categoryId: input.categoryId,
+        categoryId: category.id,
         uploaderId: null,
         tags: input.tags,
         isPremium: input.isPremium,
@@ -151,13 +175,21 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         action: "wallpaper.upload",
         targetType: "wallpaper",
         targetId: row!.id,
-        details: { title: input.title, published: input.publish, moderation: moderation.status, warnings: warnings.length },
+        details: { title: input.title, published: input.publish, moderation: moderation.status, category: category.name, autoCategory: auto, warnings: warnings.length },
       },
       tx
     );
     return row!;
   });
 
-  return { wallpaper: created, moderation, warnings };
+  if (autoFellBack) {
+    // keep it visible in the review list
+    await db
+      .insert(categorySuggestions)
+      .values({ wallpaperId: created.id, currentCategoryId: null, suggestedCategoryId: null, confidence: 0, currentFits: null, newCategoryIdea: aiPick?.newCategoryIdea ?? null, reason: aiPick?.reason ?? "AI could not pick a category at upload", model: CATEGORY_AI_MODEL })
+      .onConflictDoNothing();
+  }
+
+  return { wallpaper: created, moderation, category: { id: category.id, name: category.name, auto }, warnings };
 }
 

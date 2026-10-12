@@ -115,10 +115,24 @@ export async function getSimilarWallpapersPage(
   return { data: json.data ?? [], hasMore: Boolean(json.hasMore) };
 }
 
+/** Current slug for a category slug that was renamed or merged away; null if unknown. */
+export async function resolveCategorySlug(slug: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${getApiUrl()}/api/categories/resolve/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 3600, tags: ["categories"] },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { slug?: string };
+    return data.slug ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getCategories(): Promise<Category[]> {
   const { data } = await fetchJsonOrThrow<{ data: Category[] }>(
     `${getApiUrl()}/api/categories`,
-    { next: { revalidate: 86400 } }
+    { next: { revalidate: 86400, tags: ["categories"] } }
   );
   return data;
 }

@@ -21,7 +21,7 @@ import { env } from "../config/env";
 
 import OpenAI from "openai";
 
-function getOpenAI(): OpenAI {
+export function getOpenAI(): OpenAI {
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
   return new OpenAI({ apiKey });

@@ -6,6 +6,26 @@ const PROTECTED_ROUTES = ["/upload", "/profile"];
 
 const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.startsWith("/admin/");
 
+// ─── Renamed / merged categories ────────────────────────────────────────────
+// Old category slugs answer with a real 308 (the page itself streams, so it can't).
+// The old→new map is tiny; each server instance refreshes it at most every 5 minutes.
+const REDIRECTS_TTL_MS = 5 * 60 * 1000;
+let categoryRedirects: { at: number; map: Record<string, string> } = { at: 0, map: {} };
+
+async function categoryRedirectFor(slug: string): Promise<string | undefined> {
+  if (Date.now() - categoryRedirects.at > REDIRECTS_TTL_MS) {
+    const previous = categoryRedirects.map;
+    categoryRedirects = { at: Date.now(), map: previous }; // one refresh at a time; keep serving the old map
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/categories/redirects`, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) categoryRedirects = { at: Date.now(), map: ((await res.json()) as { data: Record<string, string> }).data ?? {} };
+    } catch {
+      // API unreachable → keep the previous map; the page falls back to its own lookup
+    }
+  }
+  return categoryRedirects.map[slug];
+}
+
 function withSecurityHeaders(response: NextResponse) {
   response.headers.set("X-Frame-Options", "SAMEORIGIN");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -39,6 +59,15 @@ export async function middleware(request: NextRequest) {
   // ─── Admins never see the public site ────────────────────────────────────
   if (isAdmin && !pathname.startsWith("/api/")) {
     return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  // ─── Old category addresses ──────────────────────────────────────────────
+  const cat = /^\/category\/([^/]+)\/?$/.exec(pathname);
+  if (cat) {
+    let slug = cat[1]!;
+    try { slug = decodeURIComponent(slug); } catch { /* malformed %-escape → use as is */ }
+    const to = await categoryRedirectFor(slug.toLowerCase());
+    if (to) return NextResponse.redirect(new URL(`/category/${to}${request.nextUrl.search}`, request.url), 308);
   }
 
   // ─── Auth guard ───────────────────────────────────────────────────────────

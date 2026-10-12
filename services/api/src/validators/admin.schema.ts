@@ -186,10 +186,82 @@ export const AdminUploadBody = z
       .optional()
       .transform((v) => v || null),
     tags: tagList.default([]),
-    categoryId: z.string({ message: "Category is required" }).regex(UUID, "Category is required"),
+    /** a category id, or "auto" to let the AI pick from the image */
+    categoryId: z.string({ message: "Category is required" }).refine((v) => v === "auto" || UUID.test(v), "Category is required"),
     isPremium: z.boolean({ message: "isPremium must be true or false" }).default(false),
     isAiGenerated: z.boolean({ message: "isAiGenerated must be true or false" }).default(false),
     publish: z.boolean({ message: "publish must be true or false" }).default(true),
   })
   .strict();
 export type AdminUploadInput = z.output<typeof AdminUploadBody>;
+
+// ─── Categories (Phase 5) ───────────────────────────────────
+
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const categoryName = z
+  .string({ message: "Name is required" })
+  .trim()
+  .min(1, "Name is required")
+  .max(40, "Name can be at most 40 characters");
+const categorySlug = z
+  .string({ message: "Slug is required" })
+  .trim()
+  .min(2, "Slug must be 2–40 characters")
+  .max(40, "Slug must be 2–40 characters")
+  .regex(SLUG, "Slug can only use lowercase letters, numbers and single hyphens");
+const categoryDescription = z
+  .string()
+  .trim()
+  .max(300, "Description can be at most 300 characters")
+  .nullable()
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v || null));
+
+export const CategoryCreateBody = z
+  .object({ name: categoryName, slug: categorySlug.optional(), description: categoryDescription })
+  .strict();
+
+export const CategoryPatchBody = z
+  .object({
+    name: categoryName.optional(),
+    slug: categorySlug.optional(),
+    description: categoryDescription,
+    coverImageUrl: z.string({ message: "coverImageUrl must be a URL or null" }).url("coverImageUrl must be a URL or null").nullable().optional(),
+  })
+  .strict()
+  .refine((b) => Object.values(b).some((v) => v !== undefined), "Nothing to update");
+
+export const CategoryOrderBody = z.object({
+  ids: z
+    .array(z.string().regex(UUID, "Invalid category id"), { message: "ids must be a list of category ids" })
+    .min(1, "ids must be a list of category ids")
+    .max(200, "Too many categories"),
+});
+
+export const CategoryDeleteQuery = z.object({
+  moveTo: z.string().regex(UUID, "Invalid category to move to").optional(),
+});
+
+export const SuggestionListQuery = z.object({
+  kind: z.enum(["uncategorized", "moves"], { message: "kind must be uncategorized or moves" }).default("uncategorized"),
+});
+
+export const SuggestionApplyBody = z.object({
+  items: z
+    .array(
+      z.object({
+        wallpaperId: z.string().regex(UUID, "Invalid wallpaper id"),
+        categoryId: z.string({ message: "Choose a category" }).regex(UUID, "Choose a category"),
+      }),
+      { message: "items must be a list" }
+    )
+    .min(1, "Select at least one wallpaper.")
+    .max(500, "Apply at most 500 at a time."),
+});
+
+export const SuggestionDismissBody = z.object({
+  wallpaperIds: z
+    .array(z.string().regex(UUID, "Invalid wallpaper id"), { message: "wallpaperIds must be a list" })
+    .min(1, "Select at least one wallpaper.")
+    .max(500, "Dismiss at most 500 at a time."),
+});

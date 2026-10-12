@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getWallpapers, getCategories } from "@/lib/api";
+import { permanentRedirect } from "next/navigation";
+import { getWallpapers, getCategories, resolveCategorySlug } from "@/lib/api";
 import { CategoryWallpaperGrid } from "@/app/components/CategoryWallpaperGrid";
 
 interface CategoryPageProps {
@@ -30,6 +31,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     wallpapersResult.status === "fulfilled" ? wallpapersResult.value.hasMore : false;
 
   const category = allCategories.find((c) => c.slug === slug);
+
+  // Renamed or merged category → 308 to its current address (keeps old links and search rankings)
+  if (!category && categories.status === "fulfilled") {
+    const current = await resolveCategorySlug(slug);
+    if (current && current !== slug) permanentRedirect(`/category/${current}`);
+  }
 
   return (
     <main

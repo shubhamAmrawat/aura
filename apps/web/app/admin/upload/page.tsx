@@ -31,11 +31,13 @@ type Item = {
   status: Status;
   progress: number;
   error?: string;
-  result?: { id: string; status: string; warnings: string[] };
+  result?: { id: string; status: string; warnings: string[]; category: { name: string; auto: boolean } };
 };
 type Defaults = { categoryId: string; tagsText: string; isPremium: boolean; isAiGenerated: boolean; publish: boolean };
 
 const CONCURRENCY = 3;
+/** categoryId value that lets the API pick the category from the image */
+const AUTO = "auto";
 const RETRIES = 2;
 const MB = 1024 * 1024;
 
@@ -76,7 +78,7 @@ const retryable = (status: number) => status === 0 || status === 403 || status =
 export default function BulkUploadPage() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [defaults, setDefaults] = useState<Defaults>({ categoryId: "", tagsText: "", isPremium: false, isAiGenerated: false, publish: true });
+  const [defaults, setDefaults] = useState<Defaults>({ categoryId: AUTO, tagsText: "", isPremium: false, isAiGenerated: false, publish: true });
   const [items, setItems] = useState<Item[]>([]);
   const [running, setRunning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -205,7 +207,7 @@ export default function BulkUploadPage() {
     for (let attempt = 0; ; attempt++) {
       const r = await createAdminUpload(payload);
       if (r.ok) {
-        patch(id, { status: "done", result: { id: r.data.wallpaper.id, status: r.data.wallpaper.status, warnings: r.data.warnings } });
+        patch(id, { status: "done", result: { id: r.data.wallpaper.id, status: r.data.wallpaper.status, warnings: r.data.warnings, category: r.data.category } });
         return true;
       }
       if (attempt < RETRIES && retryable(r.status) && r.status !== 403) { await sleep(2000 * (attempt + 1)); continue; }
@@ -274,6 +276,7 @@ export default function BulkUploadPage() {
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>Category</span>
               <select aria-label="Default category" value={defaults.categoryId} disabled={running} onChange={(e) => setDefaults((d) => ({ ...d, categoryId: e.target.value }))} className="rounded-lg px-3 py-2 text-sm" style={inputStyle}>
                 <option value="">Choose a category</option>
+                <option value={AUTO}>✨ Auto — AI picks from the image</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
@@ -438,6 +441,7 @@ function UploadRow({ item: i, categories, editable, showErrors, running, onChang
             style={{ ...inputStyle, ...(missingCategory ? { borderColor: "#ef4444" } : {}) }}
           >
             <option value="">Category…</option>
+            <option value={AUTO}>✨ Auto (AI)</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <input
@@ -490,6 +494,11 @@ function RowStatus({ item: i }: { item: Item }) {
   if (i.status === "failed") return <span style={{ color: "#ef4444" }}>Failed</span>;
   return (
     <span className="flex items-center gap-2">
+      {i.result && (
+        <span title={i.result.category.auto ? "Picked by the AI" : undefined} style={{ color: "var(--text-secondary)" }}>
+          {i.result.category.name}{i.result.category.auto ? " ✨" : ""}
+        </span>
+      )}
       {i.result && <StatusBadge status={i.result.status} />}
       {i.result && (
         <Link href={`/admin/wallpapers?q=${encodeURIComponent(i.title)}`} className="underline" style={{ color: "var(--text-secondary)" }}>

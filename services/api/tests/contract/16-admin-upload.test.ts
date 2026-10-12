@@ -117,7 +117,8 @@ describe("POST /api/admin/uploads", () => {
       json: { ...f, width: 1, height: 1, title: "  Admin Upload  ", description: " d ", tags: ["Blue", "blue", "test"], categoryId, isPremium: true, isAiGenerated: true, publish: false },
     });
     expect(res.status).toBe(201);
-    expect(Object.keys(res.body).sort()).toEqual(["moderation", "wallpaper", "warnings"]);
+    expect(Object.keys(res.body).sort()).toEqual(["category", "moderation", "wallpaper", "warnings"]);
+    expect(res.body.category).toEqual({ id: categoryId, name: expect.any(String), auto: false });
     expect(res.body.wallpaper).toMatchObject({ title: "Admin Upload", fileUrl: f.fileUrl, status: "pending", width: 320, height: 480, isMobile: true, format: "png" });
     expect(Array.isArray(res.body.warnings)).toBe(true);
 
@@ -138,6 +139,16 @@ describe("POST /api/admin/uploads", () => {
     const dup = await api("POST", "/api/admin/uploads", { token: admin.token, json: { ...again, title: "Admin Upload 2", categoryId, publish: false } });
     expect(dup.status).toBe(201);
     expect(dup.body.warnings.some((w: string) => w.startsWith("Possible duplicate of"))).toBe(true);
+  });
+
+  it("categoryId \"auto\": the AI files it (here a plain blue image) into some real category", async () => {
+    const f = await stage(admin, await pngOf(500, 900));
+    const res = await api("POST", "/api/admin/uploads", { token: admin.token, json: { ...f, title: "Calm blue gradient", tags: ["blue", "gradient"], categoryId: "auto", publish: false } });
+    expect(res.status).toBe(201);
+    expect(res.body.category.auto).toBe(true);
+    const [row] = await sql`SELECT w.category_id, c.name FROM wallpapers w JOIN categories c ON c.id = w.category_id WHERE w.id = ${res.body.wallpaper.id}`;
+    expect(row!.category_id).toBe(res.body.category.id);
+    expect(row!.name).toBe(res.body.category.name);
   });
 
   it("publish: approved with the admin as reviewer", async () => {

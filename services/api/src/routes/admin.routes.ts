@@ -5,6 +5,8 @@ import * as review from "../controllers/admin/review.controller";
 import * as wallpapers from "../controllers/admin/wallpapers.controller";
 import * as featured from "../controllers/admin/featured.controller";
 import * as uploads from "../controllers/admin/upload.controller";
+import * as categories from "../controllers/admin/categories.controller";
+import * as suggestions from "../controllers/admin/categorySuggestions.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -35,3 +37,13 @@ adminRoutes.put("/featured/limit", featured.limit);
 // Bulk upload (Phase 4)
 adminRoutes.post("/uploads/urls", uploads.urls);
 adminRoutes.post("/uploads", uploads.create);
+
+// Categories (Phase 5) — /order before /:id
+adminRoutes.get("/categories", categories.list);
+adminRoutes.post("/categories", categories.create);
+adminRoutes.put("/categories/order", categories.order);
+adminRoutes.get("/categories/suggestions", suggestions.list);
+adminRoutes.post("/categories/suggestions/apply", suggestions.apply);
+adminRoutes.post("/categories/suggestions/dismiss", suggestions.dismiss);
+adminRoutes.patch("/categories/:id", categories.update);
+adminRoutes.delete("/categories/:id", categories.remove);

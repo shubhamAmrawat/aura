@@ -19,6 +19,23 @@
 > wallpapers) — the admin is in `reviewed_by` + the audit log (`wallpaper.upload`). Web: drop zone, batch defaults,
 > per-file title/category/tags, 3 parallel, auto-retry ×2 (fresh link on a failed PUT), retry failed, summary.
 > Contract 16 (8/8) + browser test incl. simulated network failures. No DB migration.
+>
+> **Phase 5 — Categories (2026-10-13, built + tested locally):** `/admin/categories`. `GET/POST /api/admin/categories`,
+> `PATCH /:id` (name, slug, description, cover — cover must be an Aurora-hosted image), `PUT /order { ids }` (full list),
+> `DELETE /:id?moveTo=` (a non-empty category must move its wallpapers first — also how to merge; one transaction).
+> Names (case-insensitive) and slugs unique; slugs auto-generated. All audited (`category.*`). Web: drag/↑↓ order + save
+> bar, filter, edit modal with cover picker (top 12 live wallpapers), slug-change warning, move-&-delete dialog,
+> "needs attention" panel (802 uncategorized = 41%). Public site refreshes instantly via `POST /api/admin/revalidate
+> { tags }` (web `getCategories` now tagged `categories`). Contract 17 (7/7) + browser-tested. No DB migration.
+>
+> **Category cleanup (2026-10-13):** migration `2026-10-13-category-cleanup.sql` (applied; backup
+> `aura_public_20261013_0125_pre_categories.dump`): `category_redirects` (old slug → category; written on slug rename and
+> merge; web middleware answers old `/category/<slug>` with a 308, API list filter follows old slugs) and
+> `category_suggestions`. AI pass (`scripts/ai-categorize.mts`, GPT-4o-mini vision, $1.14 for 1,971) → review screen
+> `/admin/categories/review` (Uncategorized / Probably miscategorized; change target, apply, dismiss).
+> `scripts/category-cleanup.mts [--apply]` (run AFTER deploying): merges Urban→City, Landscape→Nature, slug
+> hindusm→hinduism, auto-applies 629 uncategorized where AI + vector centroids agree; 173 + 104 left for review.
+> Bulk upload: category "✨ Auto" (AI picks; falls back to Uncategorized + review row). Contract 16–18 + browser-tested.
 
 ## Where we are today (checked against code + prod DB)
 

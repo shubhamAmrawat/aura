@@ -1,5 +1,6 @@
-import { pgTable, uuid, text, jsonb, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, timestamp, index, real, boolean } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
+import { categories, wallpapers } from "./wallpaper.model";
 
 /** Small key/value settings changed from the admin dashboard (e.g. featured.limit). */
 export const siteSettings = pgTable("site_settings", {
@@ -19,3 +20,32 @@ export const adminActions = pgTable("admin_actions", {
   details: jsonb("details"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("admin_actions_created_at_idx").on(t.createdAt)]);
+
+/** Old category slugs (renamed or merged away) → the category they now point to. */
+export const categoryRedirects = pgTable("category_redirects", {
+  oldSlug: text("old_slug").primaryKey(),
+  categoryId: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+/** AI category suggestion per wallpaper, reviewed in the admin dashboard. */
+export const categorySuggestions = pgTable(
+  "category_suggestions",
+  {
+    wallpaperId: uuid("wallpaper_id").primaryKey().references(() => wallpapers.id, { onDelete: "cascade" }),
+    currentCategoryId: uuid("current_category_id").references(() => categories.id, { onDelete: "set null" }),
+    suggestedCategoryId: uuid("suggested_category_id").references(() => categories.id, { onDelete: "set null" }),
+    alternativeCategoryId: uuid("alternative_category_id").references(() => categories.id, { onDelete: "set null" }),
+    confidence: real("confidence").notNull(),
+    currentFits: boolean("current_fits"),
+    newCategoryIdea: text("new_category_idea"),
+    reason: text("reason"),
+    model: text("model").notNull(),
+    /** pending | applied | auto_applied | dismissed */
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at"),
+    resolvedBy: uuid("resolved_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [index("category_suggestions_status_idx").on(t.status)]
+);

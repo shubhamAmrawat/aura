@@ -293,6 +293,7 @@ export type AdminUploadPayload = {
 export type AdminUploadResult = {
   wallpaper: { id: string; title: string; fileUrl: string; status: string; width: number; height: number; isMobile: boolean; dominantColor: string };
   moderation: { status: string; reason: string | null };
+  category: { id: string; name: string; auto: boolean };
   warnings: string[];
 };
 
@@ -332,3 +333,95 @@ export function putFileToStorage(url: string, file: File, onProgress: (fraction:
     xhr.send(file);
   });
 }
+
+// ─── Categories ─────────────────────────────────────────────
+
+export type AdminCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  sortOrder: number;
+  total: number;
+  live: number;
+  previewUrl: string | null;
+};
+export type CategoryPatch = Partial<{ name: string; slug: string; description: string | null; coverImageUrl: string | null }>;
+
+async function adminCall<T>(method: "POST" | "PATCH" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API}/api/admin${path}`, {
+    method,
+    credentials: "include",
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Request failed");
+  return data as T;
+}
+
+export const listAdminCategories = () => adminGet<{ data: AdminCategory[] }>("/categories").then((r) => r.data);
+export const createCategory = (body: { name: string; slug?: string; description?: string | null }) =>
+  adminCall<AdminCategory>("POST", "/categories", body);
+export const updateCategory = (id: string, patch: CategoryPatch) => adminCall<AdminCategory>("PATCH", `/categories/${id}`, patch);
+export const reorderCategories = (ids: string[]) =>
+  adminCall<{ data: AdminCategory[] }>("PUT", "/categories/order", { ids }).then((r) => r.data);
+export const deleteCategory = (id: string, moveTo?: string) =>
+  adminCall<{ id: string; deleted: true; moved: number; moveTo: string | null }>(
+    "DELETE",
+    `/categories/${id}${moveTo ? `?moveTo=${encodeURIComponent(moveTo)}` : ""}`
+  );
+
+/** Same rule as the API: "Sci-Fi & Fantasy" → "sci-fi-fantasy" */
+export const slugify = (name: string) =>
+  name
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+
+/** Refresh the public site's cached data for these tags. Resolves false if it couldn't. */
+export async function revalidateSite(tags: ("categories" | "featured" | "wallpapers")[]): Promise<boolean> {
+  try {
+    const res = await fetch("/api/admin/revalidate", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ─── AI category suggestions ────────────────────────────────
+
+export type SuggestionKind = "uncategorized" | "moves";
+export type CategoryRef = { id: string; name: string };
+export type CategorySuggestion = {
+  wallpaperId: string;
+  title: string;
+  fileUrl: string;
+  dominantColor: string;
+  width: number;
+  height: number;
+  status: string;
+  current: CategoryRef | null;
+  suggested: CategoryRef | null;
+  alternative: CategoryRef | null;
+  confidence: number;
+  reason: string | null;
+  newCategoryIdea: string | null;
+};
+export type SuggestionPage = { kind: SuggestionKind; data: CategorySuggestion[]; counts: Record<SuggestionKind, number> };
+
+export const getCategorySuggestions = (kind: SuggestionKind) => adminGet<SuggestionPage>(`/categories/suggestions?kind=${kind}`);
+export const applyCategorySuggestions = (items: { wallpaperId: string; categoryId: string }[]) =>
+  adminCall<{ applied: number; skipped: number }>("POST", "/categories/suggestions/apply", { items });
+export const dismissCategorySuggestions = (wallpaperIds: string[]) =>
+  adminCall<{ dismissed: number }>("POST", "/categories/suggestions/dismiss", { wallpaperIds });

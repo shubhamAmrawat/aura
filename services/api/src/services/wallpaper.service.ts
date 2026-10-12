@@ -1,6 +1,6 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../config/db";
-import { categories, downloads, users, wallpapers } from "../models";
+import { downloads, users, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { screenFilterSql, type ScreenFilter } from "../utils/screenFilter";
 import { extractImageMetadata } from "../utils/imageMetadata";
@@ -8,6 +8,7 @@ import { checkImageSafety } from "../integrations/sightengine";
 import { deleteFile, generateUploadUrl } from "../integrations/r2";
 import { generateVisionEmbedding, generateWallpaperTextEmbedding } from "../integrations/openai";
 import type { UploadInput } from "../validators/wallpaper.schema";
+import { resolveCategorySlug } from "./category.service";
 
 /** Columns returned by every list/feed endpoint. */
 export const wallpaperListSelect = {
@@ -54,11 +55,7 @@ export async function listWallpapers(params: {
   if (params.featured) conditions.push(eq(wallpapers.isFeatured, true));
 
   if (params.categorySlug) {
-    const [catRow] = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(eq(categories.slug, params.categorySlug))
-      .limit(1);
+    const catRow = await resolveCategorySlug(params.categorySlug); // follows renamed/merged slugs
     conditions.push(catRow ? eq(wallpapers.categoryId, catRow.id) : sql`1 = 0`);
   }
 
