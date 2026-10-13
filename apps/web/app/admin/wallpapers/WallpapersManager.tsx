@@ -197,6 +197,7 @@ export default function WallpapersManager() {
           <option value="approved">Live</option>
           <option value="pending">Pending</option>
           <option value="rejected">Rejected</option>
+          <option value="hidden">Hidden (uploader disabled)</option>
         </select>
         <select value={filters.categoryId ?? ""} onChange={(e) => setFilter({ categoryId: e.target.value || undefined })} className="rounded-lg px-3 py-2 text-sm max-w-[180px]" style={inputStyle} aria-label="Category">
           <option value="">All categories</option>

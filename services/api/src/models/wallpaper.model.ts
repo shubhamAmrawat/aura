@@ -18,6 +18,8 @@ export const wallpaperStatusEnum = pgEnum("wallpaper_status", [
   "pending",
   "approved",
   "rejected",
+  /** uploader's account is disabled — back to "approved" when re-enabled */
+  "hidden",
 ]);
 
 export const wallpaperFormatEnum = pgEnum("wallpaper_format", [

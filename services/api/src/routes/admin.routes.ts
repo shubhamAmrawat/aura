@@ -7,6 +7,7 @@ import * as featured from "../controllers/admin/featured.controller";
 import * as uploads from "../controllers/admin/upload.controller";
 import * as categories from "../controllers/admin/categories.controller";
 import * as suggestions from "../controllers/admin/categorySuggestions.controller";
+import * as usersCtl from "../controllers/admin/users.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -47,3 +48,12 @@ adminRoutes.post("/categories/suggestions/apply", suggestions.apply);
 adminRoutes.post("/categories/suggestions/dismiss", suggestions.dismiss);
 adminRoutes.patch("/categories/:id", categories.update);
 adminRoutes.delete("/categories/:id", categories.remove);
+
+// Users (Phase 6)
+adminRoutes.get("/users", usersCtl.list);
+adminRoutes.get("/users/:id", usersCtl.detail);
+adminRoutes.patch("/users/:id", usersCtl.update);
+adminRoutes.post("/users/:id/unlock", usersCtl.unlock);
+adminRoutes.post("/users/:id/disable", usersCtl.disable);
+adminRoutes.post("/users/:id/enable", usersCtl.enable);
+adminRoutes.delete("/users/:id", usersCtl.remove);

@@ -36,6 +36,18 @@
 > `scripts/category-cleanup.mts [--apply]` (run AFTER deploying): merges Urban→City, Landscape→Nature, slug
 > hindusm→hinduism, auto-applies 629 uncategorized where AI + vector centroids agree; 173 + 104 left for review.
 > Bulk upload: category "✨ Auto" (AI picks; falls back to Uncategorized + review row). Contract 16–18 + browser-tested.
+>
+> **Phase 6 — Users (2026-10-13, built + tested locally):** `/admin/users`. `GET /api/admin/users` (search email/username/
+> name; role, creator, sign-in method, locked; sort by joined/uploads/downloads/likes/name; live counts + last active),
+> `GET /:id` (profile, counts, recent uploads/downloads/likes, admin history), `PATCH /:id { isCreator }`,
+> `POST /:id/unlock`, `DELETE /:id { confirmEmail }` (shares `purgeAccount` with self-delete). Admin accounts and your own
+> account can't be changed from the dashboard. All audited (`user.*`). Contract 19 (8/8) + browser-tested.
+> **Disable accounts:** migration `2026-10-13-user-disable.sql` (applied; backup `…_1117_pre_user_disable.dump`):
+> `users.disabled_at/_reason/_by`, wallpaper status `hidden`. `POST /:id/disable { reason }` / `POST /:id/enable`.
+> Disabled = 403 on every sign-in route (password only after a correct password; no reset code sent) and on every
+> authenticated request (`requireAuth` checks the account, 30 s cache cleared on change; `/me` + become-creator too);
+> live uploads → `hidden` (404 on the public page, removed from likes/collections lists, can't be approved), restored on
+> enable.
 
 ## Where we are today (checked against code + prod DB)
 

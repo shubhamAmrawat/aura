@@ -17,6 +17,14 @@ import {
   VerifyResetCodeBody,
 } from "../validators/auth.schema";
 import * as authService from "../services/auth.service";
+import { ACCOUNT_DISABLED_MESSAGE, accountStatus } from "../utils/accountStatus";
+
+/** Token's user id, refusing accounts an admin has disabled. */
+async function activeUserIdFromToken(req: Parameters<typeof userIdFromToken>[0]) {
+  const id = userIdFromToken(req);
+  if ((await accountStatus(id)) === "disabled") throw new ApiError(403, ACCOUNT_DISABLED_MESSAGE);
+  return id;
+}
 
 export const sendOtp = route("Failed to send OTP", async (req, res) => {
   const { email, type } = parseOrThrow(SendOtpBody, req.body);
@@ -76,7 +84,7 @@ function userIdFromToken(req: Parameters<typeof getAuthToken>[0]): string {
 export const me = route(
   "Unauthorized",
   async (req, res) => {
-    const user = await authService.findUserById(userIdFromToken(req));
+    const user = await authService.findUserById(await activeUserIdFromToken(req));
     if (!user) throw new ApiError(404, "User not found");
 
     res.json({
@@ -110,7 +118,7 @@ export const logout = route("Failed to logout", async (_req, res) => {
 export const becomeCreator = route(
   "Unauthorized",
   async (req, res) => {
-    const user = await authService.becomeCreator(userIdFromToken(req));
+    const user = await authService.becomeCreator(await activeUserIdFromToken(req));
     if (!user) throw new ApiError(404, "User not found");
 
     res.json({

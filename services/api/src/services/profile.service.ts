@@ -169,6 +169,16 @@ export async function deleteAccount(userId: string, proof: { password?: unknown;
     await checkOtp(user.email, "account_delete", proof.otp, () => "Incorrect OTP.");
   }
 
+  await purgeAccount(user);
+}
+
+/**
+ * Delete an account and everything it owns (shared by self-delete and the admin dashboard).
+ * DB work runs in one transaction; R2 files are removed afterwards (best effort).
+ * Returns how many uploads were removed.
+ */
+export async function purgeAccount(user: { id: string; email: string; avatarUrl: string | null; coverUrl: string | null }) {
+  const userId = user.id;
   const uploads = await db
     .select({ id: wallpapers.id, fileUrl: wallpapers.fileUrl })
     .from(wallpapers)
@@ -215,6 +225,7 @@ export async function deleteAccount(userId: string, proof: { password?: unknown;
   await Promise.all(
     keys.map((key) => deleteFile(key).catch((e) => console.error("[r2] Account delete cleanup failed:", key, e)))
   );
+  return { uploadsRemoved: uploads.length };
 }
 
 // ─── My uploads ────────────────────────────────────────────

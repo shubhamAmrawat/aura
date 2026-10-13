@@ -81,6 +81,9 @@ async function findForReview(id: string) {
     .where(eq(wallpapers.id, id))
     .limit(1);
   if (!row) throw new ApiError(404, "Wallpaper not found");
+  if (row.status === "hidden") {
+    throw new ApiError(409, "This wallpaper is hidden because its uploader's account is disabled. Re-enable the account to show it again.");
+  }
   return row;
 }
 

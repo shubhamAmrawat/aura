@@ -104,7 +104,7 @@ export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSe
 /** Single wallpaper (any status), without the large textEmbedding vector. */
 export async function getWallpaper(id: string) {
   const [record] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
-  if (!record) throw new ApiError(404, "Wallpaper not found");
+  if (!record || record.status === "hidden") throw new ApiError(404, "Wallpaper not found"); // hidden = uploader disabled
   const { textEmbedding: _textEmbedding, ...wallpaper } = record;
   return withoutReviewFields(wallpaper);
 }
@@ -115,7 +115,7 @@ export async function getWallpaper(id: string) {
  */
 export async function getSimilar(id: string, params: { limit: number; offset: number; screen: ScreenFilter | null }) {
   const [src] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
-  if (!src) throw new ApiError(404, "Wallpaper not found");
+  if (!src || src.status === "hidden") throw new ApiError(404, "Wallpaper not found");
   if (!src.textEmbedding) return null; // caller responds with an empty, uncached result
 
   const embeddingStr = `[${src.textEmbedding.join(",")}]`;

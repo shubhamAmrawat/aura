@@ -226,18 +226,23 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Status</span>
                   <div className="flex gap-2">
-                    {w.status !== "approved" && (
+                    {w.status !== "approved" && w.status !== "hidden" && (
                       <button disabled={statusBusy} onClick={doApprove} className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
                         {w.status === "rejected" ? "Restore" : "Approve"}
                       </button>
                     )}
-                    {w.status !== "rejected" && (
+                    {w.status !== "rejected" && w.status !== "hidden" && (
                       <button disabled={statusBusy} onClick={() => setRejecting(true)} className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40" style={{ border: "1px solid rgba(239,68,68,0.45)", color: "#ef4444" }}>
                         {w.status === "approved" ? "Unpublish" : "Reject"}
                       </button>
                     )}
                   </div>
                 </div>
+                {w.status === "hidden" && (
+                  <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                    Hidden because the uploader&apos;s account is disabled. Re-enable the account in Users to show it again.
+                  </p>
+                )}
                 {w.moderationReason && <p className="text-xs" style={{ color: "#eab308" }}>Auto-check: {w.moderationReason}</p>}
                 {w.status === "rejected" && w.reviewNote && <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Rejected: “{w.reviewNote}”</p>}
                 {w.reviewedAt && <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>Last reviewed {fmtDate(w.reviewedAt)}</p>}

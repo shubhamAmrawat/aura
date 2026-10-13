@@ -6,6 +6,7 @@ import {
   boolean,
   timestamp,
   check,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -35,6 +36,10 @@ export const users = pgTable("users", {
   lockedUntil: timestamp("locked_until"),
   /** "user" | "admin" — admins can use /api/admin (set via scripts/make-admin.mts) */
   role: text("role").notNull().default("user"),
+  /** Set by an admin: can't sign in, sessions stop working, live uploads hidden */
+  disabledAt: timestamp("disabled_at"),
+  disabledReason: text("disabled_reason"),
+  disabledBy: uuid("disabled_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   

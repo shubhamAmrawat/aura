@@ -71,6 +71,7 @@ const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = 
   approved: { bg: "rgba(87,168,58,0.15)", fg: "#7bc95a", label: "Live" },
   pending: { bg: "rgba(234,179,8,0.12)", fg: "#eab308", label: "Pending" },
   rejected: { bg: "rgba(239,68,68,0.12)", fg: "#ef4444", label: "Rejected" },
+  hidden: { bg: "rgba(148,163,184,0.14)", fg: "#94a3b8", label: "Hidden" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

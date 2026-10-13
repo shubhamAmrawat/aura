@@ -9,7 +9,7 @@ import { nextFeaturedOrder } from "../featured.service";
 
 export type WallpaperListFilters = {
   q?: string;
-  status: "all" | "approved" | "pending" | "rejected";
+  status: "all" | "approved" | "pending" | "rejected" | "hidden";
   categoryId?: string;
   uploader?: string;
   featured?: boolean;

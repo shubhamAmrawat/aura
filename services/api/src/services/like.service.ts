@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { likes, wallpapers } from "../models";
 
@@ -40,7 +40,7 @@ export function listLikedWallpapers(userId: string) {
     })
     .from(likes)
     .innerJoin(wallpapers, eq(likes.wallpaperId, wallpapers.id))
-    .where(eq(likes.userId, userId))
+    .where(and(eq(likes.userId, userId), ne(wallpapers.status, "hidden"))) // hidden = uploader disabled
     .orderBy(desc(likes.createdAt));
 }
 

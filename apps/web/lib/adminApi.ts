@@ -131,7 +131,7 @@ export type AdminWallpaper = {
   height: number;
   fileSizeBytes: number;
   format: string;
-  status: "approved" | "pending" | "rejected";
+  status: "approved" | "pending" | "rejected" | "hidden";
   tags: string[];
   isFeatured: boolean;
   isPremium: boolean;
@@ -173,7 +173,7 @@ export const resolutionOf = (w: number, h: number) => RESOLUTIONS.find((r) => Ma
 
 export type WallpaperFilters = {
   q?: string;
-  status?: "all" | "approved" | "pending" | "rejected";
+  status?: "all" | "approved" | "pending" | "rejected" | "hidden";
   categoryId?: string;
   uploader?: string;
   featured?: "true" | "false";
@@ -235,7 +235,7 @@ export type FeaturedItem = {
   height: number;
   format: string;
   tags: string[];
-  status: "approved" | "pending" | "rejected";
+  status: "approved" | "pending" | "rejected" | "hidden";
   isMobile: boolean;
   featuredOrder: number | null;
   createdAt: string;
@@ -425,3 +425,67 @@ export const applyCategorySuggestions = (items: { wallpaperId: string; categoryI
   adminCall<{ applied: number; skipped: number }>("POST", "/categories/suggestions/apply", { items });
 export const dismissCategorySuggestions = (wallpaperIds: string[]) =>
   adminCall<{ dismissed: number }>("POST", "/categories/suggestions/dismiss", { wallpaperIds });
+
+// ─── Users ──────────────────────────────────────────────────
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  role: "user" | "admin";
+  isCreator: boolean;
+  isEmailVerified: boolean;
+  hasPassword: boolean;
+  hasGoogle: boolean;
+  locked: boolean;
+  lockedUntil: string | null;
+  disabled: boolean;
+  disabledAt: string | null;
+  disabledReason: string | null;
+  failedLoginAttempts: number;
+  uploads: number;
+  downloads: number;
+  likes: number;
+  lastActiveAt: string | null;
+  createdAt: string;
+};
+type Thumb = { wallpaperId: string; title: string; fileUrl: string; dominantColor: string; at: string };
+export type AdminUserDetail = AdminUser & {
+  bio: string | null;
+  coverUrl: string | null;
+  isPro: boolean;
+  disabledByEmail: string | null;
+  liveUploads: number;
+  hiddenUploads: number;
+  collections: number;
+  recentUploads: { id: string; title: string; fileUrl: string; dominantColor: string; status: string; category: string | null; downloads: number; createdAt: string }[];
+  recentDownloads: (Thumb & { quality: string; source: string })[];
+  recentLikes: Thumb[];
+  history: { action: string; details: Record<string, unknown> | null; at: string; adminEmail: string | null }[];
+};
+export type UserFilters = {
+  q?: string;
+  role?: "all" | "user" | "admin";
+  status?: "all" | "active" | "disabled";
+  creator?: "true" | "false";
+  signIn?: "google" | "password" | "google-only" | "password-only";
+  locked?: "true" | "false";
+  sort?: "newest" | "oldest" | "uploads" | "downloads" | "likes" | "name";
+  limit?: number;
+  offset?: number;
+};
+
+export function listAdminUsers(f: UserFilters) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  return adminGet<{ data: AdminUser[]; total: number; hasMore: boolean }>(`/users?${qs}`);
+}
+export const getAdminUser = (id: string) => adminGet<AdminUserDetail>(`/users/${id}`);
+export const setUserCreator = (id: string, isCreator: boolean) => adminCall<AdminUserDetail>("PATCH", `/users/${id}`, { isCreator });
+export const unlockUser = (id: string) => adminCall<AdminUserDetail>("POST", `/users/${id}/unlock`);
+export const disableUser = (id: string, reason: string) => adminCall<AdminUserDetail>("POST", `/users/${id}/disable`, { reason });
+export const enableUser = (id: string) => adminCall<AdminUserDetail>("POST", `/users/${id}/enable`);
+export const deleteAdminUser = (id: string, confirmEmail: string) =>
+  adminCall<{ id: string; deleted: true; uploadsRemoved: number }>("DELETE", `/users/${id}`, { confirmEmail });

@@ -5,6 +5,12 @@ import { otps, users } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../utils/otp";
 import { generateToken } from "../utils/jwt";
+import { ACCOUNT_DISABLED_MESSAGE } from "../utils/accountStatus";
+
+/** Disabled accounts can't get a session by any route (password, code, Google, reset). */
+function assertNotDisabled(user: { disabledAt: Date | null }) {
+  if (user.disabledAt) throw new ApiError(403, ACCOUNT_DISABLED_MESSAGE);
+}
 import { sendOTPEmail } from "../integrations/email";
 import { googleAudiences, verifyGoogleIdToken } from "../integrations/google";
 import { importGoogleAvatar, isGoogleAvatarUrl } from "../integrations/avatarImport";
@@ -121,6 +127,7 @@ export async function login(email: string) {
   }
   const user = await findUserByEmail(email);
   if (!user) throw new ApiError(404, "User not found");
+  assertNotDisabled(user);
 
   const token = generateToken({ userId: user.id, email: user.email, role: user.role });
   return { user, token };
@@ -179,6 +186,8 @@ export async function loginWithPassword(email: string, password: string) {
     throw new ApiError(401, INVALID_LOGIN);
   }
 
+  // Only after the right password, so "disabled" never leaks to someone guessing
+  assertNotDisabled(user);
   if (user.failedLoginAttempts > 0 || user.lockedUntil) {
     await db.update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
   }
@@ -236,6 +245,7 @@ export async function loginWithGoogle(credential: string) {
   };
 
   const issue = async (user: User, isNewUser: boolean) => {
+    assertNotDisabled(user);
     const finalUser = await withOwnAvatar(user);
     return {
       user: finalUser,
@@ -298,7 +308,7 @@ const RESEND_COOLDOWN_SECONDS = 60;
 /** Always resolves (never reveals whether the email has an account). */
 export async function forgotPassword(email: string) {
   const user = await findUserByEmailCI(email);
-  if (!user) return;
+  if (!user || user.disabledAt) return; // no code for disabled accounts (same response either way)
 
   // Don't email a new code more than once a minute.
   const recent = await db
@@ -336,6 +346,7 @@ export async function verifyResetCode(email: string, otp: unknown) {
 export async function resetPassword(email: string, otp: unknown, newPassword: string) {
   const user = await findUserByEmailCI(email);
   if (!user) throw new ApiError(400, "Invalid OTP. Please request a new one.");
+  assertNotDisabled(user);
 
   if (otp !== null && otp !== undefined && otp !== "") {
     await checkOtp(user.email, "password_reset", otp, () => "Incorrect OTP.");

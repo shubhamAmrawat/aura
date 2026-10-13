@@ -58,7 +58,7 @@ const boolParam = (name: string) =>
 
 export const WallpaperListQuery = z.object({
   q: z.string().trim().max(100, "Search is too long").optional(),
-  status: z.enum(["all", "approved", "pending", "rejected"], { message: "Invalid status" }).default("all"),
+  status: z.enum(["all", "approved", "pending", "rejected", "hidden"], { message: "Invalid status" }).default("all"),
   categoryId: z
     .string()
     .refine((v) => v === "none" || UUID.test(v), "Invalid category")
@@ -264,4 +264,38 @@ export const SuggestionDismissBody = z.object({
     .array(z.string().regex(UUID, "Invalid wallpaper id"), { message: "wallpaperIds must be a list" })
     .min(1, "Select at least one wallpaper.")
     .max(500, "Dismiss at most 500 at a time."),
+});
+
+// ─── Users (Phase 6) ────────────────────────────────────────
+
+export const UserListQuery = z.object({
+  q: z.string().trim().max(100, "Search is too long").optional(),
+  role: z.enum(["all", "user", "admin"], { message: "Invalid role" }).default("all"),
+  status: z.enum(["all", "active", "disabled"], { message: "Invalid status" }).default("all"),
+  creator: boolParam("creator"),
+  signIn: z.enum(["google", "password", "google-only", "password-only"], { message: "Invalid sign-in filter" }).optional(),
+  locked: boolParam("locked"),
+  sort: z.enum(["newest", "oldest", "uploads", "downloads", "likes", "name"], { message: "Invalid sort" }).default("newest"),
+  limit: intIn(1, 100, 50),
+  offset: intIn(0, 1_000_000, 0),
+});
+
+export const UserIdParam = z.object({
+  id: z.string().regex(UUID, "User not found"),
+});
+
+export const UserPatchBody = z
+  .object({ isCreator: z.boolean({ message: "isCreator must be true or false" }) })
+  .strict();
+
+export const UserDisableBody = z.object({
+  reason: z
+    .string({ message: "A reason is required (3–300 characters)." })
+    .trim()
+    .min(3, "A reason is required (3–300 characters).")
+    .max(300, "A reason is required (3–300 characters)."),
+});
+
+export const UserDeleteBody = z.object({
+  confirmEmail: z.string({ message: "Type the user's email to confirm." }).trim().min(1, "Type the user's email to confirm."),
 });
