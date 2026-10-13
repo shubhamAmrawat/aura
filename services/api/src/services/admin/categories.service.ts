@@ -36,6 +36,7 @@ export async function listAdminCategories() {
       name: categories.name,
       slug: categories.slug,
       description: categories.description,
+      intro: categories.intro,
       coverImageUrl: categories.coverImageUrl,
       sortOrder: categories.sortOrder,
       isHidden: categories.isHidden,
@@ -101,7 +102,7 @@ export async function createCategory(adminId: string, input: { name: string; slu
 export async function updateCategory(
   adminId: string,
   id: string,
-  patch: { name?: string; slug?: string; description?: string | null; coverImageUrl?: string | null; isHidden?: boolean }
+  patch: { name?: string; slug?: string; description?: string | null; intro?: string | null; coverImageUrl?: string | null; isHidden?: boolean }
 ) {
   const before = await getOne(id);
   if (patch.coverImageUrl && !keyFromPublicUrl(patch.coverImageUrl)) {
@@ -111,7 +112,7 @@ export async function updateCategory(
 
   const set: Partial<typeof categories.$inferInsert> = {};
   const changes: Record<string, { from: unknown; to: unknown }> = {};
-  for (const k of ["name", "slug", "description", "coverImageUrl", "isHidden"] as const) {
+  for (const k of ["name", "slug", "description", "intro", "coverImageUrl", "isHidden"] as const) {
     if (patch[k] !== undefined && patch[k] !== before[k]) {
       (set as Record<string, unknown>)[k] = patch[k];
       changes[k] = { from: before[k], to: patch[k] };

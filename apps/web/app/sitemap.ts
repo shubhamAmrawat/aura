@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { BLOG_POSTS } from "./blog/posts";
 
 // Regenerate the sitemap at most once per day; crawlers are fine with stale-by-a-day data
 // and this prevents every bot visit from hammering the backend with N paginated fetches.
@@ -14,6 +15,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/trending`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/latest`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/categories`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.7 },
+    ...BLOG_POSTS.map((p) => ({ url: `${BASE_URL}/blog/${p.slug}`, changeFrequency: "monthly" as const, priority: 0.6 })),
+    { url: `${BASE_URL}/about`, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${BASE_URL}/contact`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   // categories — cached for 24h so repeated crawler hits reuse the same response

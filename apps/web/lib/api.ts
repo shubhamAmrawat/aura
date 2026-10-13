@@ -135,23 +135,32 @@ export async function getSimilarWallpapersPage(
   return { data: json.data ?? [], hasMore: Boolean(json.hasMore) };
 }
 
+export type CategoryDetails = {
+  /** Current slug (differs from the one asked for after a rename/merge). */
+  slug: string;
+  redirected: boolean;
+  name: string;
+  description: string | null;
+  /** Longer text for the category page; blank lines separate paragraphs. */
+  intro: string | null;
+};
+
 /**
- * Current slug for a category slug (follows renames/merges).
+ * Category page data for a slug (follows renames/merges).
  * `null` = no such category (or hidden); `undefined` = couldn't tell (API unreachable).
  */
-export async function resolveCategorySlug(slug: string): Promise<string | null | undefined> {
+export const getCategoryDetails = cache(async (slug: string): Promise<CategoryDetails | null | undefined> => {
   try {
     const res = await fetch(`${getApiUrl()}/api/categories/resolve/${encodeURIComponent(slug)}`, {
       next: { revalidate: 3600, tags: ["categories"] },
     });
     if (res.status === 404) return null;
     if (!res.ok) return undefined;
-    const data = (await res.json()) as { slug?: string };
-    return data.slug ?? null;
+    return (await res.json()) as CategoryDetails;
   } catch {
     return undefined;
   }
-}
+});
 
 export async function getCategories(): Promise<Category[]> {
   const { data } = await fetchJsonOrThrow<{ data: Category[] }>(

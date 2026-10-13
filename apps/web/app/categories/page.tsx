@@ -5,7 +5,7 @@ import { groupCategories } from "@/lib/categoryGroups";
 
 export const metadata: Metadata = {
   title: "All categories",
-  description: "Browse every Aurora wallpaper category — nature, space, anime, minimal, devotional art and more, for phone and desktop.",
+  description: "Browse every Aurora wallpaper category — nature, space, cars, minimal, devotional art and more, for phone and desktop.",
 };
 
 export default async function CategoriesPage() {

@@ -371,6 +371,7 @@ function CategoryEditor({ cat, onClose, onSaved }: { cat: AdminCategory | null; 
   const [slug, setSlug] = useState(cat?.slug ?? "");
   const [slugTouched, setSlugTouched] = useState(!!cat);
   const [description, setDescription] = useState(cat?.description ?? "");
+  const [intro, setIntro] = useState(cat?.intro ?? "");
   const [cover, setCover] = useState<string | null>(cat?.coverImageUrl ?? null);
   const [candidates, setCandidates] = useState<AdminWallpaper[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -398,6 +399,7 @@ function CategoryEditor({ cat, onClose, onSaved }: { cat: AdminCategory | null; 
         if (name.trim() !== cat.name) patch.name = name.trim();
         if (effectiveSlug !== cat.slug) patch.slug = effectiveSlug;
         if ((description.trim() || null) !== cat.description) patch.description = description.trim() || null;
+        if ((intro.trim() || null) !== (cat.intro ?? null)) patch.intro = intro.trim() || null;
         if (cover !== cat.coverImageUrl) patch.coverImageUrl = cover;
         if (!Object.keys(patch).length) { onClose(); return; }
         await updateCategory(cat.id, patch);
@@ -440,6 +442,17 @@ function CategoryEditor({ cat, onClose, onSaved }: { cat: AdminCategory | null; 
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>Description <span className="opacity-70">(shown under the title on the category page)</span></span>
         <textarea value={description} maxLength={300} rows={2} onChange={(e) => setDescription(e.target.value)} className="rounded-lg px-3 py-2 text-sm resize-y" style={inputStyle} />
       </label>
+      {cat && (
+        <label className="flex flex-col gap-1">
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Intro <span className="opacity-70">(a few paragraphs on the category page; leave a blank line between paragraphs)</span>
+          </span>
+          <textarea value={intro} maxLength={2500} rows={7} onChange={(e) => setIntro(e.target.value)} className="rounded-lg px-3 py-2 text-sm resize-y leading-relaxed" style={inputStyle} />
+          <span className="text-[11px] self-end tabular-nums" style={{ color: "var(--text-muted)" }}>
+            {intro.trim() ? intro.trim().split(/\s+/).length : 0} words · {intro.length}/2500
+          </span>
+        </label>
+      )}
 
       {cat && (
         <div className="flex flex-col gap-2">

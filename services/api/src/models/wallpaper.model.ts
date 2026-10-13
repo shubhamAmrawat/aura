@@ -55,6 +55,8 @@ export const categories = pgTable("categories", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   description: text("description"),
+  /** A few paragraphs about the collection, shown on the category page (blank line = new paragraph). */
+  intro: text("intro"),
   coverImageUrl: text("cover_image_url"),
   /** Small webp of the cover (or of the most downloaded live wallpaper) for menus. */
   coverThumbUrl: text("cover_thumb_url"),

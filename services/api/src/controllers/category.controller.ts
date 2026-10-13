@@ -15,10 +15,10 @@ export const redirects = route("Failed to load category redirects", async (_req,
   res.json({ data: await listCategoryRedirects() });
 });
 
-/** GET /api/categories/resolve/:slug → { slug, redirected } — follows renamed/merged categories */
+/** GET /api/categories/resolve/:slug → { slug, redirected, name, description, intro } — follows renamed/merged categories */
 export const resolveSlug = route("Failed to resolve category", async (req, res) => {
   const found = await resolveCategorySlug(param(req, "slug").toLowerCase());
   if (!found) throw new ApiError(404, "Category not found");
   res.setHeader("Cache-Control", "public, s-maxage=3600");
-  res.json({ slug: found.slug, redirected: found.redirected });
+  res.json({ slug: found.slug, redirected: found.redirected, name: found.name, description: found.description, intro: found.intro });
 });

@@ -50,7 +50,7 @@ describe("GET /api/admin/categories", () => {
     const [{ n }] = await sql`SELECT count(*)::int n FROM categories`;
     expect(data).toHaveLength(n);
     for (const c of data) {
-      expect(Object.keys(c).sort()).toEqual(["coverImageUrl", "description", "id", "isHidden", "live", "name", "previewUrl", "slug", "sortOrder", "total"]);
+      expect(Object.keys(c).sort()).toEqual(["coverImageUrl", "description", "id", "intro", "isHidden", "live", "name", "previewUrl", "slug", "sortOrder", "total"]);
       expect(c.live).toBeLessThanOrEqual(c.total);
     }
     for (let i = 1; i < data.length; i++) expect(data[i - 1].sortOrder).toBeLessThanOrEqual(data[i].sortOrder);
@@ -155,7 +155,8 @@ describe("PUT /api/admin/categories/order", () => {
     expect((res.body.data as any[]).map((c) => c.id)).toEqual(reversed);
     expect((res.body.data as any[]).map((c) => c.sortOrder)).toEqual(reversed.map((_, i) => i));
     const pub = await api("GET", "/api/categories");
-    expect((pub.body.data as any[]).map((c) => c.id)).toEqual(reversed);
+    const hidden = new Set((body.data as any[]).filter((c) => c.isHidden).map((c) => c.id));
+    expect((pub.body.data as any[]).map((c) => c.id)).toEqual(reversed.filter((id) => !hidden.has(id))); // hidden ones are left out
     // restore right away (afterAll restores again)
     for (const c of liveOrder) await sql`UPDATE categories SET sort_order = ${c.sort_order} WHERE id = ${c.id}`;
   });
@@ -200,8 +201,8 @@ describe("old slugs keep working (renames + merges)", () => {
     // rename r1 → r1b: old slug resolves to the new one
     expect((await call("PATCH", `/${a.id}`, { slug: `${SLUG}-r1b` })).status).toBe(200);
     let r = await api("GET", `/api/categories/resolve/${SLUG}-r1`);
-    expect(r.body).toEqual({ slug: `${SLUG}-r1b`, redirected: true });
-    expect((await api("GET", `/api/categories/resolve/${SLUG}-r1b`)).body).toEqual({ slug: `${SLUG}-r1b`, redirected: false });
+    expect(r.body).toMatchObject({ slug: `${SLUG}-r1b`, redirected: true });
+    expect((await api("GET", `/api/categories/resolve/${SLUG}-r1b`)).body).toMatchObject({ slug: `${SLUG}-r1b`, redirected: false });
     expectError(await api("GET", `/api/categories/resolve/${SLUG}-nope`), 404, "Category not found");
     const map = await api("GET", "/api/categories/redirects");
     expect(map.headers.get("cache-control")).toBe("public, s-maxage=300");
@@ -223,7 +224,7 @@ describe("old slugs keep working (renames + merges)", () => {
 
     // a new category can take an old slug back; the redirect is dropped
     const { body: c } = await call("POST", "", { name: `${NAME} R1 again`, slug: `${SLUG}-r1` });
-    expect((await api("GET", `/api/categories/resolve/${SLUG}-r1`)).body).toEqual({ slug: `${SLUG}-r1`, redirected: false });
+    expect((await api("GET", `/api/categories/resolve/${SLUG}-r1`)).body).toMatchObject({ slug: `${SLUG}-r1`, redirected: false });
     expect((await sql`SELECT 1 FROM category_redirects WHERE old_slug = ${SLUG + "-r1"}`).length).toBe(0);
     expect(c.slug).toBe(`${SLUG}-r1`);
   });
@@ -268,5 +269,21 @@ describe("hiding a category", () => {
     } finally {
       await sql`UPDATE wallpapers SET status = 'rejected', trending_score = 0 WHERE id = ${w}`;
     }
+  });
+});
+
+describe("category intro", () => {
+  it("is saved by PATCH, validated, and returned by the public resolve endpoint", async () => {
+    const { body: cat } = await call("POST", "", { name: `${NAME} Intro`, slug: `${SLUG}-intro` });
+    expectError(await call("PATCH", `/${cat.id}`, { intro: "x".repeat(2501) }), 400, "Intro can be at most 2500 characters");
+    const res = await call("PATCH", `/${cat.id}`, { intro: "  First paragraph.\r\n\r\nSecond.  ", description: "One line." });
+    expect(res.status).toBe(200);
+    expect(res.body.intro).toBe("First paragraph.\n\nSecond.");
+    const pub = await api("GET", `/api/categories/resolve/${cat.slug}`);
+    expect(pub.body).toEqual({ slug: cat.slug, redirected: false, name: `${NAME} Intro`, description: "One line.", intro: "First paragraph.\n\nSecond." });
+    expect((await call("PATCH", `/${cat.id}`, { intro: "" })).body.intro).toBeNull();
+    // the public list stays small: no intro in it
+    const list = (await api("GET", "/api/categories")).body.data as any[];
+    expect(list.find((c) => c.id === cat.id)).not.toHaveProperty("intro");
   });
 });

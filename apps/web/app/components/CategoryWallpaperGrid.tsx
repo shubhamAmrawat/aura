@@ -74,11 +74,6 @@ export function CategoryWallpaperGrid({
 
   return (
     <>
-      <p className="text-xs mb-6" style={{ color: "var(--text-muted)" }}>
-        {wallpapers.length} wallpaper{wallpapers.length !== 1 ? "s" : ""} loaded
-        {hasMore ? " — more available" : ""}
-      </p>
-
       <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
         {wallpapers.map((wallpaper, index) => (
           <div key={wallpaper.id} className="break-inside-avoid mb-4">

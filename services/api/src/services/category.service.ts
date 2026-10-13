@@ -35,11 +35,15 @@ export async function listCategoryRedirects(): Promise<Record<string, string>> {
  * Category id for a slug (hidden categories count as not found) — the current slug, or an old one kept after a rename/merge.
  * Returns the current slug too so callers can redirect.
  */
-export async function resolveCategorySlug(slug: string): Promise<{ id: string; slug: string; redirected: boolean } | null> {
-  const [cur] = await db.select({ id: categories.id, slug: categories.slug }).from(categories).where(and(eq(categories.slug, slug), eq(categories.isHidden, false))).limit(1);
+const details = { id: categories.id, slug: categories.slug, name: categories.name, description: categories.description, intro: categories.intro };
+
+export async function resolveCategorySlug(slug: string): Promise<{
+  id: string; slug: string; name: string; description: string | null; intro: string | null; redirected: boolean;
+} | null> {
+  const [cur] = await db.select(details).from(categories).where(and(eq(categories.slug, slug), eq(categories.isHidden, false))).limit(1);
   if (cur) return { ...cur, redirected: false };
   const [old] = await db
-    .select({ id: categories.id, slug: categories.slug })
+    .select(details)
     .from(categoryRedirects)
     .innerJoin(categories, eq(categories.id, categoryRedirects.categoryId))
     .where(and(eq(categoryRedirects.oldSlug, slug), eq(categories.isHidden, false)))

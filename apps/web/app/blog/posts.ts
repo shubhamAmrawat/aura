@@ -44,9 +44,11 @@ export type BlogPost = {
   date: string;
   excerpt: string;
   content: BlogBlock[];
+  /** Unpublished: left out of the blog list, related posts and the sitemap; its URL returns 404. */
+  hidden?: boolean;
 };
 
-export const BLOG_POSTS: BlogPost[] = [
+const ALL_BLOG_POSTS: BlogPost[] = [
   {
     slug: "best-dark-wallpapers-oled-screens",
     title: "Best Dark Wallpapers for OLED Screens in 2025",
@@ -163,6 +165,8 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: "top-anime-wallpapers-2025",
+    // Hidden while the anime category is hidden (AdSense review) — set to false to republish.
+    hidden: true,
     title: "Top Anime Wallpaper Trends in 2025",
     category: "Trends",
     searchQuery: "anime",
@@ -452,6 +456,9 @@ export const BLOG_POSTS: BlogPost[] = [
     ],
   },
 ];
+
+/** Published posts only. */
+export const BLOG_POSTS: BlogPost[] = ALL_BLOG_POSTS.filter((p) => !p.hidden);
 
 export function getPostBySlug(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((p) => p.slug === slug);

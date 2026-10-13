@@ -217,6 +217,14 @@ const categoryDescription = z
   .optional()
   .transform((v) => (v === undefined ? undefined : v || null));
 
+const categoryIntro = z
+  .string()
+  .trim()
+  .max(2500, "Intro can be at most 2500 characters")
+  .nullable()
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v ? v.replace(/\r\n/g, "\n") : null));
+
 export const CategoryCreateBody = z
   .object({ name: categoryName, slug: categorySlug.optional(), description: categoryDescription })
   .strict();
@@ -226,6 +234,7 @@ export const CategoryPatchBody = z
     name: categoryName.optional(),
     slug: categorySlug.optional(),
     description: categoryDescription,
+    intro: categoryIntro,
     coverImageUrl: z.string({ message: "coverImageUrl must be a URL or null" }).url("coverImageUrl must be a URL or null").nullable().optional(),
     /** true = keep the category and its wallpapers off the public site */
     isHidden: z.boolean({ message: "isHidden must be true or false" }).optional(),

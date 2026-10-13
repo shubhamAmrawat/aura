@@ -344,6 +344,8 @@ export type AdminCategory = {
   name: string;
   slug: string;
   description: string | null;
+  /** Longer text on the category page; blank lines separate paragraphs. */
+  intro: string | null;
   coverImageUrl: string | null;
   sortOrder: number;
   /** Hidden from the public site, together with all its wallpapers. */
@@ -352,7 +354,7 @@ export type AdminCategory = {
   live: number;
   previewUrl: string | null;
 };
-export type CategoryPatch = Partial<{ name: string; slug: string; description: string | null; coverImageUrl: string | null; isHidden: boolean }>;
+export type CategoryPatch = Partial<{ name: string; slug: string; description: string | null; intro: string | null; coverImageUrl: string | null; isHidden: boolean }>;
 
 async function adminCall<T>(method: "POST" | "PATCH" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${API}/api/admin${path}`, {
