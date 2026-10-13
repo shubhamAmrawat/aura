@@ -25,7 +25,7 @@ const NAV: NavItem[] = [
   { href: "/admin/upload", label: "Bulk upload", icon: icon(<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>) },
   { href: "/admin/categories", label: "Categories", icon: icon(<><path d="M4 4h6v6H4z" /><path d="M14 4h6v6h-6z" /><path d="M4 14h6v6H4z" /><path d="M14 14h6v6h-6z" /></>) },
   { href: "/admin/users", label: "Users", icon: icon(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>) },
-  { href: "/admin/activity", label: "Activity log", soon: true, icon: icon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>) },
+  { href: "/admin/activity", label: "Activity log", icon: icon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>) },
   {
     href: "/admin/ai-generator",
     label: "Ai generator",

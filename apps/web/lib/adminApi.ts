@@ -489,3 +489,33 @@ export const disableUser = (id: string, reason: string) => adminCall<AdminUserDe
 export const enableUser = (id: string) => adminCall<AdminUserDetail>("POST", `/users/${id}/enable`);
 export const deleteAdminUser = (id: string, confirmEmail: string) =>
   adminCall<{ id: string; deleted: true; uploadsRemoved: number }>("DELETE", `/users/${id}`, { confirmEmail });
+
+// ─── Activity log ───────────────────────────────────────────
+
+export type ActivityGroup = "wallpapers" | "review" | "categories" | "featured" | "users" | "system";
+export type ActivityEntry = {
+  id: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string;
+  admin: { id: string; email: string; username: string } | null;
+  wallpaper: { title: string; fileUrl: string; status: string } | null;
+  category: { name: string; slug: string } | null;
+  user: { email: string; username: string } | null;
+};
+export type ActivityPage = {
+  data: ActivityEntry[];
+  total: number;
+  hasMore: boolean;
+  admins: { id: string; email: string }[];
+  categoryNames: Record<string, string>;
+};
+export type ActivityFilters = { group?: ActivityGroup; adminId?: string; q?: string; from?: string; to?: string; offset?: number; limit?: number };
+
+export function listActivity(f: ActivityFilters) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") qs.set(k, String(v));
+  return adminGet<ActivityPage>(`/activity?${qs}`);
+}

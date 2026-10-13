@@ -8,6 +8,7 @@ import * as uploads from "../controllers/admin/upload.controller";
 import * as categories from "../controllers/admin/categories.controller";
 import * as suggestions from "../controllers/admin/categorySuggestions.controller";
 import * as usersCtl from "../controllers/admin/users.controller";
+import * as activity from "../controllers/admin/activity.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -57,3 +58,6 @@ adminRoutes.post("/users/:id/unlock", usersCtl.unlock);
 adminRoutes.post("/users/:id/disable", usersCtl.disable);
 adminRoutes.post("/users/:id/enable", usersCtl.enable);
 adminRoutes.delete("/users/:id", usersCtl.remove);
+
+// Activity log (Phase 8)
+adminRoutes.get("/activity", activity.list);

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   deleteAdminUser,
   disableUser,
@@ -61,8 +62,18 @@ function Avatar({ u, size = 32 }: { u: Pick<AdminUser, "avatarUrl" | "displayNam
 }
 
 export default function UsersPage() {
-  const [filters, setFilters] = useState<UserFilters>({ role: "all", sort: "newest" });
-  const [qDraft, setQDraft] = useState("");
+  return (
+    <Suspense fallback={null}>
+      <UsersManager />
+    </Suspense>
+  );
+}
+
+function UsersManager() {
+  // ?q= lets other pages (e.g. the activity log) link straight to a user
+  const initialQ = useSearchParams().get("q") ?? "";
+  const [filters, setFilters] = useState<UserFilters>({ role: "all", sort: "newest", q: initialQ || undefined });
+  const [qDraft, setQDraft] = useState(initialQ);
   const [rows, setRows] = useState<AdminUser[] | null>(null);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);

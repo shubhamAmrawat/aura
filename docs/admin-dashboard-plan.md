@@ -48,6 +48,12 @@
 > authenticated request (`requireAuth` checks the account, 30 s cache cleared on change; `/me` + become-creator too);
 > live uploads → `hidden` (404 on the public page, removed from likes/collections lists, can't be approved), restored on
 > enable.
+>
+> **Phase 8 — Activity log (2026-10-13, built + tested locally):** `/admin/activity`. `GET /api/admin/activity` (group:
+> wallpapers/review/categories/featured/users/system, admin or "system", search incl. current target names and details,
+> from/to, paging; joins current wallpaper/category/user names; returns admins + category names). Web: day-grouped
+> timeline with one plain sentence per action, colour per group, expandable details (from → to, reasons, counts, moves by
+> category), "Open" links to the target. Contract 20 (3/3) + browser-tested against the real log. No migration.
 
 ## Where we are today (checked against code + prod DB)
 

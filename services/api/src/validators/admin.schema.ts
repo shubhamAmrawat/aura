@@ -299,3 +299,23 @@ export const UserDisableBody = z.object({
 export const UserDeleteBody = z.object({
   confirmEmail: z.string({ message: "Type the user's email to confirm." }).trim().min(1, "Type the user's email to confirm."),
 });
+
+// ─── Activity log (Phase 8) ─────────────────────────────────
+
+export const ACTIVITY_GROUPS = ["wallpapers", "review", "categories", "featured", "users", "system"] as const;
+const isoDate = (name: string) =>
+  z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v)), `${name} must be a date`)
+    .transform((v) => new Date(v))
+    .optional();
+
+export const ActivityListQuery = z.object({
+  group: z.enum(ACTIVITY_GROUPS, { message: "Invalid group" }).optional(),
+  adminId: z.string().refine((v) => v === "system" || UUID.test(v), "Invalid admin").optional(),
+  q: z.string().trim().max(100, "Search is too long").optional(),
+  from: isoDate("from"),
+  to: isoDate("to"),
+  limit: intIn(1, 100, 50),
+  offset: intIn(0, 1_000_000, 0),
+});
