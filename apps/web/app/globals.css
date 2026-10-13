@@ -14,8 +14,8 @@
 
   /* accent — change this one line to switch the whole app */
   --accent: #81ee4e;
-  --accent-hover: #D4B86A;
-  --accent-muted: rgba(201, 168, 76, 0.15);
+  --accent-hover: #6fd93c;
+  --accent-muted: rgba(129, 238, 78, 0.15);
 
   /* borders */
   --border: rgba(255, 255, 255, 0.06);

@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import { SITE_LOGO_URL } from "@/lib/site";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import ConditionalNavbar from "@/app/components/ConditionalNavbar";
@@ -44,9 +43,12 @@ export const metadata: Metadata = {
   verification: {
     google: "YOOLGUwpRkHS7YCgE1_lseYDOh2BnilnWFIoI_50KuI",
   },
-  icons: {
-    icon: SITE_LOGO_URL,
-  },
+};
+
+/** Dark browser chrome (address bar, Android task switcher) to match the site. */
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
 };
 
 /** Google Analytics 4 (public measurement ID; override with NEXT_PUBLIC_GA_ID). */

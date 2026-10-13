@@ -17,8 +17,8 @@ export const Colors = {
 
   // Accent — change this one value to retheme the whole app
   accent:      '#81EE4E',
-  accentHover: '#D4B86A',
-  accentMuted: 'rgba(201, 168, 76, 0.15)',
+  accentHover: '#6fd93c',
+  accentMuted: 'rgba(129, 238, 78, 0.15)',
 
   // Borders
   border:      'rgba(255, 255, 255, 0.06)',

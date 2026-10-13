@@ -28,8 +28,11 @@ const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, showBackBut
         )}
         {(logo || title) && (
           <View style={styles.logoContainer}>
-            {logo && <Image source={{ uri: Images.SITE_LOGO_URL }} style={styles.logo} />}
-            <Text style={[styles.title, { fontSize: titleFontSize }]}>{title}</Text>
+            {logo ? (
+              <Image source={Images.LOGO_WORDMARK} style={styles.logo} resizeMode="contain" accessibilityLabel="Aurora" />
+            ) : (
+              <Text style={[styles.title, { fontSize: titleFontSize }]}>{title}</Text>
+            )}
           </View>
         )}
       </View>
@@ -58,8 +61,8 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
   logo: {
-    width: 26,
-    height: 26,
+    width: 104,
+    height: 24,
   },
   logoContainer: {
     flexDirection: 'row',

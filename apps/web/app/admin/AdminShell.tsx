@@ -112,7 +112,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         style={{ borderRight: "1px solid var(--border)", background: "var(--bg-secondary)" }}
       >
         <div className="flex items-center gap-2 px-2 pt-1">
-          <Logo size={28} href="/admin" />
+          <Logo height={22} href="/admin" />
           <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color: "var(--accent)", border: "1px solid rgba(129,238,78,0.35)" }}>
             Admin
           </span>
@@ -152,7 +152,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)" }}
         >
           <div className="flex items-center gap-2">
-            <Logo size={26} href="/admin" />
+            <Logo height={20} href="/admin" />
             <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--accent)" }}>Admin</span>
           </div>
           <button

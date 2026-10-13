@@ -153,11 +153,9 @@ const Navbar = ({ initialCategories = [] }: NavbarProps) => {
         style={{ background: "rgba(10, 10, 10, 0.92)", borderColor: "var(--border)" }}
         aria-label="Main"
       >
-        <div className="flex shrink-0 items-center gap-2.5">
-          <Logo size={32} priority />
-          <Link href="/" className="hidden text-[17px] font-semibold tracking-tight lg:inline" style={{ color: "var(--text-primary)" }}>
-            Aurora
-          </Link>
+        <div className="flex shrink-0 items-center">
+          <Logo height={24} className="hidden sm:flex" />
+          <Logo height={30} variant="mark" className="flex sm:hidden" />
         </div>
 
         {/* Desktop links */}
