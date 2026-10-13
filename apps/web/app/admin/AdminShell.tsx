@@ -28,8 +28,8 @@ const NAV: NavItem[] = [
   { href: "/admin/activity", label: "Activity log", icon: icon(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>) },
   {
     href: "/admin/ai-generator",
-    label: "Ai generator",
-    icon: icon(<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />),
+    label: "AI generator",
+    icon: icon(<><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" /></>),
   },
 ];
 
