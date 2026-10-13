@@ -3,11 +3,13 @@ import { db } from "../config/db";
 import { wallpapers } from "../models";
 import { screenFilterSql, type ScreenFilter } from "../utils/screenFilter";
 import { generateTextEmbedding } from "../integrations/openai";
+import { thumbUrlSql } from "./wallpaperThumb.service";
 
 const searchSelect = {
   id: wallpapers.id,
   title: wallpapers.title,
   fileUrl: wallpapers.fileUrl,
+  thumbUrl: thumbUrlSql,
   blurhash: wallpapers.blurhash,
   dominantColor: wallpapers.dominantColor,
   palette: wallpapers.palette,
@@ -174,7 +176,7 @@ export async function search(params: {
       const embStr = `[${queryEmbedding.join(",")}]`;
       const results = await db.execute(sql`
         SELECT
-          id, title, file_url, blurhash, dominant_color,
+          id, title, file_url, cdn_variants->'thumb'->>'url' AS thumb_url, blurhash, dominant_color,
           palette, width, height, like_count, download_count,
           view_count, trending_score, is_featured, is_premium,
           tags, category_id, status, created_at, format, file_size_bytes,

@@ -8,6 +8,7 @@ import { deleteFile, generateUploadUrl } from "../../integrations/r2";
 import { checkImageSafety } from "../../integrations/sightengine";
 import { generateVisionEmbedding } from "../../integrations/openai";
 import { extractImageMetadata } from "../../utils/imageMetadata";
+import { deleteThumbFor, tryCreateThumb } from "../wallpaperThumb.service";
 import { CATEGORY_AI_MODEL, classifyWallpaperCategory } from "../categoryAi.service";
 import type { AdminUploadInput } from "../../validators/admin.schema";
 
@@ -67,7 +68,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   const chosen = auto ? null : allCats.find((c) => c.id === input.categoryId);
   if (!auto && !chosen) throw new ApiError(400, "Category not found");
 
-  const [moderation, metadata, embedding, aiPick] = await Promise.all([
+  const [moderation, metadata, embedding, aiPick, thumb] = await Promise.all([
     checkImageSafety(fileUrl),
     extractImageMetadata(fileUrl),
     generateVisionEmbedding(fileUrl, { title: input.title, description: input.description, tags: input.tags }).catch((err) => {
@@ -83,13 +84,18 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
           return null;
         })
       : Promise.resolve(null),
+    tryCreateThumb(fileUrl),
   ]);
+  const discard = async () => {
+    await deleteFile(key).catch(() => {});
+    await deleteThumbFor(fileUrl);
+  };
 
   // "auto": the AI's pick, else Uncategorized (it then shows up in the review list), else a clear error
   const fallback = allCats.find((c) => c.slug === "uncategorized");
   const category = chosen ?? allCats.find((c) => c.id === aiPick?.categoryId) ?? fallback;
   if (!category) {
-    await deleteFile(key).catch(() => {});
+    await discard();
     throw new ApiError(400, "The AI couldn't pick a category. Choose one and upload again.");
   }
 
@@ -97,11 +103,11 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   const height = metadata.height || input.height || 0;
   if (!metadata.width) {
     // Nothing readable at the URL (upload never finished, or not an image)
-    await deleteFile(key).catch(() => {});
+    await discard();
     throw new ApiError(400, "Couldn't read the image. Upload it again.");
   }
   if (width < MIN_IMAGE_DIMENSION || height < MIN_IMAGE_DIMENSION) {
-    await deleteFile(key).catch(() => {});
+    await discard();
     throw new ApiError(400, `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels.`);
   }
 
@@ -156,6 +162,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         moderationReason: moderation.status === "approved" ? null : moderation.reason,
         ...(input.publish ? { reviewedBy: adminId, reviewedAt: now } : {}),
         ...(embedding ? { textEmbedding: embedding } : {}),
+        ...(thumb ? { cdnVariants: { thumb } } : {}),
       })
       .returning({
         id: wallpapers.id,

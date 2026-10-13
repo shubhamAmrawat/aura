@@ -170,7 +170,7 @@ describe("uploads management", () => {
     expect(res.body.hasMore).toBe(false);
     expect(res.body.data.map((w: any) => w.id)).toEqual([wpId]);
     expectKeys(res.body.data[0], [
-      "id", "title", "description", "fileUrl", "blurhash", "dominantColor", "width", "height", "tags",
+      "id", "title", "description", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "width", "height", "tags",
       "categoryId", "status", "likeCount", "downloadCount", "createdAt", "format", "isMobile",
     ]);
     expect((await api("GET", "/api/profile/uploads", { token: other.token })).body).toEqual({ data: [], hasMore: false });

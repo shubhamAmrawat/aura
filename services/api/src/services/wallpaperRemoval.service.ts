@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { collections, collectionWallpapers, downloads, likes, users, wallpapers } from "../models";
 import { deleteFile, keyFromPublicUrl } from "../integrations/r2";
+import { deleteThumbFor } from "./wallpaperThumb.service";
 
 /**
  * Remove a wallpaper for good: dependents first, then the row, then its R2 file,
@@ -20,6 +21,7 @@ export async function removeWallpaper(row: { id: string; fileUrl: string; upload
   const key = keyFromPublicUrl(row.fileUrl);
   if (key) {
     await deleteFile(key).catch((e) => console.error("[r2] Delete file failed (non-fatal):", e));
+    await deleteThumbFor(row.fileUrl);
   }
 
   if (row.uploaderId) {

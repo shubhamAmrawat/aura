@@ -263,7 +263,7 @@ export default function ReviewQueuePage() {
             >
               <div className="relative cursor-zoom-in" style={{ background: w.dominantColor, aspectRatio: "3 / 4" }} onClick={() => setPreview(w)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={w.fileUrl} alt={w.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={w.thumbUrl ?? w.fileUrl} alt={w.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 <label
                   onClick={(e) => e.stopPropagation()}
                   className="absolute top-2 left-2 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer"

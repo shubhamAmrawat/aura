@@ -149,7 +149,7 @@ describe("GET /api/wallpapers/:id", () => {
 
 describe("GET /api/wallpapers/:id/similar", () => {
   const SIMILAR_KEYS = [
-    "id", "title", "description", "file_url", "blurhash", "dominant_color", "palette", "width", "height",
+    "id", "title", "description", "file_url", "thumb_url", "blurhash", "dominant_color", "palette", "width", "height",
     "like_count", "download_count", "view_count", "format", "file_size_bytes", "category_id", "tags",
     "semantic_score", "category_bonus", "hybrid_score",
   ];

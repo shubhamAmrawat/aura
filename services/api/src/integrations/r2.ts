@@ -49,13 +49,15 @@ export function buildObjectKey(folder: string, fileType: string, ownerId?: strin
 export async function uploadFileToKey(
   key: string,
   body: Uint8Array | Buffer,
-  fileType: string
+  fileType: string,
+  cacheControl?: string
 ): Promise<string> {
   const command = new PutObjectCommand({
     Bucket: env.R2_BUCKET_NAME!,
     Key: key,
     ContentType: fileType,
     Body: body,
+    ...(cacheControl ? { CacheControl: cacheControl } : {}),
   });
   await r2Client.send(command);
   return `${env.R2_PUBLIC_URL}/${key}`;

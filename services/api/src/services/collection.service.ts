@@ -2,6 +2,7 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { collections, collectionWallpapers, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
+import { thumbUrlSql } from "./wallpaperThumb.service";
 
 export function listPublicCollections() {
   return db
@@ -47,6 +48,7 @@ export async function getCollection(id: string, viewerId: string | undefined) {
       id: wallpapers.id,
       title: wallpapers.title,
       fileUrl: wallpapers.fileUrl,
+      thumbUrl: thumbUrlSql,
       blurhash: wallpapers.blurhash,
       dominantColor: wallpapers.dominantColor,
       width: wallpapers.width,

@@ -5,6 +5,7 @@ import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { generateWallpaperTextEmbedding } from "../../integrations/openai";
 import { removeWallpaper } from "../wallpaperRemoval.service";
+import { thumbUrlSql } from "../wallpaperThumb.service";
 
 /** Rejected uploads are kept this long (so a mistake can be undone), then purged. */
 export const REJECTED_RETENTION_DAYS = 30;
@@ -19,6 +20,7 @@ export async function listForReview(status: ReviewStatus, limit: number, offset:
       title: wallpapers.title,
       description: wallpapers.description,
       fileUrl: wallpapers.fileUrl,
+      thumbUrl: thumbUrlSql,
       blurhash: wallpapers.blurhash,
       dominantColor: wallpapers.dominantColor,
       width: wallpapers.width,

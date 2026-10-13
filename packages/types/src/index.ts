@@ -13,6 +13,8 @@ export interface Wallpaper {
   format: WallpaperFormat;
   blurhash: string;
   fileUrl: string;
+  /** 600px WebP for grids and cards; null/absent until made — fall back to fileUrl. */
+  thumbUrl?: string | null;
   tags: string[];
   isPremium: boolean;
   isFeatured: boolean;

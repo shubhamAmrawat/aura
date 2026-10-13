@@ -53,7 +53,7 @@ describe("GET /api/admin/featured", () => {
     const orders = res.body.items.map((w: { featuredOrder: number | null }) => w.featuredOrder ?? Infinity);
     expect([...orders].sort((a, b) => a - b)).toEqual(orders);
     if (res.body.items[0]) {
-      expectKeys(res.body.items[0], ["id", "title", "fileUrl", "dominantColor", "width", "height", "format", "tags", "status", "isMobile", "featuredOrder", "createdAt"]);
+      expectKeys(res.body.items[0], ["id", "title", "fileUrl", "thumbUrl", "dominantColor", "width", "height", "format", "tags", "status", "isMobile", "featuredOrder", "createdAt"]);
     }
   });
 });

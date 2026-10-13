@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { SITE_LOGO_URL } from "@/lib/site";
@@ -48,6 +49,11 @@ export const metadata: Metadata = {
   },
 };
 
+/** Google Analytics 4 (public measurement ID; override with NEXT_PUBLIC_GA_ID). */
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || "G-ME86FL2LKY";
+/** Only production builds report, so local development doesn't pollute the stats. */
+const GA_ENABLED = process.env.NODE_ENV === "production" && /^G-[A-Z0-9]+$/.test(GA_ID);
+
 export default async function RootLayout({
   children,
 }: {
@@ -83,6 +89,21 @@ export default async function RootLayout({
             </ConditionalNavbar>
           </ToastProvider>
         </AuthProvider>
+        {GA_ENABLED && (
+          <>
+            <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                // The admin dashboard is not part of the public site's traffic.
+                if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) window["ga-disable-${GA_ID}"] = true;
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}');
+              `}
+            </Script>
+          </>
+        )}
       </body>
     </html>
   );

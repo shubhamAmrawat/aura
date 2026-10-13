@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Unit tests run without a database: every token's account counts as active.
+// (Disabled accounts are covered by the contract suite, 19-admin-users.)
+vi.mock("../../src/utils/accountStatus", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/utils/accountStatus")>()),
+  accountStatus: async () => "active" as const,
+}));
 import express from "express";
 import cookieParser from "cookie-parser";
 import request from "supertest";

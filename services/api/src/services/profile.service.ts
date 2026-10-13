@@ -8,6 +8,7 @@ import { buildObjectKey, deleteFile, generateUploadUrl, keyFromPublicUrl, upload
 import { generateWallpaperTextEmbedding } from "../integrations/openai";
 import { checkOtp, findUserById, issueOtp } from "./auth.service";
 import { removeWallpaper } from "./wallpaperRemoval.service";
+import { deleteThumbFor, thumbUrlSql } from "./wallpaperThumb.service";
 
 export type ImageKind = "avatar" | "cover";
 
@@ -217,6 +218,7 @@ export async function purgeAccount(user: { id: string; email: string; avatarUrl:
     await tx.delete(users).where(eq(users.id, userId));
   });
 
+  await Promise.all(uploads.map((w) => deleteThumbFor(w.fileUrl)));
   const keys = [
     ...uploads.map((w) => r2KeyFromUrl(w.fileUrl)),
     r2KeyFromUrl(user.avatarUrl),
@@ -237,6 +239,7 @@ export async function listUploads(userId: string, limit: number, offset: number)
       title: wallpapers.title,
       description: wallpapers.description,
       fileUrl: wallpapers.fileUrl,
+      thumbUrl: thumbUrlSql,
       blurhash: wallpapers.blurhash,
       dominantColor: wallpapers.dominantColor,
       width: wallpapers.width,

@@ -240,7 +240,7 @@ export default function FeaturedPage() {
                   {order.filter((w) => shownIds.has(w.id)).map((w, i) => (
                     <li key={w.id} className={`relative rounded-md overflow-hidden ${i === 0 ? "col-span-2" : ""}`} style={{ aspectRatio: "16 / 9", background: w.dominantColor }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={w.fileUrl} alt={w.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                      <img src={w.thumbUrl ?? w.fileUrl} alt={w.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                       <span className="absolute top-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.65)", color: "#fff" }}>{i + 1}</span>
                     </li>
                   ))}
@@ -412,7 +412,7 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
         </button>
         <span className="w-6 text-center text-sm font-semibold tabular-nums" style={{ color: shown ? "var(--accent)" : "var(--text-muted)" }}>{index + 1}</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={w.fileUrl} alt="" loading="lazy" onClick={onPreview} className="w-20 h-12 rounded object-cover cursor-zoom-in shrink-0" style={{ background: w.dominantColor }} title="View full size" />
+        <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" onClick={onPreview} className="w-20 h-12 rounded object-cover cursor-zoom-in shrink-0" style={{ background: w.dominantColor }} title="View full size" />
         <div className="flex-1 min-w-0">
           <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>{w.title}</p>
           <p className="text-[11px] flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
@@ -491,7 +491,7 @@ function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title:
         {results.map((w) => (
           <div key={w.id} className="rounded-lg overflow-hidden flex flex-col shrink-0" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={w.fileUrl} alt="" loading="lazy" className="w-full aspect-video object-cover" style={{ background: w.dominantColor }} />
+            <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" className="w-full aspect-video object-cover" style={{ background: w.dominantColor }} />
             <div className="p-2 flex flex-col gap-1.5">
               <p className="text-xs truncate" style={{ color: "var(--text-primary)" }} title={w.title}>{w.title}</p>
               <button disabled={adding !== null} onClick={() => add(w)} className="text-xs font-semibold py-1.5 rounded-md disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>

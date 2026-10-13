@@ -1,6 +1,7 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { likes, wallpapers } from "../models";
+import { thumbUrlSql } from "./wallpaperThumb.service";
 
 /** Like if not liked, unlike if liked; keeps wallpapers.like_count in sync. */
 export async function toggleLike(userId: string, wallpaperId: string): Promise<boolean> {
@@ -30,6 +31,7 @@ export function listLikedWallpapers(userId: string) {
       id: wallpapers.id,
       title: wallpapers.title,
       fileUrl: wallpapers.fileUrl,
+      thumbUrl: thumbUrlSql,
       blurhash: wallpapers.blurhash,
       dominantColor: wallpapers.dominantColor,
       width: wallpapers.width,

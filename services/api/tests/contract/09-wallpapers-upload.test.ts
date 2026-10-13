@@ -6,6 +6,8 @@ import { pngOf } from "../setup/images";
 import { createTestWallpaper } from "../setup/fixtures";
 import { expectError, expectKeys } from "../setup/assert";
 import { useTestCleanup } from "../setup/lifecycle";
+import sharp from "sharp";
+import { getFileBytes } from "../../src/integrations/r2";
 
 useTestCleanup();
 
@@ -122,8 +124,21 @@ describe("POST /api/wallpapers/upload", () => {
     expect(w.palette[0]).toBe(w.dominantColor);
     expect(typeof w.blurhash).toBe("string");
 
+    // Grid thumbnail made with the upload: WebP at the original's key under thumbs/
+    const thumb = w.cdnVariants?.thumb;
+    expect(thumb).toMatchObject({ url: `${process.env.R2_PUBLIC_URL}/thumbs/${key.replace(/\.png$/, "")}.webp`, width: 300, height: 400 });
+    const bytes = await getFileBytes(`thumbs/${key.replace(/\.png$/, "")}.webp`);
+    expect(await sharp(bytes).metadata()).toMatchObject({ format: "webp", width: 300, height: 400 });
+    expect(thumb.bytes).toBe(bytes.length);
+
+    // The uploader's list returns it as thumbUrl; deleting the wallpaper removes the thumbnail too
+    const mine = await api("GET", "/api/profile/uploads", { token: creator.token });
+    expect(mine.body.data.find((x: any) => x.id === w.id).thumbUrl).toBe(thumb.url);
+    expect((await api("DELETE", `/api/profile/uploads/${w.id}`, { token: creator.token })).status).toBe(200);
+    await expect(getFileBytes(`thumbs/${key.replace(/\.png$/, "")}.webp`)).rejects.toThrow();
+
     const [u] = await sql<{ n: number }[]>`SELECT total_uploads AS n FROM users WHERE id = ${creator.id}`;
-    expect(u!.n).toBe(1);
+    expect(u!.n).toBe(0); // uploaded, then deleted above
     const feed = await api("GET", "/api/wallpapers?limit=20");
     expect(feed.body.data.some((x: any) => x.id === w.id)).toBe(false);
   });

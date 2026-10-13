@@ -198,7 +198,7 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
               <div className="flex gap-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={w.fileUrl}
+                  src={w.thumbUrl ?? w.fileUrl}
                   alt={w.title}
                   onClick={() => setPreviewing(true)}
                   className="w-28 rounded-lg object-cover shrink-0 cursor-zoom-in transition-opacity hover:opacity-85"

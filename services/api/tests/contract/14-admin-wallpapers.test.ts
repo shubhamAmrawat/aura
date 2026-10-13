@@ -58,7 +58,7 @@ describe("GET /api/admin/wallpapers", () => {
     const item = res.body.data.find((w: { id: string }) => w.id === pending);
     expect(item).toBeTruthy();
     expectKeys(item, [
-      "id", "title", "fileUrl", "dominantColor", "width", "height", "fileSizeBytes", "format", "status", "tags",
+      "id", "title", "fileUrl", "thumbUrl", "dominantColor", "width", "height", "fileSizeBytes", "format", "status", "tags",
       "isFeatured", "isPremium", "isMobile", "isAiGenerated", "downloadCount", "likeCount", "viewCount", "trendingScore",
       "createdAt", "category", "uploader",
     ]);

@@ -69,6 +69,7 @@ async function adminPost<T>(path: string, body?: unknown): Promise<T> {
 export type ReviewStatus = "pending" | "rejected";
 
 export type ReviewItem = {
+  thumbUrl?: string | null;
   id: string;
   title: string;
   description: string | null;
@@ -123,6 +124,7 @@ async function adminSend<T>(method: "PATCH" | "DELETE", path: string, body?: unk
 }
 
 export type AdminWallpaper = {
+  thumbUrl?: string | null;
   id: string;
   title: string;
   fileUrl: string;
@@ -227,6 +229,7 @@ export async function getCategoryOptions(): Promise<CategoryOption[]> {
 // ─── Featured (home page hero) ──────────────────────────────
 
 export type FeaturedItem = {
+  thumbUrl?: string | null;
   id: string;
   title: string;
   fileUrl: string;

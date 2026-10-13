@@ -9,12 +9,15 @@ import { deleteFile, generateUploadUrl } from "../integrations/r2";
 import { generateVisionEmbedding, generateWallpaperTextEmbedding } from "../integrations/openai";
 import type { UploadInput } from "../validators/wallpaper.schema";
 import { resolveCategorySlug } from "./category.service";
+import { deleteThumbFor, thumbUrlSql, tryCreateThumb, type ThumbVariant } from "./wallpaperThumb.service";
 
 /** Columns returned by every list/feed endpoint. */
 export const wallpaperListSelect = {
   id: wallpapers.id,
   title: wallpapers.title,
   fileUrl: wallpapers.fileUrl,
+  /** 600px WebP for grids (null until made); fileUrl is the full original. */
+  thumbUrl: thumbUrlSql,
   blurhash: wallpapers.blurhash,
   dominantColor: wallpapers.dominantColor,
   palette: wallpapers.palette,
@@ -137,7 +140,7 @@ export async function getSimilar(id: string, params: { limit: number; offset: nu
 
   const similar = await db.execute(sql`
     SELECT 
-      id, title, description, file_url, blurhash, dominant_color,
+      id, title, description, file_url, cdn_variants->'thumb'->>'url' AS thumb_url, blurhash, dominant_color,
       palette, width, height, like_count, download_count, view_count,
       format, file_size_bytes,
       category_id, tags,
@@ -297,17 +300,19 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
   const clientW = typeof input.width === "number" ? input.width : Number(input.width) || 0;
   const clientH = typeof input.height === "number" ? input.height : Number(input.height) || 0;
 
-  const [moderation, metadata, textEmbedding] = await Promise.all([
+  const [moderation, metadata, textEmbedding, thumb] = await Promise.all([
     checkImageSafety(fileUrl),
     extractImageMetadata(fileUrl),
     generateVisionEmbedding(fileUrl, { title, description, tags }).catch((err) => {
       console.error("[embedding] Vision embedding failed during upload:", err);
       return null;
     }),
+    tryCreateThumb(fileUrl),
   ]);
 
   if (moderation.status === "rejected") {
     await deleteFile(key).catch(() => {});
+    await deleteThumbFor(fileUrl);
     return { kind: "rejected", reason: moderation.reason };
   }
 
@@ -317,6 +322,7 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
 
   if (finalWidth < MIN_IMAGE_DIMENSION || finalHeight < MIN_IMAGE_DIMENSION) {
     await deleteFile(key).catch(() => {});
+    await deleteThumbFor(fileUrl);
     throw new ApiError(400, `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels.`);
   }
 
@@ -352,6 +358,7 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
       status: moderation.status,
       moderationReason: moderation.status === "pending" ? moderation.reason : null,
       ...(textEmbedding ? { textEmbedding } : {}),
+      ...(thumb ? { cdnVariants: { thumb } satisfies { thumb: ThumbVariant } } : {}),
     })
     .returning();
 

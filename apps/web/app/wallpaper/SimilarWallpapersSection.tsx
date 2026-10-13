@@ -8,6 +8,7 @@ export type SimilarSqlRow = {
   id: string;
   title: string;
   file_url: string;
+  thumb_url?: string | null;
   blurhash?: string | null;
   dominant_color: string;
   width: number | string;
@@ -24,6 +25,7 @@ function mapRows(wallpapers: SimilarSqlRow[]): Wallpaper[] {
     title: w.title,
     description: null,
     fileUrl: w.file_url,
+    thumbUrl: w.thumb_url ?? null,
     blurhash: w.blurhash ?? "",
     dominantColor: w.dominant_color,
     width: Number(w.width),

@@ -91,6 +91,9 @@ export async function cleanupTestData(emailPattern: string) {
         r2Deleted += await deleteR2Prefix(client, `${folder}/${id}/`);
       }
       r2Deleted += await deleteR2Prefix(client, `wallpapers/admin/${id}/`);
+      // Grid thumbnails mirror the original's key under thumbs/
+      r2Deleted += await deleteR2Prefix(client, `thumbs/wallpapers/${id}/`);
+      r2Deleted += await deleteR2Prefix(client, `thumbs/wallpapers/admin/${id}/`);
     }
   }
   return { ...counts, r2Objects: r2Deleted };

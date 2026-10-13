@@ -13,6 +13,7 @@ export function mapSearchResult(w: Record<string, unknown>): Wallpaper {
     title: String(w.title ?? ""),
     description: (w.description as string | null) ?? null,
     fileUrl: String(w.file_url ?? w.fileUrl ?? ""),
+    thumbUrl: ((w.thumb_url ?? w.thumbUrl) as string | null | undefined) ?? null,
     blurhash: String(w.blurhash ?? ""),
     dominantColor: String(w.dominant_color ?? w.dominantColor ?? ""),
     palette: Array.isArray(w.palette) ? (w.palette as string[]) : [],

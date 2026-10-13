@@ -14,6 +14,7 @@ interface CollectionWallpaperRow {
   id: string;
   title: string;
   fileUrl: string;
+  thumbUrl?: string | null;
   blurhash: string;
   dominantColor: string;
   width: number;

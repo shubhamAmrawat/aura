@@ -862,7 +862,7 @@ export default function ProfilePage() {
                           onContextMenu={(e) => e.preventDefault()}
                         >
                           <Image
-                            src={w.fileUrl}
+                            src={w.thumbUrl || w.fileUrl}
                             alt={w.title}
                             fill
                             sizes="(max-width: 640px) 50vw, 33vw"

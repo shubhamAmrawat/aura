@@ -16,7 +16,7 @@ export function expectSortedDesc(values: number[]) {
 }
 
 export const WALLPAPER_LIST_KEYS = [
-  "id", "title", "fileUrl", "blurhash", "dominantColor", "palette", "width", "height",
+  "id", "title", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "palette", "width", "height",
   "likeCount", "downloadCount", "viewCount", "trendingScore", "isFeatured", "isPremium",
   "isMobile", "tags", "categoryId", "status", "createdAt", "format", "fileSizeBytes",
 ];

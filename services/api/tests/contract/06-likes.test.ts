@@ -40,7 +40,7 @@ describe("likes", () => {
     expectKeys(list.body, ["data"]);
     expect(list.body.data.length).toBe(1);
     expectKeys(list.body.data[0], [
-      "id", "title", "fileUrl", "blurhash", "dominantColor", "width", "height", "likeCount", "downloadCount", "likedAt",
+      "id", "title", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "width", "height", "likeCount", "downloadCount", "likedAt",
     ]);
     expect(list.body.data[0].id).toBe(wpId);
     expect(await api("GET", `/api/likes/${wpId}`, { token: user.token }).then((r) => r.body)).toEqual({ liked: true });

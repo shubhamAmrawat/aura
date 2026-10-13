@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { purgeExpiredRejected } from "../services/admin/review.service";
 import { fillMissingCategoryThumbs } from "../services/categoryThumb.service";
+import { fillMissingThumbs } from "../services/wallpaperThumb.service";
 /**
  * Trending score formula:
  * 
@@ -81,6 +82,10 @@ async function runJob() {
     console.log(`[scheduler] Done — ${result.updated} wallpapers updated in ${result.durationMs}ms`);
     const { purged } = await purgeExpiredRejected();
     if (purged > 0) console.log(`[scheduler] Purged ${purged} wallpapers rejected over 30 days ago`);
+    const wallThumbs = await fillMissingThumbs(40, 3);
+    if (wallThumbs.created || wallThumbs.failed) {
+      console.log(`[scheduler] Wallpaper thumbnails: ${wallThumbs.created} created, ${wallThumbs.failed} failed, ${wallThumbs.remaining} still missing`);
+    }
     const thumbs = await fillMissingCategoryThumbs();
     if (thumbs.created || thumbs.failed) console.log(`[scheduler] Category thumbnails: ${thumbs.created} created, ${thumbs.failed} failed`);
   } catch (error) {

@@ -111,7 +111,7 @@ describe("collection lifecycle", () => {
     expectKeys(res.body.collection, [...COLLECTION_ROW, "wallpaperCount"]);
     expect(res.body.collection.wallpaperCount).toBe(2);
     for (const w of res.body.wallpapers) {
-      expectKeys(w, ["id", "title", "fileUrl", "blurhash", "dominantColor", "width", "height", "likeCount", "downloadCount", "addedAt"]);
+      expectKeys(w, ["id", "title", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "width", "height", "likeCount", "downloadCount", "addedAt"]);
     }
   });
 

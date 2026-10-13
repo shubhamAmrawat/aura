@@ -275,7 +275,7 @@ export default function WallpapersManager() {
                     <div className="flex items-center gap-3 min-w-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={w.fileUrl}
+                        src={w.thumbUrl ?? w.fileUrl}
                         alt=""
                         loading="lazy"
                         onClick={(e) => { e.stopPropagation(); setPreview(w); }}

@@ -210,6 +210,7 @@ export interface UserUpload {
   title: string;
   description: string | null;
   fileUrl: string;
+  thumbUrl?: string | null;
   blurhash: string;
   dominantColor: string;
   width: number;

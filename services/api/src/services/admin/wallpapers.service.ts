@@ -6,6 +6,7 @@ import { logAdminAction } from "../../utils/audit";
 import { generateWallpaperTextEmbedding } from "../../integrations/openai";
 import { removeWallpaper } from "../wallpaperRemoval.service";
 import { nextFeaturedOrder } from "../featured.service";
+import { thumbUrlSql } from "../wallpaperThumb.service";
 
 export type WallpaperListFilters = {
   q?: string;
@@ -39,6 +40,7 @@ const listColumns = {
   id: wallpapers.id,
   title: wallpapers.title,
   fileUrl: wallpapers.fileUrl,
+  thumbUrl: thumbUrlSql,
   dominantColor: wallpapers.dominantColor,
   width: wallpapers.width,
   height: wallpapers.height,

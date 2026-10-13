@@ -184,7 +184,7 @@ function EditModal({ upload, categories, onSave, onClose }: EditModalProps) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={upload.fileUrl}
+            src={upload.thumbUrl || upload.fileUrl}
             alt={upload.title}
             style={{
               maxWidth: "100%",
@@ -316,7 +316,7 @@ function UploadCard({ upload, onEdit, onDeleted }: UploadCardProps) {
     >
       {/* Thumbnail */}
       <Image
-        src={upload.fileUrl}
+        src={upload.thumbUrl || upload.fileUrl}
         alt={upload.title}
         fill
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

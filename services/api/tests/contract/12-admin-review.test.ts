@@ -64,7 +64,7 @@ describe("pending queue", () => {
 
     const item = res.body.data.find((w: { id: string }) => w.id === older);
     expectKeys(item, [
-      "id", "title", "description", "fileUrl", "blurhash", "dominantColor", "width", "height", "fileSizeBytes",
+      "id", "title", "description", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "width", "height", "fileSizeBytes",
       "format", "tags", "isMobile", "isAiGenerated", "status", "moderationReason", "reviewNote", "reviewedAt",
       "rejectedAt", "createdAt", "category", "uploader", "purgeAt",
     ]);

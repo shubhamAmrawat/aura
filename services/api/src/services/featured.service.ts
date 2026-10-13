@@ -3,6 +3,7 @@ import { db } from "../config/db";
 import { siteSettings, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { logAdminAction } from "../utils/audit";
+import { thumbUrlSql } from "./wallpaperThumb.service";
 
 export const FEATURED_LIMIT_KEY = "featured.limit";
 export const FEATURED_LIMIT_DEFAULT = 5;
@@ -62,6 +63,7 @@ export async function getAdminFeatured() {
         id: wallpapers.id,
         title: wallpapers.title,
         fileUrl: wallpapers.fileUrl,
+        thumbUrl: thumbUrlSql,
         dominantColor: wallpapers.dominantColor,
         width: wallpapers.width,
         height: wallpapers.height,
