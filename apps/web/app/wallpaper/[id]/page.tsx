@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getWallpaperById, getSimilarWallpapersPage } from "@/lib/api";
+import { notFound } from "next/navigation";
+import { getWallpaperById, getSimilarWallpapersPage, isNotFoundError } from "@/lib/api";
 import { Wallpaper } from "@aura/types";
 import WallpaperDetails from "@/app/wallpaper/WallpaperDetails";
 import {
@@ -63,7 +64,9 @@ export async function generateMetadata({ params }: WallpaperPageProps) {
         images: [wallpaper.fileUrl],
       },
     };
-  } catch {
+  } catch (e) {
+    // Thrown here (before the page streams) so crawlers get a real 404 status.
+    if (isNotFoundError(e)) notFound();
     return { title: "Wallpaper" };
   }
 }
@@ -76,6 +79,8 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
     getSimilarWallpapersPage(id, { limit: 24, offset: 0 }),
   ]);
 
+  // Deleted, disabled or in a hidden category → a real 404 (not a 200 "not found" page).
+  if (wallpaperResult.status === "rejected" && isNotFoundError(wallpaperResult.reason)) notFound();
   const wallpaper = wallpaperResult.status === "fulfilled" ? wallpaperResult.value : null;
   const similarPayload =
     similarResult.status === "fulfilled" ? similarResult.value : null;

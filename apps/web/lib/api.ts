@@ -24,11 +24,21 @@ function getApiUrl(): string {
   return API_URL;
 }
 
+/** Error from the API with its HTTP status (e.g. 404 = the thing doesn't exist or is hidden). */
+export class ApiRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+/** True only when the API answered 404 — not for network errors or outages. */
+export const isNotFoundError = (e: unknown) => e instanceof ApiRequestError && e.status === 404;
+
 async function fetchJsonOrThrow<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, credentials: "include" });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`Request failed (${response.status}) for ${url}${body ? `: ${body.slice(0, 240)}` : ""}`);
+    throw new ApiRequestError(`Request failed (${response.status}) for ${url}${body ? `: ${body.slice(0, 240)}` : ""}`, response.status);
   }
   return (await response.json()) as T;
 }
@@ -125,17 +135,21 @@ export async function getSimilarWallpapersPage(
   return { data: json.data ?? [], hasMore: Boolean(json.hasMore) };
 }
 
-/** Current slug for a category slug that was renamed or merged away; null if unknown. */
-export async function resolveCategorySlug(slug: string): Promise<string | null> {
+/**
+ * Current slug for a category slug (follows renames/merges).
+ * `null` = no such category (or hidden); `undefined` = couldn't tell (API unreachable).
+ */
+export async function resolveCategorySlug(slug: string): Promise<string | null | undefined> {
   try {
     const res = await fetch(`${getApiUrl()}/api/categories/resolve/${encodeURIComponent(slug)}`, {
       next: { revalidate: 3600, tags: ["categories"] },
     });
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    if (!res.ok) return undefined;
     const data = (await res.json()) as { slug?: string };
     return data.slug ?? null;
   } catch {
-    return null;
+    return undefined;
   }
 }
 

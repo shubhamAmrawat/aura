@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { permanentRedirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getWallpapers, getCategories, resolveCategorySlug } from "@/lib/api";
 import { CategoryWallpaperGrid } from "@/app/components/CategoryWallpaperGrid";
 import { getDevice } from "@/lib/device.server";
@@ -10,6 +10,8 @@ interface CategoryPageProps {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  // Unknown or hidden category: 404 here (before the page streams) so crawlers get a real 404 status.
+  if ((await resolveCategorySlug(slug)) === null) notFound();
   const name = slug.charAt(0).toUpperCase() + slug.slice(1);
   return {
     title: `${name} Wallpapers — Free 4K Download`,
@@ -34,9 +36,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   const category = allCategories.find((c) => c.slug === slug);
 
-  // Renamed or merged category → 308 to its current address (keeps old links and search rankings)
+  // Renamed or merged category → 308 to its current address (keeps old links and search rankings).
+  // Unknown or hidden category → a real 404 (not an empty page with 200).
   if (!category && categories.status === "fulfilled") {
     const current = await resolveCategorySlug(slug);
+    if (current === null) notFound();
     if (current && current !== slug) permanentRedirect(`/category/${current}`);
   }
 
