@@ -4,17 +4,21 @@ import { useState } from "react";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import { getTrendingWallpapers } from "@/lib/api";
+import DeviceEmptyState from "@/app/components/DeviceEmptyState";
+import type { Device } from "@/lib/device";
 
 const PAGE_SIZE = 20;
 
 interface TrendingGridProps {
   initialWallpapers: Wallpaper[];
   initialHasMore: boolean;
+  device?: Device;
 }
 
 export default function TrendingGrid({
   initialWallpapers,
   initialHasMore,
+  device,
 }: TrendingGridProps) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>(initialWallpapers);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -27,6 +31,7 @@ export default function TrendingGrid({
       const result = await getTrendingWallpapers({
         limit: PAGE_SIZE,
         offset: wallpapers.length,
+        device,
       });
       setWallpapers((prev) => {
         const seen = new Set(prev.map((w) => w.id));
@@ -39,6 +44,8 @@ export default function TrendingGrid({
       setLoading(false);
     }
   };
+
+  if (wallpapers.length === 0 && device && device !== "all") return <DeviceEmptyState device={device} />;
 
   if (wallpapers.length === 0) {
     return (

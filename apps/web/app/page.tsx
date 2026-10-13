@@ -3,10 +3,12 @@ import LatestWallpapersInfinite from "./components/LatestWallpapersInfinite";
 import Link from "next/link";
 import { Wallpaper } from "@aura/types";
 import { getWallpapersPage, getFeaturedWallpapers, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
+import { getDevice } from "@/lib/device.server";
 
 export default async function HomePage() {
+  const device = await getDevice();
   const [wallpapersResult, featuredResult] = await Promise.allSettled([
-    getWallpapersPage({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0 }),
+    getWallpapersPage({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0, device }),
     getFeaturedWallpapers(),
   ]);
 
@@ -70,6 +72,8 @@ export default async function HomePage() {
 
       <div className="w-full px-4 sm:px-8 md:px-12 py-8">
         <LatestWallpapersInfinite
+          key={device}
+          device={device}
           initialWallpapers={wallpapers}
           initialHasMore={initialHasMore}
         />

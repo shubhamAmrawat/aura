@@ -137,3 +137,26 @@ img {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Phone / desktop switch: instant feedback while the page reloads with the new filter. */
+html[data-device-pending] main {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+html[data-device-pending] body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 2px;
+  z-index: 100;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) no-repeat;
+  background-size: 40% 100%;
+  animation: aura-progress 0.9s linear infinite;
+}
+
+@keyframes aura-progress {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}

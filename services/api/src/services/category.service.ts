@@ -1,9 +1,23 @@
 import { eq } from "drizzle-orm";
 import { db } from "../config/db";
 import { categories, categoryRedirects } from "../models";
+import { liveCount } from "./categoryThumb.service";
 
+/** Public list: display order, with a small cover thumbnail and the number of live wallpapers. */
 export function listCategories() {
-  return db.select().from(categories).orderBy(categories.sortOrder);
+  return db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      slug: categories.slug,
+      description: categories.description,
+      coverImageUrl: categories.coverImageUrl,
+      coverThumbUrl: categories.coverThumbUrl,
+      sortOrder: categories.sortOrder,
+      wallpaperCount: liveCount,
+    })
+    .from(categories)
+    .orderBy(categories.sortOrder);
 }
 
 /** Every old slug → the current slug of the category it now belongs to. */

@@ -1,15 +1,20 @@
 import { cache } from "react";
 import { User, Wallpaper } from "@aura/types";
+import { screenFor, type Device } from "./device";
 
 /** Keep server initial fetch and client infinite scroll in sync. */
 export const WALLPAPERS_FEED_PAGE_SIZE = 24;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-interface Category {
+export interface Category {
   id: string;
   name: string;
   slug: string;
   description?: string | null;
+  /** Small webp for menus (null until one is made, or when the category is empty). */
+  coverThumbUrl?: string | null;
+  /** Live wallpapers in the category (absent on older API versions). */
+  wallpaperCount?: number;
 }
 
 function getApiUrl(): string {
@@ -35,8 +40,11 @@ function wallpapersListUrl(params?: {
   offset?: number;
   featured?: boolean;
   cursor?: string;
+  device?: Device;
 }): string {
   const query = new URLSearchParams();
+  const screen = screenFor(params?.device);
+  if (screen) query.set("screen", screen);
   if (params?.category) query.set("category", params.category);
   if (params?.q) query.set("q", params.q);
   if (params?.limit != null) query.set("limit", String(params.limit));
@@ -54,6 +62,8 @@ export type GetWallpapersParams = {
   q?: string;
   cursor?: string;
   offset?: number;
+  /** Phone / desktop filter (the visitor's choice); omit for everything. */
+  device?: Device;
 };
 
 export async function getWallpapers(
@@ -190,16 +200,44 @@ export async function becomeCreator(): Promise<{ user: User }> {
 export async function getTrendingWallpapers(params?: {
   limit?: number;
   offset?: number;
+  device?: Device;
 }): Promise<{ data: Wallpaper[]; hasMore: boolean }> {
   const url = new URL(`${getApiUrl()}/api/wallpapers/trending`);
   if (params?.limit) url.searchParams.set("limit", String(params.limit));
   if (params?.offset) url.searchParams.set("offset", String(params.offset));
+  const screen = screenFor(params?.device);
+  if (screen) url.searchParams.set("screen", screen);
 
   const json = await fetchJsonOrThrow<{ data: Wallpaper[]; hasMore?: boolean }>(
     url.toString(),
     { next: { revalidate: 60, tags: ["wallpapers", "trending"] } }
   );
   return { data: json.data, hasMore: Boolean(json.hasMore) };
+}
+
+/** Type-ahead terms for the search box (client side). */
+export async function getAutocomplete(q: string, device?: Device, signal?: AbortSignal): Promise<string[]> {
+  const url = new URL(`${getApiUrl()}/api/search/autocomplete`);
+  url.searchParams.set("q", q);
+  url.searchParams.set("limit", "8");
+  const screen = screenFor(device);
+  if (screen) url.searchParams.set("screen", screen);
+  const res = await fetch(url, { signal });
+  if (!res.ok) return [];
+  const json = (await res.json()) as { data?: string[] };
+  return json.data ?? [];
+}
+
+/** Popular searches shown when the search box is empty (client side). */
+export async function getSearchSuggestions(device?: Device): Promise<string[]> {
+  const url = new URL(`${getApiUrl()}/api/search/suggestions`);
+  url.searchParams.set("limit", "6");
+  const screen = screenFor(device);
+  if (screen) url.searchParams.set("screen", screen);
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const json = (await res.json()) as { data?: { term: string }[] };
+  return (json.data ?? []).map((d) => d.term);
 }
 
 export type SearchApiMode = "semantic" | "keyword" | "hybrid" | "none";
@@ -209,9 +247,12 @@ export async function semanticSearch(params: {
   limit?: number;
   offset?: number;
   mode?: "semantic" | "keyword" | "hybrid";
+  device?: Device;
 }): Promise<{ data: Record<string, unknown>[]; hasMore: boolean; mode: SearchApiMode }> {
   const url = new URL(`${getApiUrl()}/api/search`);
   url.searchParams.set("q", params.q);
+  const screen = screenFor(params.device);
+  if (screen) url.searchParams.set("screen", screen);
   if (params.limit) url.searchParams.set("limit", String(params.limit));
   if (params.offset) url.searchParams.set("offset", String(params.offset));
   url.searchParams.set("mode", params.mode ?? "hybrid");

@@ -5,18 +5,22 @@ import { useState } from "react";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import { getWallpapers } from "@/lib/api";
+import DeviceEmptyState from "@/app/components/DeviceEmptyState";
+import type { Device } from "@/lib/device";
 
 const PAGE_SIZE = 20;
 
 interface LatestWallpapersLoadMoreProps {
   initialWallpapers: Wallpaper[];
   initialHasMore: boolean;
+  device?: Device;
 }
 
 /** Same load-more pattern as {@link CategoryWallpaperGrid}: explicit button, no infinite scroll. */
 export function LatestWallpapersLoadMore({
   initialWallpapers,
   initialHasMore,
+  device,
 }: LatestWallpapersLoadMoreProps) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>(initialWallpapers);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -29,6 +33,7 @@ export function LatestWallpapersLoadMore({
       const result = await getWallpapers({
         limit: PAGE_SIZE,
         offset: wallpapers.length,
+        device,
       });
       setWallpapers((prev) => {
         const seen = new Set(prev.map((w) => w.id));
@@ -42,6 +47,8 @@ export function LatestWallpapersLoadMore({
       setLoading(false);
     }
   };
+
+  if (wallpapers.length === 0 && device && device !== "all") return <DeviceEmptyState device={device} />;
 
   if (wallpapers.length === 0) {
     return (

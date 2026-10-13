@@ -102,36 +102,44 @@ export async function getSuggestions(params: { screen: ScreenFilter | null; limi
 }
 
 /** Prefix matches from titles and tags (lowercased, unique). */
+/** Escape LIKE wildcards so user input matches literally. */
+function likeEscape(s: string) {
+  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+/**
+ * Type-ahead terms: tags and short titles whose text, or any word in it, starts with `q`.
+ * Ranked: starts-with first, then tags before titles, then by how many wallpapers use it
+ * (titles: by downloads), then shorter terms. Long or comma-list terms are skipped.
+ */
 export async function getAutocomplete(params: { q: string; limit: number; screen: ScreenFilter | null }) {
   const screenSql = screenFilterSql(params.screen);
-  const pattern = `${params.q}%`;
+  const q = likeEscape(params.q.toLowerCase());
+  const starts = `${q}%`;
+  const wordStarts = `% ${q}%`;
 
-  const titleRows = await db.execute(sql`
-    SELECT DISTINCT LOWER(title) AS term
-    FROM wallpapers
-    WHERE status = 'approved'
-      ${screenSql}
-      AND LOWER(title) LIKE ${pattern}
-    ORDER BY term ASC
-    LIMIT ${params.limit}
-  `);
-
-  const tagRows = await db.execute(sql`
-    SELECT DISTINCT LOWER(tag) AS term
-    FROM (
-      SELECT UNNEST(tags) AS tag
+  const rows = await db.execute(sql`
+    SELECT term FROM (
+      SELECT LOWER(TRIM(tag)) AS term, count(*)::int AS score, 0 AS kind
+      FROM wallpapers, UNNEST(tags) AS tag
+      WHERE status = 'approved' ${screenSql}
+      GROUP BY 1
+      UNION ALL
+      SELECT LOWER(TRIM(title)) AS term, (sum(download_count) + count(*))::int AS score, 1 AS kind
       FROM wallpapers
-      WHERE status = 'approved'
-        ${screenSql}
+      WHERE status = 'approved' ${screenSql}
+      GROUP BY 1
     ) t
-    WHERE LOWER(tag) LIKE ${pattern}
-    ORDER BY term ASC
-    LIMIT ${params.limit}
+    WHERE (term LIKE ${starts} ESCAPE '\\' OR term LIKE ${wordStarts} ESCAPE '\\')
+      AND length(term) BETWEEN 2 AND 40
+      AND position(',' IN term) = 0
+    ORDER BY (term LIKE ${starts} ESCAPE '\\') DESC, kind ASC, score DESC, length(term) ASC, term ASC
+    LIMIT ${params.limit * 2}
   `);
 
   const seen = new Set<string>();
   const data: string[] = [];
-  for (const row of [...titleRows, ...tagRows] as Array<{ term?: string | null }>) {
+  for (const row of rows as Array<{ term?: string | null }>) {
     const term = row.term?.trim();
     if (!term || seen.has(term)) continue;
     seen.add(term);

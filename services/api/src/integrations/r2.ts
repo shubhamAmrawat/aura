@@ -1,5 +1,5 @@
 import { env } from "../config/env";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
@@ -80,6 +80,13 @@ export function keyFromPublicUrl(url: string | null | undefined): string | null 
   } catch {
     return null;
   }
+}
+
+/** Read an object from the bucket (avoids the public CDN, which may block server clients). */
+export async function getFileBytes(key: string): Promise<Buffer> {
+  const res = await r2Client.send(new GetObjectCommand({ Bucket: env.R2_BUCKET_NAME!, Key: key }));
+  if (!res.Body) throw new Error(`Empty object: ${key}`);
+  return Buffer.from(await res.Body.transformToByteArray());
 }
 
 export async function deleteFile(key: string): Promise<void> {

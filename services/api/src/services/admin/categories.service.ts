@@ -4,6 +4,7 @@ import { categories, categoryRedirects, wallpapers } from "../../models";
 import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { keyFromPublicUrl } from "../../integrations/r2";
+import { deleteThumbFile, refreshCategoryThumb } from "../categoryThumb.service";
 
 /** "Sci-Fi & Fantasy" → "sci-fi-fantasy" */
 export function slugify(name: string): string {
@@ -116,8 +117,9 @@ export async function updateCategory(
     }
   }
   if (!Object.keys(set).length) return before;
+  let updated: typeof before;
   try {
-    return await db.transaction(async (tx) => {
+    updated = await db.transaction(async (tx) => {
       const [row] = await tx.update(categories).set(set).where(eq(categories.id, id)).returning();
       if (set.slug) {
         // Old links keep working: /category/<old> → this category
@@ -134,6 +136,16 @@ export async function updateCategory(
     if (isUniqueViolation(e)) throw new ApiError(409, "A category with this slug already exists.");
     throw e;
   }
+  if (changes.coverImageUrl) {
+    // New cover → new menu thumbnail. A failure here must not fail the save.
+    try {
+      await refreshCategoryThumb(id);
+      return await getOne(id);
+    } catch (e) {
+      console.error("[category-thumbs] refresh after cover change failed:", e instanceof Error ? e.message : e);
+    }
+  }
+  return updated;
 }
 
 /** Save the full display order (the client sends every category id, top to bottom). */
@@ -194,5 +206,6 @@ export async function deleteCategory(adminId: string, id: string, moveTo?: strin
     );
     return count;
   });
+  await deleteThumbFile(cat.coverThumbUrl);
   return { id, deleted: true as const, moved, moveTo: target?.id ?? null };
 }

@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE_URL, changeFrequency: "daily", priority: 1.0 },
     { url: `${BASE_URL}/trending`, changeFrequency: "hourly", priority: 0.9 },
     { url: `${BASE_URL}/latest`, changeFrequency: "hourly", priority: 0.9 },
+    { url: `${BASE_URL}/categories`, changeFrequency: "weekly", priority: 0.7 },
   ];
 
   // categories — cached for 24h so repeated crawler hits reuse the same response

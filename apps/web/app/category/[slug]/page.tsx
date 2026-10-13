@@ -2,6 +2,7 @@ import Link from "next/link";
 import { permanentRedirect } from "next/navigation";
 import { getWallpapers, getCategories, resolveCategorySlug } from "@/lib/api";
 import { CategoryWallpaperGrid } from "@/app/components/CategoryWallpaperGrid";
+import { getDevice } from "@/lib/device.server";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -18,10 +19,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
+  const device = await getDevice();
 
   const [categories, wallpapersResult] = await Promise.allSettled([
     getCategories(),
-    getWallpapers({ category: slug, limit: 20 }),
+    getWallpapers({ category: slug, limit: 20, device }),
   ]);
 
   const allCategories = categories.status === "fulfilled" ? categories.value : [];
@@ -61,6 +63,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </div>
 
         <CategoryWallpaperGrid
+          key={device}
+          device={device}
           slug={slug}
           initialWallpapers={initialWallpapers}
           initialHasMore={initialHasMore}

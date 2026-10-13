@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import { getWallpapers } from "@/lib/api";
+import DeviceEmptyState from "@/app/components/DeviceEmptyState";
+import type { Device } from "@/lib/device";
 
 const PAGE_SIZE = 20;
 
@@ -12,12 +14,14 @@ interface CategoryWallpaperGridProps {
   slug: string;
   initialWallpapers: Wallpaper[];
   initialHasMore: boolean;
+  device?: Device;
 }
 
 export function CategoryWallpaperGrid({
   slug,
   initialWallpapers,
   initialHasMore,
+  device,
 }: CategoryWallpaperGridProps) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>(initialWallpapers);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -31,6 +35,7 @@ export function CategoryWallpaperGrid({
         category: slug,
         limit: PAGE_SIZE,
         offset: wallpapers.length,
+        device,
       });
       setWallpapers((prev) => {
         const seen = new Set(prev.map((w) => w.id));
@@ -44,6 +49,8 @@ export function CategoryWallpaperGrid({
       setLoading(false);
     }
   };
+
+  if (wallpapers.length === 0 && device && device !== "all") return <DeviceEmptyState device={device} />;
 
   if (wallpapers.length === 0) {
     return (

@@ -13,7 +13,12 @@ describe("GET /api/categories", () => {
     expectKeys(res.body, ["data"]);
     const data = res.body.data as any[];
     expect(data.length).toBeGreaterThan(0);
-    for (const c of data) expectKeys(c, ["id", "name", "slug", "description", "coverImageUrl", "sortOrder"]);
+    for (const c of data) {
+      expectKeys(c, ["id", "name", "slug", "description", "coverImageUrl", "coverThumbUrl", "sortOrder", "wallpaperCount"]);
+      expect(Number.isInteger(c.wallpaperCount) && c.wallpaperCount >= 0).toBe(true);
+      if (c.coverThumbUrl !== null) expect(c.coverThumbUrl).toMatch(/\/categories\/thumbs\/[0-9a-f-]{36}-[0-9a-f]{10}\.webp$/);
+    }
+    expect(data.some((c) => c.wallpaperCount > 0)).toBe(true);
     for (let i = 1; i < data.length; i++) expect(data[i - 1].sortOrder).toBeLessThanOrEqual(data[i].sortOrder);
   });
 });

@@ -113,7 +113,7 @@ describe("GET /api/search/autocomplete", () => {
     expect(res.headers.get("cache-control")).toBeNull();
   });
 
-  it("prefix matches from titles + tags, unique, lowercase, ≤ limit", async () => {
+  it("tags + short titles where the text or a word in it starts with q, unique, lowercase, ≤ limit", async () => {
     const res = await api("GET", "/api/search/autocomplete?q=Da");
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("public, max-age=30, s-maxage=60, stale-while-revalidate=120");
@@ -121,7 +121,17 @@ describe("GET /api/search/autocomplete", () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data.length).toBeLessThanOrEqual(8);
     expect(new Set(data).size).toBe(data.length);
-    for (const t of data) expect(t.startsWith("da")).toBe(true);
+    for (const t of data) {
+      expect(t === t.toLowerCase()).toBe(true);
+      expect(t.split(" ").some((w) => w.startsWith("da"))).toBe(true);
+      expect(t.length).toBeLessThanOrEqual(40);
+      expect(t.includes(",")).toBe(false);
+    }
+    // whole-term matches rank above mid-term word matches
+    const firstWord = data.findIndex((t) => !t.startsWith("da"));
+    if (firstWord >= 0) expect(data.slice(firstWord).every((t) => !t.startsWith("da"))).toBe(true);
+    // wildcards are literal
+    expect((await api("GET", "/api/search/autocomplete?q=%25%25")).body.data).toEqual([]);
     expect((await api("GET", "/api/search/autocomplete?q=da&limit=50")).body.data.length).toBeLessThanOrEqual(15);
   });
 

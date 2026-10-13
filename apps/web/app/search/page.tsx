@@ -3,6 +3,8 @@ import { semanticSearch } from "@/lib/api";
 import type { Metadata } from "next";
 import { SearchGrid } from "@/app/search/SearchGrid";
 import { mapSearchResult } from "@/app/search/mapSearchResult";
+import { getDevice } from "@/lib/device.server";
+import DeviceEmptyState from "@/app/components/DeviceEmptyState";
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -37,10 +39,11 @@ const SearchIcon = ({ size = 48 }: { size?: number }) => (
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
+  const device = await getDevice();
 
   const [searchResult] = await Promise.allSettled([
     q.length >= 2
-      ? semanticSearch({ q, limit: 20, mode: "hybrid" })
+      ? semanticSearch({ q, limit: 20, mode: "hybrid", device })
       : Promise.resolve({ data: [], hasMore: false, mode: "none" as const }),
   ]);
 
@@ -130,7 +133,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </p> */}
         </div>
 
-        {!hasResults ? (
+        {!hasResults && device !== "all" && q.length >= 2 ? (
+          <DeviceEmptyState device={device} />
+        ) : !hasResults ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <p className="text-sm" style={{ color: "var(--text-muted)" }}>
               No results for &ldquo;{q}&rdquo;
@@ -161,7 +166,8 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           </div>
         ) : (
           <SearchGrid
-            key={q}
+            key={`${q}|${device}`}
+            device={device}
             initialResults={initialResults}
             initialHasMore={initialHasMore}
             q={q}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Wallpaper } from "@aura/types";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import { semanticSearch } from "@/lib/api";
+import type { Device } from "@/lib/device";
 import { mapSearchResult } from "@/app/search/mapSearchResult";
 
 const PAGE_SIZE = 20;
@@ -18,6 +19,7 @@ interface SearchGridProps {
   initialHasMore: boolean;
   q: string;
   mode: string;
+  device?: Device;
 }
 
 export function SearchGrid({
@@ -25,6 +27,7 @@ export function SearchGrid({
   initialHasMore,
   q,
   mode,
+  device,
 }: SearchGridProps) {
   const [wallpapers, setWallpapers] = useState<Wallpaper[]>(initialResults);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -41,6 +44,7 @@ export function SearchGrid({
         limit: PAGE_SIZE,
         offset: wallpapers.length,
         mode: requestMode,
+        device,
       });
       const mapped = result.data.map((row) =>
         mapSearchResult(row as Record<string, unknown>)

@@ -1,5 +1,6 @@
 import { LatestWallpapersLoadMore } from "@/app/components/LatestWallpapersLoadMore";
 import { getWallpapers } from "@/lib/api";
+import { getDevice } from "@/lib/device.server";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default async function LatestPage() {
-  const [result] = await Promise.allSettled([getWallpapers({ limit: 20 })]);
+  const device = await getDevice();
+  const [result] = await Promise.allSettled([getWallpapers({ limit: 20, device })]);
 
   const initialWallpapers = result.status === "fulfilled" ? result.value.data : [];
   const initialHasMore = result.status === "fulfilled" ? result.value.hasMore : false;
@@ -28,6 +30,8 @@ export default async function LatestPage() {
           </p>
         </div>
         <LatestWallpapersLoadMore
+          key={device}
+          device={device}
           initialWallpapers={initialWallpapers}
           initialHasMore={initialHasMore}
         />

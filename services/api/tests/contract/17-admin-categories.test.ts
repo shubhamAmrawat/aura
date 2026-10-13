@@ -6,6 +6,8 @@ import { createTestWallpaper } from "../setup/fixtures";
 import { expectError, NONEXISTENT_UUID } from "../setup/assert";
 import { useTestCleanup } from "../setup/lifecycle";
 import { RUN_ID } from "../setup/run";
+import sharp from "sharp";
+import { getFileBytes, keyFromPublicUrl } from "../../src/integrations/r2";
 
 let viewer: TestUser;
 let admin: TestUser;
@@ -107,6 +109,36 @@ describe("PATCH /api/admin/categories/:id", () => {
     expect(cleared.body).toMatchObject({ coverImageUrl: null, description: null });
     const [audit] = await sql`SELECT details FROM admin_actions WHERE target_id = ${a.id} AND action = 'category.update' ORDER BY created_at LIMIT 1`;
     expect(audit!.details.changes.slug).toEqual({ from: `${SLUG}-a`, to: `${SLUG}-a2` });
+  });
+});
+
+describe("category thumbnails", () => {
+  it("makes a small webp when a cover is set, lists it publicly, removes the file on delete", async () => {
+    const [w] = await sql<{ file_url: string }[]>`
+      SELECT file_url FROM wallpapers WHERE status = 'approved' AND file_url LIKE ${process.env.R2_PUBLIC_URL + "/%"}
+      ORDER BY created_at DESC LIMIT 1`;
+    const { body: c } = await call("POST", "", { name: `${NAME} Thumb`, slug: `${SLUG}-thumb` });
+    expect(c.coverThumbUrl ?? null).toBeNull();
+
+    const res = await call("PATCH", `/${c.id}`, { coverImageUrl: w!.file_url });
+    expect(res.status).toBe(200);
+    expect(res.body.coverThumbUrl).toMatch(new RegExp(`/categories/thumbs/${c.id}-[0-9a-f]{10}\\.webp$`));
+    expect(res.body.coverThumbSource).toBe(w!.file_url);
+    const key = keyFromPublicUrl(res.body.coverThumbUrl)!;
+    const bytes = await getFileBytes(key);
+    expect(await sharp(bytes).metadata()).toMatchObject({ format: "webp", width: 480, height: 320 });
+    expect(bytes.length).toBeLessThan(120_000);
+
+    const pub = await api("GET", "/api/categories");
+    expect((pub.body.data as any[]).find((x) => x.id === c.id)).toMatchObject({ coverThumbUrl: res.body.coverThumbUrl, wallpaperCount: 0 });
+
+    // Same cover again → nothing to change, same thumbnail
+    const again = await call("PATCH", `/${c.id}`, { coverImageUrl: w!.file_url });
+    expect(again.status).toBe(200);
+    expect(again.body.coverThumbUrl).toBe(res.body.coverThumbUrl);
+
+    expect((await call("DELETE", `/${c.id}`)).status).toBe(200);
+    await expect(getFileBytes(key)).rejects.toThrow();
   });
 });
 

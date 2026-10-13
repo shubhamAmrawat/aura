@@ -5,6 +5,8 @@ import { Wallpaper } from "@aura/types";
 import WallpaperCard from "./WallpaperCard";
 import WallpaperCardSkeleton from "./WallpaperCardSkeleton";
 import { getWallpapersPage, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
+import DeviceEmptyState from "./DeviceEmptyState";
+import type { Device } from "@/lib/device";
 const SKELETON_COUNT = 16;
 /** Expand the viewport’s intersection box downward so loads start well before the footer. */
 const ROOT_MARGIN = "0px 0px 1200px 0px";
@@ -14,11 +16,13 @@ const SCROLL_PX_FROM_BOTTOM = 720;
 interface LatestWallpapersInfiniteProps {
   initialWallpapers: Wallpaper[];
   initialHasMore: boolean;
+  device?: Device;
 }
 
 export default function LatestWallpapersInfinite({
   initialWallpapers,
   initialHasMore,
+  device,
 }: LatestWallpapersInfiniteProps) {
   const [items, setItems] = useState<Wallpaper[]>(initialWallpapers);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -46,6 +50,7 @@ export default function LatestWallpapersInfinite({
       const { data, hasMore: more } = await getWallpapersPage({
         offset,
         limit: WALLPAPERS_FEED_PAGE_SIZE,
+        device,
       });
 
       nextOffsetRef.current = offset + data.length;
@@ -71,7 +76,7 @@ export default function LatestWallpapersInfinite({
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, []);
+  }, [device]);
 
   const maybeLoadFromScrollPosition = useCallback(() => {
     if (!hasMoreRef.current || loadingRef.current) return;
@@ -148,7 +153,9 @@ export default function LatestWallpapersInfinite({
         </div>
       </div>
 
-      {showEmptyState ? (
+      {showEmptyState && device && device !== "all" ? (
+        <DeviceEmptyState device={device} />
+      ) : showEmptyState ? (
         <div className="py-20 text-center">
           <p style={{ color: "var(--text-secondary)" }}>No wallpapers found</p>
         </div>

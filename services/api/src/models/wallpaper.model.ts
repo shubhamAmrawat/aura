@@ -56,6 +56,10 @@ export const categories = pgTable("categories", {
   slug: text("slug").notNull().unique(),
   description: text("description"),
   coverImageUrl: text("cover_image_url"),
+  /** Small webp of the cover (or of the most downloaded live wallpaper) for menus. */
+  coverThumbUrl: text("cover_thumb_url"),
+  /** The image the thumbnail was made from — a different source means it is out of date. */
+  coverThumbSource: text("cover_thumb_source"),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 

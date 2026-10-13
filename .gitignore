@@ -24,3 +24,6 @@ services/api/migrations/
 services/api/.cache/
 # Local DB backups (contain user data) — never commit
 backups/
+
+# Scratch folder for files waiting to be deleted — never commit
+_to_delete/

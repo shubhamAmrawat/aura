@@ -30,8 +30,8 @@ const NavbarAuth = () => {
         href="/login"
         title="Sign in"
         aria-label="Sign in"
-        className="flex items-center gap-2 text-xs font-medium px-4 py-1.5 rounded-[4px] border transition-all duration-200 hover:bg-white/4 tracking-wide"
-        style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+        className="flex h-10 items-center gap-2 rounded-full px-3 text-sm font-semibold transition-opacity hover:opacity-85 sm:px-4"
+        style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
       >
        
         <svg
@@ -58,8 +58,8 @@ const NavbarAuth = () => {
       {user?.isCreator && (
         <Link
           href="/upload"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] text-xs font-medium transition-all hover:opacity-80"
-          style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+          className="flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors hover:bg-white/[0.06] sm:px-4"
+          style={{ color: "var(--text-primary)", border: "1px solid var(--border-hover)" }}
           title="Upload wallpaper"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"

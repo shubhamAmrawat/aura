@@ -1,9 +1,11 @@
 import { getTrendingWallpapers } from "@/lib/api";
 import TrendingGrid from "./TrendingGrid";
+import { getDevice } from "@/lib/device.server";
 
 export default async function TrendingPage() {
+  const device = await getDevice();
   const [result] = await Promise.allSettled([
-    getTrendingWallpapers({ limit: 20 }),
+    getTrendingWallpapers({ limit: 20, device }),
   ]);
 
   const initialWallpapers = result.status === "fulfilled" ? result.value.data : [];
@@ -28,6 +30,8 @@ export default async function TrendingPage() {
         </div>
 
         <TrendingGrid
+          key={device}
+          device={device}
           initialWallpapers={initialWallpapers}
           initialHasMore={initialHasMore}
         />

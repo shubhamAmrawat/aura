@@ -1,353 +1,344 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Logo from "@/app/components/Logo";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import Logo from "@/app/components/Logo";
 import NavbarAuth from "@/app/components/NavbarAuth";
-import SearchBar from "@/app/components/SearchBar";
-
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-}
-
-/** Shared stroke icon shell — matches NavbarAuth / existing nav SVG style */
-const navIconSvgProps = {
-  width: 20,
-  height: 20,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.75,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-};
-
-const IconLayoutGrid = () => (
-  <svg {...navIconSvgProps} aria-hidden>
-    <rect width="7" height="7" x="3" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="14" rx="1" />
-    <rect width="7" height="7" x="3" y="14" rx="1" />
-  </svg>
-);
-
-const IconClock = () => (
-  <svg {...navIconSvgProps} aria-hidden>
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-const IconTrendingUp = () => (
-  <svg {...navIconSvgProps} aria-hidden>
-    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-    <polyline points="16 7 22 7 22 13" />
-  </svg>
-);
-
-const navIconBtnClass =
-  "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(10,10,10,0.92)]";
-
-// Extracted pill so hover state is tracked per item without inline handlers
-const CategoryPill = ({
-  cat,
-  onClose,
-}: {
-  cat: Category;
-  onClose: () => void;
-}) => {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <Link
-      href={`/category/${cat.slug}`}
-      onClick={onClose}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="text-xs px-5 py-2 rounded-full text-center border transition-all duration-150 flex-shrink-0 whitespace-nowrap"
-      style={{
-        background: hovered ? "var(--accent)" : "transparent",
-        color: hovered ? "var(--bg-primary)" : "var(--text-secondary)",
-        borderColor: hovered ? "var(--accent)" : "var(--border)",
-      }}
-    >
-      {cat.name}
-    </Link>
-  );
-};
+import SearchBar, { DeviceSwitch } from "@/app/components/SearchBar";
+import type { Category } from "@/lib/api";
+import { groupCategories, popularCategories, visibleCategories } from "@/lib/categoryGroups";
 
 interface NavbarProps {
-  /** Pre-fetched server-side categories. When provided the client fetch is skipped. */
+  /** Categories fetched by the root layout (server side). */
   initialCategories?: Category[];
 }
 
-const Navbar = ({ initialCategories }: NavbarProps) => {
-  const [catOpen, setCatOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>(initialCategories ?? []);
-  const [catLoading, setCatLoading] = useState(
-    // If we already have categories from the server, no loading state needed
-    initialCategories ? false : Boolean(process.env.NEXT_PUBLIC_API_URL),
+const NAV_LINKS = [
+  { href: "/latest", label: "Latest" },
+  { href: "/trending", label: "Trending" },
+] as const;
+
+const Chevron = ({ open }: { open: boolean }) => (
+  <svg
+    width="12"
+    height="12"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+    className="transition-transform duration-200"
+    style={{ transform: open ? "rotate(180deg)" : "none" }}
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+/** Small square thumbnail for a category; a lettered tile when it has none yet. */
+function CategoryThumb({ category, className }: { category: Category; className: string }) {
+  if (category.coverThumbUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={category.coverThumbUrl} alt="" loading="lazy" decoding="async" className={`${className} object-cover`} />;
+  }
+  return (
+    <span className={`${className} flex items-center justify-center text-[11px] font-semibold`} style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)" }} aria-hidden>
+      {category.name.slice(0, 1)}
+    </span>
   );
-  const [megaScrolled, setMegaScrolled] = useState(false);
-  const catRef = useRef<HTMLDivElement>(null);
-  const megaMenuRef = useRef<HTMLDivElement>(null);
+}
 
-  // Only fetch client-side when the server didn't pre-populate categories
-  useEffect(() => {
-    if (initialCategories) return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return;
-    fetch(`${apiUrl}/api/categories`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((json) => setCategories(json.data ?? []))
-      .catch(() => {})
-      .finally(() => setCatLoading(false));
-  }, [initialCategories]);
+const Navbar = ({ initialCategories = [] }: NavbarProps) => {
+  const pathname = usePathname();
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const exploreButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Hover opens the menu after a short pause and closes it shortly after the pointer leaves;
+  // a click "pins" it open (it then closes on Escape, a click outside or the button again).
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pinned = useRef(false);
 
-  // Close mega menu when clicking outside the trigger + panel, or on Escape
+  const clearHoverTimer = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+  };
+  const openExplore = (by: "hover" | "click") => {
+    clearHoverTimer();
+    pinned.current = by === "click";
+    setExploreOpen(true);
+  };
+  const closeExplore = () => {
+    clearHoverTimer();
+    pinned.current = false;
+    setExploreOpen(false);
+  };
+  const onHoverEnter = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse") return;
+    clearHoverTimer();
+    if (!exploreOpen) hoverTimer.current = setTimeout(() => openExplore("hover"), 120);
+  };
+  const onHoverLeave = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || pinned.current) return;
+    clearHoverTimer();
+    hoverTimer.current = setTimeout(closeExplore, 220);
+  };
+  const onExploreClick = () => {
+    if (exploreOpen && !pinned.current) pinned.current = true; // opened by hover → keep it open
+    else if (exploreOpen) closeExplore();
+    else openExplore("click");
+  };
+  useEffect(() => clearHoverTimer, []);
+
+  const groups = useMemo(() => groupCategories(initialCategories), [initialCategories]);
+  const popular = useMemo(() => popularCategories(initialCategories), [initialCategories]);
+  const searchCategories = useMemo(() => visibleCategories(initialCategories), [initialCategories]);
+  const visibleCount = searchCategories.length;
+
+  // Close menus when the page changes.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (pathname !== lastPath) {
+    setLastPath(pathname);
+    setExploreOpen(false);
+    setMobileOpen(false);
+  }
+
+  // Explore menu: close on Escape (focus back on the button) or a click outside.
   useEffect(() => {
-    if (!catOpen) return;
-    const handler = (e: MouseEvent) => {
+    if (!exploreOpen) return;
+    const onDown = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (catRef.current?.contains(t)) return;
-      if (megaMenuRef.current?.contains(t)) return;
-      setCatOpen(false);
+      if (panelRef.current?.contains(t) || exploreButtonRef.current?.contains(t)) return;
+      setExploreOpen(false);
     };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setCatOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setExploreOpen(false);
+        exploreButtonRef.current?.focus();
+      }
     };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
     };
-  }, [catOpen]);
+  }, [exploreOpen]);
 
+  // "/" focuses search (unless the visitor is already typing somewhere).
   useEffect(() => {
-    if (!catOpen) return;
-    const onScroll = () => setMegaScrolled(window.scrollY > 12);
-    const raf = requestAnimationFrame(() => onScroll());
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("scroll", onScroll);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (!searchRef.current || searchRef.current.offsetParent === null) return; // hidden (mobile)
+      e.preventDefault();
+      setExploreOpen(false);
+      searchRef.current.focus();
     };
-  }, [catOpen]);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const exploreActive = exploreOpen || pathname.startsWith("/category") || pathname === "/categories";
 
   return (
-  <>
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-12 py-2 border-b backdrop-blur-md"
-      style={{
-        background: "rgba(10, 10, 10, 0.92)",
-        borderColor: "var(--border)",
-      }}
-    >
-      <Logo size={33} priority />
+    <>
+      <nav
+        className="fixed inset-x-0 top-0 z-50 flex h-16 items-center gap-4 border-b px-4 backdrop-blur-md sm:px-6 lg:gap-8 lg:px-12"
+        style={{ background: "rgba(10, 10, 10, 0.92)", borderColor: "var(--border)" }}
+        aria-label="Main"
+      >
+        <div className="flex shrink-0 items-center gap-2.5">
+          <Logo size={32} priority />
+          <Link href="/" className="hidden text-[17px] font-semibold tracking-tight lg:inline" style={{ color: "var(--text-primary)" }}>
+            Aurora
+          </Link>
+        </div>
 
-      {/* True viewport center — absolute so uneven left/right widths don't pull the cluster left */}
-      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 hidden -translate-x-1/2 md:flex md:items-center">
-        <div className="pointer-events-auto flex items-center gap-1">
+        {/* Desktop links */}
+        <div className="hidden h-full items-stretch md:flex">
+          <button
+            ref={exploreButtonRef}
+            type="button"
+            onClick={onExploreClick}
+            onPointerEnter={onHoverEnter}
+            onPointerLeave={onHoverLeave}
+            aria-expanded={exploreOpen}
+            aria-controls="explore-menu"
+            className="relative flex items-center gap-1.5 px-3 text-sm font-medium transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
+            style={{ color: exploreActive ? "#fff" : "var(--text-secondary)" }}
+          >
+            Explore
+            <Chevron open={exploreOpen} />
+            {exploreActive && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
+          </button>
+          {NAV_LINKS.map((l) => {
+            const active = isActive(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                aria-current={active ? "page" : undefined}
+                className="relative flex items-center px-3 text-sm font-medium transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]"
+                style={{ color: active ? "#fff" : "var(--text-secondary)" }}
+              >
+                {l.label}
+                {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full" style={{ background: "var(--accent)" }} />}
+              </Link>
+            );
+          })}
+        </div>
 
-        {/* Categories dropdown trigger + panel */}
-        <div ref={catRef} className="relative">
+        <div className="ml-auto hidden min-w-0 max-w-[520px] flex-1 md:block">
+          <SearchBar inputRef={searchRef} showShortcut categories={searchCategories} onSearch={() => setExploreOpen(false)} />
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+          <NavbarAuth />
           <button
             type="button"
-            onClick={() => setCatOpen((v) => !v)}
-            aria-expanded={catOpen}
-            aria-label="Categories"
-            title="Categories"
-            className={`${navIconBtnClass} gap-0.5 px-1.5 w-auto min-w-10 hover:text-white ${
-              catOpen ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
-            }`}
+            className="flex h-10 w-10 items-center justify-center rounded-lg md:hidden"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            style={{ color: "var(--text-primary)" }}
           >
-            <IconLayoutGrid />
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="opacity-70 shrink-0"
-              style={{
-                transition: "transform 0.2s ease",
-                transform: catOpen ? "rotate(180deg)" : "rotate(0deg)",
-              }}
-              aria-hidden
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            {mobileOpen ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
           </button>
         </div>
+      </nav>
 
-        <Link
-          href="/latest"
-          aria-label="Latest wallpapers"
-          title="Latest"
-          className={`${navIconBtnClass} text-[var(--text-secondary)]`}
-        >
-          <IconClock />
-        </Link>
-        <Link
-          href="/trending"
-          aria-label="Trending wallpapers"
-          title="Trending"
-          className={`${navIconBtnClass} text-[var(--text-secondary)]`}
-        >
-          <IconTrendingUp />
-        </Link>
-        </div>
-      </div>
-
-      {/* Right: Search + Auth + Hamburger */}
-      <div className="flex items-center gap-3">
+      {/* Explore menu (desktop) */}
+      {exploreOpen && (
         <div className="hidden md:block">
-          <SearchBar />
-        </div>
-        <NavbarAuth />
-        {/* hamburger — mobile only */}
-        <button
-          className="md:hidden flex p-1"
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-primary)" }}>
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-primary)" }}>
-              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          )}
-        </button>
-      </div>
-    </nav>
-
-    {catOpen && (
-      <div className="hidden md:block">
-        <div
-          className="fixed inset-0 z-30"
-          onClick={() => setCatOpen(false)}
-        />
-        <div
-          ref={megaMenuRef}
-          className="fixed inset-x-0 top-[50px] z-40 w-full border-b border-[var(--border)] backdrop-blur-md transition-[background,box-shadow] duration-200 ease-out"
-          style={{
-            marginTop: "-1px",
-            background: megaScrolled
-              ? "rgba(10,10,10,0.78)"
-              : "rgba(10,10,10,0.92)",
-            boxShadow: megaScrolled
-              ? "0 4px 24px rgba(0,0,0,0.25)"
-              : "0 8px 32px rgba(0,0,0,0.35)",
-            animation: "slideDown 0.18s ease forwards",
-          }}
-        >
-          <div className="w-full px-12 pb-3 pt-2">
-            <p
-              className="text-[10px] tracking-widest uppercase mb-2"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Browse by category
-            </p>
-
-            {catLoading ? (
-              <div className="flex w-full flex-wrap gap-2">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-8 w-24 shrink-0 rounded-full animate-pulse"
-                    style={{ background: "var(--bg-elevated)" }}
-                  />
+          <div className="fixed inset-0 top-16 z-30" style={{ background: "rgba(0,0,0,0.35)" }} aria-hidden />
+          <div
+            ref={panelRef}
+            id="explore-menu"
+            onPointerEnter={(e) => e.pointerType === "mouse" && clearHoverTimer()}
+            onPointerLeave={onHoverLeave}
+            className="fixed inset-x-0 top-16 z-40 max-h-[calc(100vh-64px)] overflow-y-auto border-b"
+            style={{ background: "#0e0e0e", borderColor: "var(--border-hover)", boxShadow: "0 24px 48px rgba(0,0,0,0.5)", animation: "slideDown 0.18s ease forwards" }}
+          >
+            <div className="flex gap-10 px-6 pt-7 lg:px-12">
+              <div className="flex min-w-0 flex-1 gap-8 xl:gap-12">
+                {groups.map((g) => (
+                  <div key={g.title} className="min-w-0 flex-1 xl:max-w-[220px]">
+                    <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--text-muted)" }}>
+                      {g.title}
+                    </p>
+                    <ul className="flex flex-col gap-0.5">
+                      {g.items.map((c) => (
+                        <li key={c.id}>
+                          <Link
+                            href={`/category/${c.slug}`}
+                            aria-current={pathname === `/category/${c.slug}` ? "page" : undefined}
+                            className="-ml-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                            style={{ color: pathname === `/category/${c.slug}` ? "#fff" : "#d4d4d4" }}
+                          >
+                            <CategoryThumb category={c} className="h-7 w-7 shrink-0 rounded-md" />
+                            <span className="truncate">{c.name}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="flex w-full flex-wrap gap-2">
-                {categories.map((cat) => (
-                  <CategoryPill
-                    key={cat.id}
-                    cat={cat}
-                    onClose={() => setCatOpen(false)}
-                  />
+
+              {popular.length > 0 && (
+                <div className="hidden w-[380px] shrink-0 lg:block xl:w-[460px]">
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--text-muted)" }}>
+                    Popular categories
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {popular.map((c) => (
+                      <Link
+                        key={c.id}
+                        href={`/category/${c.slug}`}
+                        className="group relative block h-[118px] overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={c.coverThumbUrl!} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
+                        <span className="absolute inset-0" style={{ background: "linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.75))" }} />
+                        <span className="absolute bottom-2.5 left-3 text-[15px] font-semibold text-white">{c.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex h-12 items-center border-t px-6 text-sm lg:px-12" style={{ borderColor: "var(--border)" }}>
+              <Link href="/categories" className="font-medium transition-opacity hover:opacity-80" style={{ color: "var(--accent)" }}>
+                Browse all {visibleCount} categories →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile menu — the mobile layout gets its own redesign later */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-x-0 top-16 z-40 max-h-[calc(100vh-64px)] overflow-y-auto px-4 py-5 md:hidden"
+          style={{ background: "rgba(10,10,10,0.97)", borderBottom: "1px solid var(--border)", backdropFilter: "blur(16px)" }}
+        >
+          <SearchBar onSearch={() => setMobileOpen(false)} showDevice={false} categories={searchCategories} />
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Show wallpapers for</span>
+            <DeviceSwitch showLabel />
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            {NAV_LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex-1 rounded-xl py-2.5 text-center text-sm font-medium"
+                style={{ background: "var(--bg-elevated)", color: isActive(l.href) ? "#fff" : "var(--text-secondary)", border: "1px solid var(--border)" }}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
+
+          {groups.map((g) => (
+            <div key={g.title} className="mt-5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: "var(--text-muted)" }}>
+                {g.title}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {g.items.map((c) => (
+                  <Link
+                    key={c.id}
+                    href={`/category/${c.slug}`}
+                    className="flex items-center gap-2.5 rounded-xl p-1.5 pr-3 text-sm"
+                    style={{ background: "var(--bg-elevated)", color: "#d4d4d4", border: "1px solid var(--border)" }}
+                  >
+                    <CategoryThumb category={c} className="h-8 w-8 shrink-0 rounded-lg" />
+                    <span className="truncate">{c.name}</span>
+                  </Link>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          ))}
         </div>
-      </div>
-    )}
-
-    {/* Mobile drawer — shown below navbar when hamburger is open */}
-    {mobileOpen && (
-      <div
-        className="fixed left-0 right-0 z-40 md:hidden px-6 py-5"
-        style={{
-          top: "57px",
-          background: "rgba(10,10,10,0.97)",
-          borderBottom: "1px solid var(--border)",
-          backdropFilter: "blur(16px)",
-        }}
-      >
-        {/* search */}
-        <div className="mb-4">
-          <SearchBar />
-        </div>
-
-        {/* categories */}
-        <p className="text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>
-          Categories
-        </p>
-        {catLoading ? (
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-8 rounded-full animate-pulse" style={{ background: "var(--bg-elevated)" }} />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {categories.map((cat) => (
-              <CategoryPill
-                key={cat.id}
-                cat={cat}
-                onClose={() => setMobileOpen(false)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* divider */}
-        <div className="my-4" style={{ borderTop: "1px solid var(--border)" }} />
-
-        <div className="flex items-center gap-2">
-          <Link
-            href="/latest"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Latest wallpapers"
-            title="Latest"
-            className={`${navIconBtnClass} text-[var(--text-secondary)]`}
-          >
-            <IconClock />
-          </Link>
-          <Link
-            href="/trending"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Trending wallpapers"
-            title="Trending"
-            className={`${navIconBtnClass} text-[var(--text-secondary)]`}
-          >
-            <IconTrendingUp />
-          </Link>
-        </div>
-      </div>
-    )}
-  </>
+      )}
+    </>
   );
 };
 
