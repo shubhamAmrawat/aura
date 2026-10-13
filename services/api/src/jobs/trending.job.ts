@@ -3,6 +3,7 @@ import { db } from "../config/db";
 import { purgeExpiredRejected } from "../services/admin/review.service";
 import { fillMissingCategoryThumbs } from "../services/categoryThumb.service";
 import { fillMissingThumbs } from "../services/wallpaperThumb.service";
+import { fillMissingDescriptions } from "../services/wallpaperDescription.service";
 /**
  * Trending score formula:
  * 
@@ -86,6 +87,12 @@ async function runJob() {
     if (wallThumbs.created || wallThumbs.failed) {
       console.log(`[scheduler] Wallpaper thumbnails: ${wallThumbs.created} created, ${wallThumbs.failed} failed, ${wallThumbs.remaining} still missing`);
     }
+    // New uploads with no (or a one-line) description get a proper one, a few per hour.
+    const desc = await fillMissingDescriptions(20, 3).catch((e) => {
+      console.error("[scheduler] Descriptions failed:", e instanceof Error ? e.message : e);
+      return null;
+    });
+    if (desc && (desc.written || desc.failed)) console.log(`[scheduler] Descriptions: ${desc.written} written, ${desc.failed} failed, ${desc.remaining} still thin`);
     const thumbs = await fillMissingCategoryThumbs();
     if (thumbs.created || thumbs.failed) console.log(`[scheduler] Category thumbnails: ${thumbs.created} created, ${thumbs.failed} failed`);
   } catch (error) {

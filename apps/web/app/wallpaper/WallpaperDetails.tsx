@@ -6,15 +6,19 @@ import WallpaperTags from "./WallpaperTags";
 import DownloadButton from "./DownloadButton";
 import LikeButton from "@/app/components/LikeButton";
 import BookmarkButton from "@/app/components/BookmarkButton";
+import AboutWallpaper from "./AboutWallpaper";
 
 interface WallpaperDetailsProps {
   wallpaper: Wallpaper;
   statsLayout?: "row" | "grid";
+  /** The wallpaper's category, for the "About" text and link. */
+  category?: { name: string; slug: string } | null;
 }
 
 const WallpaperDetails = ({
   wallpaper,
   statsLayout = "row",
+  category = null,
 }: WallpaperDetailsProps) => {
   const contrastColor = getContrastColor(wallpaper.dominantColor);
   const isPortrait = statsLayout === "grid";
@@ -57,6 +61,7 @@ const WallpaperDetails = ({
 
           <ColorPalette palette={wallpaper.palette} />
           <WallpaperTags tags={wallpaper.tags} />
+          <AboutWallpaper wallpaper={wallpaper} category={category} />
         </div>
 
         <div
@@ -149,6 +154,8 @@ const WallpaperDetails = ({
         <ColorPalette palette={wallpaper.palette} />
         <WallpaperTags tags={wallpaper.tags} />
       </div>
+
+      <AboutWallpaper wallpaper={wallpaper} category={category} />
     </div>
   );
 };

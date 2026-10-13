@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface WallpaperTagsProps {
   tags: string[];
 }
@@ -12,9 +14,10 @@ const WallpaperTags = ({ tags }: WallpaperTagsProps) => {
       </p>
       <div className="flex flex-wrap gap-2">
         {tags.slice(0, 8).map((tag, i) => (
-          <span
+          <Link
             key={i}
-            className="text-xs px-3 py-1 rounded-full"
+            href={`/search?q=${encodeURIComponent(tag)}`}
+            className="text-xs px-3 py-1 rounded-full transition-colors hover:text-white"
             style={{
               background: "var(--bg-elevated)",
               color: "var(--text-secondary)",
@@ -22,7 +25,7 @@ const WallpaperTags = ({ tags }: WallpaperTagsProps) => {
             }}
           >
             {tag}
-          </span>
+          </Link>
         ))}
       </div>
     </div>

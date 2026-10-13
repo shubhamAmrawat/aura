@@ -19,6 +19,8 @@ export interface Wallpaper {
   isPremium: boolean;
   isFeatured: boolean;
   isMobile: boolean;
+  /** Present on single-wallpaper responses. */
+  categoryId?: string | null;
   downloadCount: number;
   likeCount: number;
   createdAt: string;

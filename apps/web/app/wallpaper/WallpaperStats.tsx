@@ -56,8 +56,8 @@ const WallpaperStats = ({
       >
         <StatItem label="Resolution" value={`${width} × ${height}`} />
         <StatItem label="Format" value={format.toUpperCase()} />
-        <StatItem label="Likes" value={likeCount.toString()} />
-        <StatItem label="Downloads" value={downloadCount.toString()} />
+        {likeCount > 0 && <StatItem label="Likes" value={likeCount.toString()} />}
+        {downloadCount > 0 && <StatItem label="Downloads" value={downloadCount.toString()} />}
         {fileSizeBytes > 0 && (
           <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
         )}
@@ -66,23 +66,24 @@ const WallpaperStats = ({
     );
   }
 
+  // Counts appear once they are above zero — a row of zeros reads as an inactive site.
+  const items: [string, string][] = [
+    ["Resolution", `${width} × ${height}`],
+    ["Format", format.toUpperCase()],
+    ...(likeCount > 0 ? [["Likes", likeCount.toString()] as [string, string]] : []),
+    ...(downloadCount > 0 ? [["Downloads", downloadCount.toString()] as [string, string]] : []),
+    ...(fileSizeBytes > 0 ? [["File size", formatFileSize(fileSizeBytes)] as [string, string]] : []),
+    ["Added", formatDate(createdAt)],
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-6 mt-6">
-      <StatItem label="Resolution" value={`${width} × ${height}`} />
-      <Divider />
-      <StatItem label="Format" value={format.toUpperCase()} />
-      <Divider />
-      <StatItem label="Likes" value={likeCount.toString()} />
-      <Divider />
-      <StatItem label="Downloads" value={downloadCount.toString()} />
-      {fileSizeBytes > 0 && (
-        <>
-          <Divider />
-          <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
-        </>
-      )}
-      <Divider />
-      <StatItem label="Added" value={formatDate(createdAt)} />
+      {items.map(([label, value], i) => (
+        <div key={label} className="contents">
+          {i > 0 && <Divider />}
+          <StatItem label={label} value={value} />
+        </div>
+      ))}
     </div>
   );
 };
