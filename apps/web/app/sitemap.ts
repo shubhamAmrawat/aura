@@ -20,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let categoryPages: MetadataRoute.Sitemap = [];
   try {
     const res = await fetch(`${API_URL}/api/categories`, {
-      next: { revalidate: 86400 },
+      next: { revalidate: 86400, tags: ["categories"] },
     });
     const { data } = await res.json();
     categoryPages = data.map((c: { slug: string }) => ({
@@ -40,7 +40,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     while (true) {
       const res = await fetch(
         `${API_URL}/api/wallpapers?limit=${batchSize}&offset=${offset}`,
-        { next: { revalidate: 86400 } }
+        { next: { revalidate: 86400, tags: ["wallpapers"] } }
       );
       const { data, hasMore } = await res.json();
       allWallpapers = [...allWallpapers, ...data];

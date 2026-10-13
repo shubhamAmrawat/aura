@@ -130,9 +130,11 @@ const Hero = ({ wallpapers }: HeroProps) => {
           <span className="text-xs font-mono text-white/40">
             {wallpaper.width} × {wallpaper.height}
           </span>
-          <span className="text-xs text-white/40">
-            ♥ {wallpaper.likeCount}
-          </span>
+          {wallpaper.likeCount > 0 && (
+            <span className="text-xs text-white/40">
+              ♥ {wallpaper.likeCount}
+            </span>
+          )}
         </div>
         <div className="flex justify-end gap-2 mb-2">
           {wallpaper.palette.map((color, i) => (

@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { wallpapers } from "../models";
-import { screenFilterSql, type ScreenFilter } from "../utils/screenFilter";
+import { screenFilterSql, visibleCategoryFilterSql, visibleCategorySql, type ScreenFilter } from "../utils/screenFilter";
 import { generateTextEmbedding } from "../integrations/openai";
 import { thumbUrlSql } from "./wallpaperThumb.service";
 
@@ -70,7 +70,7 @@ export async function getSuggestions(params: { screen: ScreenFilter | null; limi
     SELECT title
     FROM wallpapers
     WHERE status = 'approved'
-      ${screenSql}
+      ${screenSql} ${visibleCategoryFilterSql}
       AND COALESCE(title, '') <> ''
     ORDER BY trending_score DESC NULLS LAST, view_count DESC NULLS LAST
     LIMIT 40
@@ -87,7 +87,7 @@ export async function getSuggestions(params: { screen: ScreenFilter | null; limi
       SELECT UNNEST(tags) AS tag
       FROM wallpapers
       WHERE status = 'approved'
-        ${screenSql}
+        ${screenSql} ${visibleCategoryFilterSql}
       ORDER BY trending_score DESC NULLS LAST, view_count DESC NULLS LAST
       LIMIT 200
     ) t
@@ -124,12 +124,12 @@ export async function getAutocomplete(params: { q: string; limit: number; screen
     SELECT term FROM (
       SELECT LOWER(TRIM(tag)) AS term, count(*)::int AS score, 0 AS kind
       FROM wallpapers, UNNEST(tags) AS tag
-      WHERE status = 'approved' ${screenSql}
+      WHERE status = 'approved' ${screenSql} ${visibleCategoryFilterSql}
       GROUP BY 1
       UNION ALL
       SELECT LOWER(TRIM(title)) AS term, (sum(download_count) + count(*))::int AS score, 1 AS kind
       FROM wallpapers
-      WHERE status = 'approved' ${screenSql}
+      WHERE status = 'approved' ${screenSql} ${visibleCategoryFilterSql}
       GROUP BY 1
     ) t
     WHERE (term LIKE ${starts} ESCAPE '\\' OR term LIKE ${wordStarts} ESCAPE '\\')
@@ -200,6 +200,7 @@ export async function search(params: {
         WHERE status = 'approved'
           AND text_embedding IS NOT NULL
           ${screenFilterSql(screen)}
+          ${visibleCategoryFilterSql}
         ORDER BY hybrid_score DESC
         LIMIT ${limit + 1}
         OFFSET ${offset}
@@ -224,6 +225,7 @@ export async function search(params: {
     .where(
       and(
         eq(wallpapers.status, "approved"),
+        visibleCategorySql,
         screen === "mobile"
           ? eq(wallpapers.isMobile, true)
           : screen === "tablet"

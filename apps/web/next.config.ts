@@ -60,6 +60,13 @@ const nextConfig: NextConfig = {
     ],
   },
    devIndicators: false,
+  /** One canonical URL per legal page (crawlers and AdSense reviewers follow old links too). */
+  async redirects() {
+    return [
+      { source: "/terms", destination: "/terms-of-service", permanent: true },
+      { source: "/privacy", destination: "/privacy-policy", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

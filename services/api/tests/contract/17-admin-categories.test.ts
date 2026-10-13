@@ -50,7 +50,7 @@ describe("GET /api/admin/categories", () => {
     const [{ n }] = await sql`SELECT count(*)::int n FROM categories`;
     expect(data).toHaveLength(n);
     for (const c of data) {
-      expect(Object.keys(c).sort()).toEqual(["coverImageUrl", "description", "id", "live", "name", "previewUrl", "slug", "sortOrder", "total"]);
+      expect(Object.keys(c).sort()).toEqual(["coverImageUrl", "description", "id", "isHidden", "live", "name", "previewUrl", "slug", "sortOrder", "total"]);
       expect(c.live).toBeLessThanOrEqual(c.total);
     }
     for (let i = 1; i < data.length; i++) expect(data[i - 1].sortOrder).toBeLessThanOrEqual(data[i].sortOrder);
@@ -226,5 +226,47 @@ describe("old slugs keep working (renames + merges)", () => {
     expect((await api("GET", `/api/categories/resolve/${SLUG}-r1`)).body).toEqual({ slug: `${SLUG}-r1`, redirected: false });
     expect((await sql`SELECT 1 FROM category_redirects WHERE old_slug = ${SLUG + "-r1"}`).length).toBe(0);
     expect(c.slug).toBe(`${SLUG}-r1`);
+  });
+});
+
+describe("hiding a category", () => {
+  it("removes the category and all its wallpapers from every public endpoint, and brings them back", async () => {
+    const { body: cat } = await call("POST", "", { name: `${NAME} Hidden`, slug: `${SLUG}-hid` });
+    expect(cat.isHidden).toBe(false);
+    const w = await createTestWallpaper(viewer, { status: "approved", tags: [`hidtag${RUN_ID.toLowerCase()}`] });
+    await sql`UPDATE wallpapers SET category_id = ${cat.id}, trending_score = 1e9 WHERE id = ${w}`;
+    const tag = `hidtag${RUN_ID.toLowerCase()}`;
+
+    const publicView = async () => ({
+      inCategories: ((await api("GET", "/api/categories")).body.data as any[]).some((c) => c.id === cat.id),
+      inCategory: ((await api("GET", `/api/wallpapers?category=${cat.slug}&limit=5`)).body.data as any[]).some((x) => x.id === w),
+      inLatest: ((await api("GET", "/api/wallpapers?limit=20")).body.data as any[]).some((x) => x.id === w),
+      inTrending: ((await api("GET", "/api/wallpapers/trending?limit=10")).body.data as any[]).some((x) => x.id === w),
+      inSearch: ((await api("GET", `/api/search?q=${tag}&mode=keyword`)).body.data as any[]).some((x) => x.id === w),
+      detail: (await api("GET", `/api/wallpapers/${w}`)).status,
+      resolve: (await api("GET", `/api/categories/resolve/${cat.slug}`)).status,
+    });
+    const visible = { inCategories: true, inCategory: true, inLatest: true, inTrending: true, inSearch: true, detail: 200, resolve: 200 };
+
+    try {
+      expect(await publicView()).toEqual(visible);
+
+      expectError(await call("PATCH", `/${cat.id}`, { isHidden: "yes" }), 400, "isHidden must be true or false");
+      const hid = await call("PATCH", `/${cat.id}`, { isHidden: true });
+      expect(hid.status).toBe(200);
+      expect(hid.body.isHidden).toBe(true);
+      expect(((await call("GET", "")).body.data as any[]).find((c) => c.id === cat.id).isHidden).toBe(true);
+      const [log] = await sql`SELECT details FROM admin_actions WHERE action = 'category.update' AND target_id = ${cat.id} ORDER BY created_at DESC LIMIT 1`;
+      expect(log?.details).toEqual({ changes: { isHidden: { from: false, to: true } } });
+
+      expect(await publicView()).toEqual({
+        inCategories: false, inCategory: false, inLatest: false, inTrending: false, inSearch: false, detail: 404, resolve: 404,
+      });
+
+      expect((await call("PATCH", `/${cat.id}`, { isHidden: false })).body.isHidden).toBe(false);
+      expect(await publicView()).toEqual(visible);
+    } finally {
+      await sql`UPDATE wallpapers SET status = 'rejected', trending_score = 0 WHERE id = ${w}`;
+    }
   });
 });

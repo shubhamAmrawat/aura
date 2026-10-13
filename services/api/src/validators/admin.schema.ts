@@ -227,6 +227,8 @@ export const CategoryPatchBody = z
     slug: categorySlug.optional(),
     description: categoryDescription,
     coverImageUrl: z.string({ message: "coverImageUrl must be a URL or null" }).url("coverImageUrl must be a URL or null").nullable().optional(),
+    /** true = keep the category and its wallpapers off the public site */
+    isHidden: z.boolean({ message: "isHidden must be true or false" }).optional(),
   })
   .strict()
   .refine((b) => Object.values(b).some((v) => v !== undefined), "Nothing to update");

@@ -1,4 +1,5 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { visibleCategorySql } from "../utils/screenFilter";
 import { db } from "../config/db";
 import { siteSettings, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
@@ -48,7 +49,7 @@ export async function getPublicFeatured() {
   const data = await db
     .select(publicColumns)
     .from(wallpapers)
-    .where(and(eq(wallpapers.isFeatured, true), eq(wallpapers.status, "approved")))
+    .where(and(eq(wallpapers.isFeatured, true), eq(wallpapers.status, "approved"), visibleCategorySql))
     .orderBy(...featuredOrderBy)
     .limit(limit);
   return { data, limit };

@@ -41,6 +41,7 @@ export default function CategoriesPage() {
   const [editing, setEditing] = useState<AdminCategory | "new" | null>(null);
   const [deleting, setDeleting] = useState<AdminCategory | null>(null);
   const [q, setQ] = useState("");
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -70,7 +71,8 @@ export default function CategoriesPage() {
     const total = order.reduce((n, c) => n + c.total, 0);
     const empty = order.filter((c) => c.live === 0);
     const uncategorized = order.find((c) => c.slug === "uncategorized");
-    return { total, empty, uncategorized };
+    const hiddenCats = order.filter((c) => c.isHidden);
+    return { total, empty, uncategorized, hiddenCats };
   }, [order]);
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -84,6 +86,21 @@ export default function CategoriesPage() {
       const to = from + delta;
       return to < 0 || to >= prev.length ? prev : arrayMove(prev, from, to);
     });
+
+  /** Hide/show a category and all its wallpapers on the public site. */
+  const toggleHidden = async (c: AdminCategory) => {
+    setToggling(c.id);
+    try {
+      await updateCategory(c.id, { isHidden: !c.isHidden });
+      await load();
+      const ok = await revalidateSite(["categories", "wallpapers", "featured"]);
+      toast(`${c.name} ${c.isHidden ? "is visible again" : "is hidden"} — ${SITE_NOTE(ok)}`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Failed to update category", "error");
+    } finally {
+      setToggling(null);
+    }
+  };
 
   const saveOrder = async () => {
     setSaving(true);
@@ -145,7 +162,13 @@ export default function CategoriesPage() {
               <dl className="grid grid-cols-2 gap-y-1 text-xs" style={{ color: "var(--text-secondary)" }}>
                 <dt>Categories</dt><dd className="text-right tabular-nums">{order.length}</dd>
                 <dt>Wallpapers</dt><dd className="text-right tabular-nums">{fmt(stats.total)}</dd>
+                <dt>Hidden from site</dt><dd className="text-right tabular-nums">{stats.hiddenCats.length}</dd>
               </dl>
+              {stats.hiddenCats.length > 0 && (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  Hidden: {stats.hiddenCats.map((c) => c.name).join(", ")}. Their wallpapers don&apos;t appear anywhere on the public site.
+                </p>
+              )}
             </div>
             {(stats.uncategorized?.total || stats.empty.length > 0) ? (
               <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: "var(--bg-secondary)", border: "1px solid rgba(245,158,11,0.35)" }}>
@@ -192,6 +215,8 @@ export default function CategoriesPage() {
                         onMove={(d) => move(c.id, d)}
                         onEdit={() => setEditing(c)}
                         onDelete={() => setDeleting(c)}
+                        toggling={toggling === c.id}
+                        onToggleHidden={() => void toggleHidden(c)}
                       />
                     );
                   })}
@@ -243,7 +268,7 @@ export default function CategoriesPage() {
   );
 }
 
-function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisabled, onMove, onEdit, onDelete }: {
+function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisabled, onMove, onEdit, onDelete, toggling, onToggleHidden }: {
   cat: AdminCategory;
   index: number;
   canUp: boolean;
@@ -253,6 +278,8 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
   onMove: (delta: number) => void;
   onEdit: () => void;
   onDelete: () => void;
+  toggling: boolean;
+  onToggleHidden: () => void;
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: c.id, disabled: dragDisabled });
   const hidden = c.total - c.live;
@@ -264,6 +291,7 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
           background: isDragging ? "var(--bg-elevated)" : "var(--bg-secondary)",
           border: "1px solid var(--border)",
           boxShadow: isDragging ? "0 12px 32px rgba(0,0,0,0.45)" : undefined,
+          opacity: c.isHidden ? 0.6 : 1,
         }}
       >
         <button
@@ -288,6 +316,7 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
           <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>
             {c.name}
             {c.coverImageUrl && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(129,238,78,0.12)", color: "var(--accent)" }}>cover</span>}
+            {c.isHidden && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.14)", color: "#f59e0b" }}>hidden from site</span>}
           </p>
           <p className="text-[11px] truncate" style={{ color: "var(--text-muted)" }}>
             <a href={`/category/${c.slug}`} target="_blank" rel="noreferrer" className="hover:underline">/category/{c.slug} ↗</a>
@@ -307,6 +336,21 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
           </button>
           <button aria-label={`Move ${c.name} down`} disabled={!canDown} onClick={() => onMove(1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          <button
+            aria-label={c.isHidden ? `Show ${c.name} on the site` : `Hide ${c.name} from the site`}
+            aria-pressed={c.isHidden}
+            disabled={actionsDisabled || toggling}
+            title={actionsDisabled ? "Save or reset the order first" : c.isHidden ? "Hidden — click to show on the site" : "Visible — click to hide from the site"}
+            onClick={onToggleHidden}
+            className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25"
+            style={{ color: c.isHidden ? "#f59e0b" : "var(--text-secondary)" }}
+          >
+            {c.isHidden ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+            )}
           </button>
           <button aria-label={`Edit ${c.name}`} disabled={actionsDisabled} title={actionsDisabled ? "Save or reset the order first" : "Edit"} onClick={onEdit} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>

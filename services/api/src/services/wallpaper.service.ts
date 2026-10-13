@@ -1,8 +1,8 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../config/db";
-import { downloads, users, wallpapers } from "../models";
+import { categories, downloads, users, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
-import { screenFilterSql, type ScreenFilter } from "../utils/screenFilter";
+import { screenFilterSql, visibleCategoryFilterSql, visibleCategorySql, type ScreenFilter } from "../utils/screenFilter";
 import { extractImageMetadata } from "../utils/imageMetadata";
 import { checkImageSafety } from "../integrations/sightengine";
 import { deleteFile, generateUploadUrl } from "../integrations/r2";
@@ -54,7 +54,7 @@ export async function listWallpapers(params: {
   q?: string;
   screen: ScreenFilter | null;
 }) {
-  const conditions = [eq(wallpapers.status, "approved")];
+  const conditions = [eq(wallpapers.status, "approved"), visibleCategorySql];
   if (params.featured) conditions.push(eq(wallpapers.isFeatured, true));
 
   if (params.categorySlug) {
@@ -85,7 +85,7 @@ export async function listWallpapers(params: {
 }
 
 export async function listTrending(params: { limit: number; offset: number; screen: ScreenFilter | null }) {
-  const conditions = [eq(wallpapers.status, "approved")];
+  const conditions = [eq(wallpapers.status, "approved"), visibleCategorySql];
   const screen = screenCondition(params.screen);
   if (screen) conditions.push(screen);
 
@@ -104,10 +104,18 @@ export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSe
   return rest;
 }
 
+/** True when an admin has hidden this wallpaper's category from the public site. */
+async function inHiddenCategory(categoryId: string | null) {
+  if (!categoryId) return false;
+  const [cat] = await db.select({ isHidden: categories.isHidden }).from(categories).where(eq(categories.id, categoryId)).limit(1);
+  return cat?.isHidden === true;
+}
+
 /** Single wallpaper (any status), without the large textEmbedding vector. */
 export async function getWallpaper(id: string) {
   const [record] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
   if (!record || record.status === "hidden") throw new ApiError(404, "Wallpaper not found"); // hidden = uploader disabled
+  if (await inHiddenCategory(record.categoryId)) throw new ApiError(404, "Wallpaper not found");
   const { textEmbedding: _textEmbedding, ...wallpaper } = record;
   return withoutReviewFields(wallpaper);
 }
@@ -118,7 +126,7 @@ export async function getWallpaper(id: string) {
  */
 export async function getSimilar(id: string, params: { limit: number; offset: number; screen: ScreenFilter | null }) {
   const [src] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
-  if (!src || src.status === "hidden") throw new ApiError(404, "Wallpaper not found");
+  if (!src || src.status === "hidden" || (await inHiddenCategory(src.categoryId))) throw new ApiError(404, "Wallpaper not found");
   if (!src.textEmbedding) return null; // caller responds with an empty, uncached result
 
   const embeddingStr = `[${src.textEmbedding.join(",")}]`;
@@ -171,6 +179,7 @@ export async function getSimilar(id: string, params: { limit: number; offset: nu
       AND id != ${id}
       AND text_embedding IS NOT NULL
       ${screenFilterSql(params.screen)}
+      ${visibleCategoryFilterSql}
     ORDER BY hybrid_score DESC
     LIMIT ${params.limit + 1}
     OFFSET ${params.offset}

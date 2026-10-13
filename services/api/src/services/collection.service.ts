@@ -1,4 +1,5 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
+import { visibleCategorySql } from "../utils/screenFilter";
 import { db } from "../config/db";
 import { collections, collectionWallpapers, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
@@ -59,7 +60,7 @@ export async function getCollection(id: string, viewerId: string | undefined) {
     })
     .from(collectionWallpapers)
     .innerJoin(wallpapers, eq(collectionWallpapers.wallpaperId, wallpapers.id))
-    .where(and(eq(collectionWallpapers.collectionId, id), ne(wallpapers.status, "hidden"))) // hidden = uploader disabled
+    .where(and(eq(collectionWallpapers.collectionId, id), ne(wallpapers.status, "hidden"), visibleCategorySql)) // hidden = uploader disabled
     .orderBy(desc(collectionWallpapers.addedAt));
 
   return { collection: { ...collection, wallpaperCount: items.length }, wallpapers: items };

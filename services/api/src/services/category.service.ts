@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../config/db";
 import { categories, categoryRedirects } from "../models";
 import { liveCount } from "./categoryThumb.service";
 
-/** Public list: display order, with a small cover thumbnail and the number of live wallpapers. */
+/** Public list (hidden categories left out): display order, with a small cover thumbnail and the number of live wallpapers. */
 export function listCategories() {
   return db
     .select({
@@ -17,6 +17,7 @@ export function listCategories() {
       wallpaperCount: liveCount,
     })
     .from(categories)
+    .where(eq(categories.isHidden, false))
     .orderBy(categories.sortOrder);
 }
 
@@ -25,22 +26,23 @@ export async function listCategoryRedirects(): Promise<Record<string, string>> {
   const rows = await db
     .select({ old: categoryRedirects.oldSlug, current: categories.slug })
     .from(categoryRedirects)
-    .innerJoin(categories, eq(categories.id, categoryRedirects.categoryId));
+    .innerJoin(categories, eq(categories.id, categoryRedirects.categoryId))
+    .where(eq(categories.isHidden, false));
   return Object.fromEntries(rows.map((r) => [r.old, r.current]));
 }
 
 /**
- * Category id for a slug — the current slug, or an old one kept after a rename/merge.
+ * Category id for a slug (hidden categories count as not found) — the current slug, or an old one kept after a rename/merge.
  * Returns the current slug too so callers can redirect.
  */
 export async function resolveCategorySlug(slug: string): Promise<{ id: string; slug: string; redirected: boolean } | null> {
-  const [cur] = await db.select({ id: categories.id, slug: categories.slug }).from(categories).where(eq(categories.slug, slug)).limit(1);
+  const [cur] = await db.select({ id: categories.id, slug: categories.slug }).from(categories).where(and(eq(categories.slug, slug), eq(categories.isHidden, false))).limit(1);
   if (cur) return { ...cur, redirected: false };
   const [old] = await db
     .select({ id: categories.id, slug: categories.slug })
     .from(categoryRedirects)
     .innerJoin(categories, eq(categories.id, categoryRedirects.categoryId))
-    .where(eq(categoryRedirects.oldSlug, slug))
+    .where(and(eq(categoryRedirects.oldSlug, slug), eq(categories.isHidden, false)))
     .limit(1);
   return old ? { ...old, redirected: true } : null;
 }

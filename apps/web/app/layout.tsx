@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   keywords: [
     "wallpapers", "4K wallpapers", "desktop wallpapers",
     "mobile wallpapers", "free wallpapers", "HD wallpapers",
-    "anime wallpapers", "dark wallpapers", "nature wallpapers",
+    "dark wallpapers", "nature wallpapers",
     "minimal wallpapers", "aesthetic wallpapers", "phone wallpapers"
   ],
   openGraph: {
@@ -72,10 +72,6 @@ export default async function RootLayout({
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8977455477078936"
           crossOrigin="anonymous"
-        />
-        <script
-          async
-          src="https://pl29414403.profitablecpmratenetwork.com/dc/46/48/dc4648ebae0f837bba8aff30ff60e845.js"
         />
         <meta name="p:domain_verify" content="c53fab29b15c022c191c58143241d360"/>
       </head>

@@ -61,6 +61,8 @@ export const categories = pgTable("categories", {
   /** The image the thumbnail was made from — a different source means it is out of date. */
   coverThumbSource: text("cover_thumb_source"),
   sortOrder: integer("sort_order").notNull().default(0),
+  /** Hidden by an admin: the category and all its wallpapers are left out of every public page and list. */
+  isHidden: boolean("is_hidden").notNull().default(false),
 });
 
 export const wallpapers = pgTable("wallpapers", {
