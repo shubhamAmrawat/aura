@@ -114,7 +114,7 @@ describe("POST /api/admin/uploads", () => {
     const f = await stage(admin, await pngOf(320, 480));
     const res = await api("POST", "/api/admin/uploads", {
       token: admin.token,
-      json: { ...f, width: 1, height: 1, title: "  Admin Upload  ", description: " d ", tags: ["Blue", "blue", "test"], categoryId, isPremium: true, isAiGenerated: true, publish: false },
+      json: { ...f, width: 1, height: 1, title: "  Admin Upload  ", description: " d ", tags: ["Blue", "blue", "test"], categoryId, isPremium: true, isAiGenerated: true, publish: false, aiText: false },
     });
     expect(res.status).toBe(201);
     expect(Object.keys(res.body).sort()).toEqual(["category", "moderation", "wallpaper", "warnings"]);
@@ -141,6 +141,31 @@ describe("POST /api/admin/uploads", () => {
     expect(dup.body.warnings.some((w: string) => w.startsWith("Possible duplicate of"))).toBe(true);
   });
 
+  it("AI text: aiTitle replaces the file-name title, aiText fills the description and adds tags", async () => {
+    const f = await stage(admin, await pngOf(320, 480));
+    const res = await api("POST", "/api/admin/uploads", {
+      token: admin.token,
+      json: { ...f, title: "img 4640x3500 8734", tags: ["mine"], categoryId, publish: false, aiTitle: true },
+    });
+    expect(res.status).toBe(201);
+    const [row] = await sql`SELECT title, description, tags FROM wallpapers WHERE id = ${res.body.wallpaper.id}`;
+    expect(row!.title).not.toBe("img 4640x3500 8734");
+    expect(row!.title).not.toMatch(/[0-9]{3,}/);
+    expect(res.body.wallpaper.title).toBe(row!.title);
+    expect(String(row!.description).length).toBeGreaterThanOrEqual(80);
+    expect(row!.tags[0]).toBe("mine"); // the admin's tags come first
+    expect(row!.tags.length).toBeGreaterThan(1);
+
+    // aiTitle off (title typed by hand) keeps it; a given description is never replaced
+    const g = await stage(admin, await pngOf(320, 480));
+    const kept = await api("POST", "/api/admin/uploads", {
+      token: admin.token,
+      json: { ...g, title: "My Own Title", description: "Written by hand.", categoryId, publish: false },
+    });
+    const [k] = await sql`SELECT title, description FROM wallpapers WHERE id = ${kept.body.wallpaper.id}`;
+    expect(k).toEqual({ title: "My Own Title", description: "Written by hand." });
+  });
+
   it("categoryId \"auto\": the AI files it (here a plain blue image) into some real category", async () => {
     const f = await stage(admin, await pngOf(500, 900));
     const res = await api("POST", "/api/admin/uploads", { token: admin.token, json: { ...f, title: "Calm blue gradient", tags: ["blue", "gradient"], categoryId: "auto", publish: false } });
@@ -161,5 +186,49 @@ describe("POST /api/admin/uploads", () => {
     const [row] = await sql`SELECT reviewed_by, reviewed_at FROM wallpapers WHERE id = ${res.body.wallpaper.id}`;
     expect(row!.reviewed_by).toBe(admin.id);
     expect(row!.reviewed_at).not.toBeNull();
+  });
+});
+
+describe("review before publishing: analyze → publish / discard", () => {
+  it("analyze returns the AI draft and publishes nothing; publish uses the admin's edits and removes the draft", async () => {
+    const f = await stage(admin, await pngOf(320, 480));
+    expectError(await api("POST", "/api/admin/uploads/analyze", { token: viewer.token, json: f }), 403, "Admin access required.");
+    const other = await api("POST", "/api/admin/uploads/analyze", { token: otherAdmin.token, json: f });
+    expectError(other, 400, "Invalid file key"); // another admin's file
+
+    const res = await api("POST", "/api/admin/uploads/analyze", { token: admin.token, json: { ...f, title: "img 320x480 1234", tags: ["mine"] } });
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body).sort()).toEqual(
+      ["alternative", "category", "confidence", "description", "height", "isMobile", "key", "moderation", "tags", "thumbUrl", "title", "warnings", "width"]
+    );
+    expect(res.body).toMatchObject({ key: f.key, width: 320, height: 480, isMobile: true });
+    expect(typeof res.body.title).toBe("string");
+    expect(res.body.thumbUrl).toMatch(/^https:\/\/.+\.webp$/);
+    expect((await sql`SELECT 1 FROM wallpapers WHERE file_url = ${f.fileUrl}`).length).toBe(0); // nothing published
+    // asking again returns the same draft (no second AI call)
+    const again = await api("POST", "/api/admin/uploads/analyze", { token: admin.token, json: f });
+    expect(again.body).toEqual(res.body);
+
+    const pub = await api("POST", "/api/admin/uploads", {
+      token: admin.token,
+      json: { ...f, title: "Edited Title", description: "Edited by the admin before publishing.", tags: ["edited", "tags"], categoryId, publish: false, aiTitle: false, aiText: false },
+    });
+    expect(pub.status).toBe(201);
+    const [row] = await sql`SELECT title, description, tags, category_id, width, cdn_variants FROM wallpapers WHERE id = ${pub.body.wallpaper.id}`;
+    expect(row).toMatchObject({ title: "Edited Title", description: "Edited by the admin before publishing.", tags: ["edited", "tags"], category_id: categoryId, width: 320 });
+    expect(row!.cdn_variants.thumb.url).toBe(res.body.thumbUrl); // the draft's thumbnail is reused
+    expect((await sql`SELECT 1 FROM upload_drafts WHERE key = ${f.key}`).length).toBe(0);
+  });
+
+  it("discard deletes the draft and the file", async () => {
+    const f = await stage(admin, await pngOf(320, 480));
+    const res = await api("POST", "/api/admin/uploads/analyze", { token: admin.token, json: f });
+    expect(res.status).toBe(200);
+    expectError(await api("POST", "/api/admin/uploads/discard", { token: admin.token, json: { key: "wallpapers/other/x.png" } }), 400, "Invalid file key");
+    const d = await api("POST", "/api/admin/uploads/discard", { token: admin.token, json: { key: f.key } });
+    expect(d.body).toEqual({ key: f.key, discarded: true });
+    expect((await sql`SELECT 1 FROM upload_drafts WHERE key = ${f.key}`).length).toBe(0);
+    expect((await fetch(`${f.fileUrl}?nocache=${Date.now()}`)).status).toBe(404);
+    expect((await fetch(`${res.body.thumbUrl}?nocache=${Date.now()}`)).status).toBe(404);
   });
 });

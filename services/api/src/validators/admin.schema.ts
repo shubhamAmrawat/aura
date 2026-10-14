@@ -191,9 +191,29 @@ export const AdminUploadBody = z
     isPremium: z.boolean({ message: "isPremium must be true or false" }).default(false),
     isAiGenerated: z.boolean({ message: "isAiGenerated must be true or false" }).default(false),
     publish: z.boolean({ message: "publish must be true or false" }).default(true),
+    /** true = replace the title with the AI's (the admin left the file-name title as it was) */
+    aiTitle: z.boolean({ message: "aiTitle must be true or false" }).default(false),
+    /** true = the AI fills an empty description and adds its tags to the given ones */
+    aiText: z.boolean({ message: "aiText must be true or false" }).default(true),
   })
   .strict();
 export type AdminUploadInput = z.output<typeof AdminUploadBody>;
+
+/** Step 1 of bulk upload: analyse a file already in R2 (nothing is published). */
+export const UploadAnalyzeBody = z
+  .object({
+    key: z.string({ message: "key is required" }).min(1, "key is required"),
+    fileUrl: z.string({ message: "fileUrl is required" }).min(1, "fileUrl is required"),
+    fileType: uploadType,
+    fileSizeBytes: uploadSize,
+    /** the file-name title — a hint for the AI */
+    title: z.string().trim().max(200).optional(),
+    tags: tagList.default([]),
+  })
+  .strict();
+export type UploadAnalyzeInput = z.output<typeof UploadAnalyzeBody>;
+
+export const UploadDiscardBody = z.object({ key: z.string({ message: "key is required" }).min(1, "key is required") }).strict();
 
 // ─── Categories (Phase 5) ───────────────────────────────────
 

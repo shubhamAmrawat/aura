@@ -38,6 +38,8 @@ adminRoutes.put("/featured/limit", featured.limit);
 
 // Bulk upload (Phase 4)
 adminRoutes.post("/uploads/urls", uploads.urls);
+adminRoutes.post("/uploads/analyze", uploads.analyze);
+adminRoutes.post("/uploads/discard", uploads.discard);
 adminRoutes.post("/uploads", uploads.create);
 
 // Categories (Phase 5) — /order before /:id

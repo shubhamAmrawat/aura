@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, jsonb, timestamp, index, real, boolean } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, timestamp, index, real, boolean, integer } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { categories, wallpapers } from "./wallpaper.model";
 
@@ -20,6 +20,24 @@ export const adminActions = pgTable("admin_actions", {
   details: jsonb("details"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (t) => [index("admin_actions_created_at_idx").on(t.createdAt)]);
+
+/**
+ * Bulk upload draft: a file already in R2, read and analysed by the AI (title, description,
+ * tags, category), waiting for the admin to review it. Publishing turns it into a wallpaper
+ * and deletes the draft; abandoned drafts and their files are removed after 24 hours.
+ */
+export const uploadDrafts = pgTable("upload_drafts", {
+  key: text("key").primaryKey(),
+  adminId: uuid("admin_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fileUrl: text("file_url").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  metadata: jsonb("metadata").notNull(),
+  thumb: jsonb("thumb"),
+  moderation: jsonb("moderation").notNull(),
+  analysis: jsonb("analysis").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [index("upload_drafts_created_at_idx").on(t.createdAt)]);
 
 /** Old category slugs (renamed or merged away) → the category they now point to. */
 export const categoryRedirects = pgTable("category_redirects", {

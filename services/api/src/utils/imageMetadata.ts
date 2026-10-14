@@ -1,7 +1,13 @@
 import { encode } from "blurhash";
 import sharp from "sharp";
 
+// Keep memory flat on a small server: no decoded-image cache, at most 2 libvips threads per image.
+sharp.cache(false);
+sharp.concurrency(2);
+
 const BLURHASH_FALLBACK = "LKO2:N%2Tw=w]~RBVZRi};RPxuwH";
+/** Refuse absurd images (~16k × 16k) instead of trying to decode them. */
+const MAX_INPUT_PIXELS = 268_402_689;
 
 export type ImageMetadata = {
   dominantColor: string;
@@ -12,103 +18,87 @@ export type ImageMetadata = {
   isMobile: boolean;
 };
 
+const DEFAULTS: ImageMetadata = {
+  dominantColor: "#0a0a0a",
+  palette: ["#0a0a0a"],
+  blurhash: BLURHASH_FALLBACK,
+  width: 0,
+  height: 0,
+  isMobile: false,
+};
+
+const hex = (r: number, g: number, b: number) =>
+  `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+
 /**
- * Download an image and extract: average colour, 5-colour palette (average + corners),
- * blurhash, EXIF-corrected size, and isMobile (portrait/square). Never throws — returns
- * safe defaults if anything fails.
+ * Size (EXIF-corrected), average colour, palette (average + corners), blurhash and isMobile
+ * from image bytes. The full-size image is decoded once, straight down to 200px — nothing is
+ * re-encoded at full size. Never throws: returns safe defaults (width 0) if the bytes aren't an image.
  */
-export async function extractImageMetadata(fileUrl: string): Promise<ImageMetadata> {
-  const defaults = {
-    dominantColor: "#0a0a0a",
-    palette: ["#0a0a0a"],
-    blurhash: BLURHASH_FALLBACK,
-    width: 0,
-    height: 0,
-    isMobile: false,
-  };
+export async function extractImageMetadataFromBuffer(buffer: Buffer): Promise<ImageMetadata> {
   try {
-    const response = await fetch(fileUrl);
-    if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const opts = { failOn: "none" as const, limitInputPixels: MAX_INPUT_PIXELS };
+    const meta = await sharp(buffer, opts).metadata();
+    // EXIF orientations 5–8 are rotated 90°, so the displayed width/height are swapped.
+    const swap = (meta.orientation ?? 1) >= 5;
+    const width = (swap ? meta.height : meta.width) ?? 0;
+    const height = (swap ? meta.width : meta.height) ?? 0;
+    if (!width || !height) return DEFAULTS;
 
-    // .rotate() with no args applies EXIF auto-rotation so stored width/height
-    // always match what the browser displays (prevents portrait↔landscape mismatch)
-    const rotatedBuffer = await sharp(buffer).rotate().toBuffer();
-    const meta = await sharp(rotatedBuffer).metadata();
-    const width = meta.width ?? 0;
-    const height = meta.height ?? 0;
-
-    const { data: rawPixels, info } = await sharp(rotatedBuffer)
+    // One decode to a 200px copy (JPEGs shrink while decoding, so this is cheap)…
+    const { data: px, info } = await sharp(buffer, opts)
+      .rotate()
       .resize(200, 200, { fit: "inside" })
       .flatten({ background: { r: 0, g: 0, b: 0 } })
+      .removeAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
-
     const w = info.width;
     const h = info.height;
     const ch = info.channels;
-    const pixelCount = w * h;
-    if (pixelCount === 0 || ch < 3) throw new Error("Invalid pixel buffer");
+    if (w * h === 0 || ch < 3) return { ...DEFAULTS, width, height, isMobile: height / width >= 0.9 };
 
     let r = 0;
     let g = 0;
     let b = 0;
-    for (let i = 0; i < rawPixels.length; i += ch) {
-      r += rawPixels[i]!;
-      g += rawPixels[i + 1]!;
-      b += rawPixels[i + 2]!;
+    for (let i = 0; i < px.length; i += ch) {
+      r += px[i]!;
+      g += px[i + 1]!;
+      b += px[i + 2]!;
     }
-    r = Math.round(r / pixelCount);
-    g = Math.round(g / pixelCount);
-    b = Math.round(b / pixelCount);
-    const dominantColor = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-
-    const palette: string[] = [dominantColor];
-    const corners: [number, number][] = [
-      [0, 0],
-      [w - 1, 0],
-      [0, h - 1],
-      [w - 1, h - 1],
-    ];
-    for (const [px, py] of corners) {
-      if (palette.length >= 5) break;
-      const sx = Math.max(0, Math.min(px, w - 1));
-      const sy = Math.max(0, Math.min(py, h - 1));
-      const idx = (sy * w + sx) * ch;
-      const pr = rawPixels[idx]!;
-      const pg = rawPixels[idx + 1]!;
-      const pb = rawPixels[idx + 2]!;
-      const hex = `#${pr.toString(16).padStart(2, "0")}${pg.toString(16).padStart(2, "0")}${pb.toString(16).padStart(2, "0")}`;
-      if (!palette.includes(hex)) palette.push(hex);
+    const n = w * h;
+    const dominantColor = hex(Math.round(r / n), Math.round(g / n), Math.round(b / n));
+    const palette = [dominantColor];
+    for (const [x, y] of [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]] as const) {
+      const i = (y * w + x) * ch;
+      const c = hex(px[i]!, px[i + 1]!, px[i + 2]!);
+      if (!palette.includes(c)) palette.push(c);
     }
 
-    const bhW = 32;
-    const bhH = Math.max(1, Math.round((32 * Math.max(1, height)) / Math.max(1, width)));
-    const { data: bhPixels, info: bhInfo } = await sharp(rotatedBuffer)
-      .resize(bhW, bhH, { fit: "inside" })
+    // …and the blurhash from that small copy, not from the full image.
+    const bh = await sharp(px, { raw: { width: w, height: h, channels: ch as 3 } })
+      .resize(32, 32, { fit: "inside" })
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
+    const blurhash = encode(new Uint8ClampedArray(bh.data), bh.info.width, bh.info.height, 4, 3);
 
-    const blurhashValue = encode(
-      new Uint8ClampedArray(bhPixels),
-      bhInfo.width,
-      bhInfo.height,
-      4,
-      3
-    );
-
-    return {
-      dominantColor,
-      palette,
-      blurhash: blurhashValue,
-      width,
-      height,
-      // Portrait/square (ratio ≥ 0.9) → mobile; clearly landscape (ratio < 0.9) → desktop
-      isMobile: width > 0 ? height / width >= 0.9 : false,
-    };
+    // Portrait/square (ratio ≥ 0.9) → mobile; clearly landscape (ratio < 0.9) → desktop
+    return { dominantColor, palette, blurhash, width, height, isMobile: height / width >= 0.9 };
   } catch (error) {
-    console.error("Metadata extraction failed:", error);
-    return defaults;
+    console.error("Metadata extraction failed:", error instanceof Error ? error.message : error);
+    return DEFAULTS;
+  }
+}
+
+/** Download an image and run extractImageMetadataFromBuffer. Never throws. */
+export async function extractImageMetadata(fileUrl: string): Promise<ImageMetadata> {
+  try {
+    const response = await fetch(fileUrl);
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+    return await extractImageMetadataFromBuffer(Buffer.from(await response.arrayBuffer()));
+  } catch (error) {
+    console.error("Metadata extraction failed:", error instanceof Error ? error.message : error);
+    return DEFAULTS;
   }
 }

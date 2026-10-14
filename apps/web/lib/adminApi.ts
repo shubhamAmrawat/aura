@@ -217,13 +217,12 @@ export type WallpaperBulkAction = "feature" | "unfeature" | "setCategory" | "add
 export const bulkUpdateWallpapers = (ids: string[], action: WallpaperBulkAction, opts: { categoryId?: string | null; tags?: string[] } = {}) =>
   adminPost<BulkResult>("/wallpapers/bulk", { ids, action, ...opts });
 
-export type CategoryOption = { id: string; name: string; slug: string };
+/** Category choices in admin — includes hidden ones (marked), since wallpapers can be filed there. */
+export type CategoryOption = { id: string; name: string; slug: string; isHidden?: boolean };
 
 export async function getCategoryOptions(): Promise<CategoryOption[]> {
-  const res = await fetch(`${API}/api/categories`, { cache: "no-store" });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Failed to load categories");
-  return (data.data ?? []) as CategoryOption[];
+  const { data } = await adminGet<{ data: { id: string; name: string; slug: string; isHidden: boolean }[] }>("/categories");
+  return data.map((c) => ({ id: c.id, slug: c.slug, isHidden: c.isHidden, name: c.isHidden ? `${c.name} (hidden)` : c.name }));
 }
 
 // ─── Featured (home page hero) ──────────────────────────────
@@ -287,11 +286,16 @@ export type AdminUploadPayload = {
   width: number;
   height: number;
   title: string;
+  description?: string | null;
   tags: string[];
   categoryId: string;
   isPremium: boolean;
   isAiGenerated: boolean;
   publish: boolean;
+  /** replace the title with the AI's (the admin didn't type one) */
+  aiTitle: boolean;
+  /** AI fills the description and adds tags */
+  aiText: boolean;
 };
 export type AdminUploadResult = {
   wallpaper: { id: string; title: string; fileUrl: string; status: string; width: number; height: number; isMobile: boolean; dominantColor: string };
@@ -322,6 +326,27 @@ export const requestUploadSlots = (files: { fileType: string; fileSizeBytes: num
   adminAttempt<{ items: UploadSlot[]; expiresIn: number }>("/uploads/urls", { files });
 
 export const createAdminUpload = (payload: AdminUploadPayload) => adminAttempt<AdminUploadResult>("/uploads", payload);
+
+/** The AI's draft for an uploaded file (nothing is published until createAdminUpload). */
+export type UploadDraft = {
+  key: string;
+  width: number;
+  height: number;
+  isMobile: boolean;
+  thumbUrl: string | null;
+  title: string | null;
+  description: string | null;
+  tags: string[];
+  category: { id: string; name: string } | null;
+  alternative: { id: string; name: string } | null;
+  confidence: number;
+  moderation: { status: string; reason: string | null };
+  warnings: string[];
+};
+export const analyzeUpload = (body: { key: string; fileUrl: string; fileType: string; fileSizeBytes: number; title?: string; tags: string[] }) =>
+  adminAttempt<UploadDraft>("/uploads/analyze", body);
+/** Drop a file from the batch: deletes its draft and the stored file. */
+export const discardUpload = (key: string) => adminAttempt<{ key: string; discarded: true }>("/uploads/discard", { key });
 
 /** PUT a file straight to R2 with progress. Resolves with the HTTP status (0 = network error). */
 export function putFileToStorage(url: string, file: File, onProgress: (fraction: number) => void): Promise<number> {

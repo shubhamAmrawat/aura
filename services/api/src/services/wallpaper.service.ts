@@ -3,13 +3,12 @@ import { db } from "../config/db";
 import { categories, downloads, users, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { screenFilterSql, visibleCategoryFilterSql, visibleCategorySql, type ScreenFilter } from "../utils/screenFilter";
-import { extractImageMetadata } from "../utils/imageMetadata";
 import { checkImageSafety } from "../integrations/sightengine";
 import { deleteFile, generateUploadUrl } from "../integrations/r2";
 import { generateVisionEmbedding, generateWallpaperTextEmbedding } from "../integrations/openai";
 import type { UploadInput } from "../validators/wallpaper.schema";
 import { resolveCategorySlug } from "./category.service";
-import { deleteThumbFor, thumbUrlSql, tryCreateThumb, type ThumbVariant } from "./wallpaperThumb.service";
+import { deleteThumbFor, prepareUploadedImage, thumbUrlSql, type ThumbVariant } from "./wallpaperThumb.service";
 
 /** Columns returned by every list/feed endpoint. */
 export const wallpaperListSelect = {
@@ -309,14 +308,16 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
   const clientW = typeof input.width === "number" ? input.width : Number(input.width) || 0;
   const clientH = typeof input.height === "number" ? input.height : Number(input.height) || 0;
 
-  const [moderation, metadata, textEmbedding, thumb] = await Promise.all([
-    checkImageSafety(fileUrl),
-    extractImageMetadata(fileUrl),
-    generateVisionEmbedding(fileUrl, { title, description, tags }).catch((err) => {
+  // Read the file once (size, colours, thumbnail; gated against memory spikes), then run the
+  // safety check and vision embedding on the 600px thumbnail instead of the full original.
+  const { metadata, thumb } = await prepareUploadedImage(key, fileUrl);
+  const aiUrl = thumb?.url ?? fileUrl;
+  const [moderation, textEmbedding] = await Promise.all([
+    checkImageSafety(aiUrl),
+    generateVisionEmbedding(aiUrl, { title, description, tags }).catch((err) => {
       console.error("[embedding] Vision embedding failed during upload:", err);
       return null;
     }),
-    tryCreateThumb(fileUrl),
   ]);
 
   if (moderation.status === "rejected") {

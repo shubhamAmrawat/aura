@@ -4,6 +4,7 @@ import { purgeExpiredRejected } from "../services/admin/review.service";
 import { fillMissingCategoryThumbs } from "../services/categoryThumb.service";
 import { fillMissingThumbs } from "../services/wallpaperThumb.service";
 import { fillMissingDescriptions } from "../services/wallpaperDescription.service";
+import { purgeStaleDrafts } from "../services/admin/upload.service";
 /**
  * Trending score formula:
  * 
@@ -83,6 +84,11 @@ async function runJob() {
     console.log(`[scheduler] Done — ${result.updated} wallpapers updated in ${result.durationMs}ms`);
     const { purged } = await purgeExpiredRejected();
     if (purged > 0) console.log(`[scheduler] Purged ${purged} wallpapers rejected over 30 days ago`);
+    const drafts = await purgeStaleDrafts().catch((e) => {
+      console.error("[scheduler] Draft cleanup failed:", e instanceof Error ? e.message : e);
+      return { purged: 0 };
+    });
+    if (drafts.purged) console.log(`[scheduler] Removed ${drafts.purged} unpublished upload drafts older than 24h`);
     const wallThumbs = await fillMissingThumbs(40, 3);
     if (wallThumbs.created || wallThumbs.failed) {
       console.log(`[scheduler] Wallpaper thumbnails: ${wallThumbs.created} created, ${wallThumbs.failed} failed, ${wallThumbs.remaining} still missing`);

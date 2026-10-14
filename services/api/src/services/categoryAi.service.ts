@@ -3,7 +3,7 @@ import { getOpenAI } from "../integrations/openai";
 export const CATEGORY_AI_MODEL = "gpt-4o-mini";
 
 /** Plain-language meaning of each category for the classifier (falls back to the category name). */
-const GUIDE: Record<string, string> = {
+export const GUIDE: Record<string, string> = {
   nature: "natural scenery: landscapes, fields, deserts, lakes, rivers, waterfalls, sky, plants, wildlife (not cats)",
   mountains: "mountains or hills are the main subject",
   forest: "forests, woods, trees as the main subject",
@@ -14,6 +14,7 @@ const GUIDE: Record<string, string> = {
   astrology: "zodiac signs, horoscope, astrological symbols and mystic cosmic symbolism",
   anime: "anime or manga characters / scenes (Japanese animation style), incl. One Piece, Naruto, Demon Slayer etc.",
   superheroes: "superheroes and comic-book characters (Marvel, DC — Iron Man, Batman, Spider-Man …)",
+  "games-franchises": "characters, scenes or art from video games, films and TV series (not anime, not superheroes)",
   hinduism: "Hindu gods, deities and mythology (Krishna, Shiva, Hanuman, Ganesha, Rama …), temples, spiritual Hindu art",
   cars: "cars, motorbikes and other vehicles as the main subject",
   cats: "cats",
