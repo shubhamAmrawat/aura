@@ -9,6 +9,7 @@ import {
   jsonb,
   real,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
 import { customType } from "drizzle-orm/pg-core";
@@ -109,3 +110,13 @@ export const wallpapers = pgTable("wallpapers", {
   /** Position on the home page hero (1 = first). Set only while isFeatured. */
   featuredOrder: integer("featured_order"),
 }, (t) => [index("wallpapers_status_created_at_idx").on(t.status, t.createdAt)]);
+
+/**
+ * Extra categories for a wallpaper (max 2, enforced by the API). The primary category stays in
+ * wallpapers.category_id; a wallpaper is listed on its primary and on each extra category page.
+ */
+export const wallpaperCategories = pgTable("wallpaper_categories", {
+  wallpaperId: uuid("wallpaper_id").notNull().references(() => wallpapers.id, { onDelete: "cascade" }),
+  categoryId: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.wallpaperId, t.categoryId] }), index("wallpaper_categories_category_idx").on(t.categoryId)]);

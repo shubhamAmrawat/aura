@@ -13,12 +13,15 @@ interface WallpaperDetailsProps {
   statsLayout?: "row" | "grid";
   /** The wallpaper's category, for the "About" text and link. */
   category?: { name: string; slug: string } | null;
+  /** other categories it is also listed in */
+  extraCategories?: { name: string; slug: string }[];
 }
 
 const WallpaperDetails = ({
   wallpaper,
   statsLayout = "row",
   category = null,
+  extraCategories = [],
 }: WallpaperDetailsProps) => {
   const contrastColor = getContrastColor(wallpaper.dominantColor);
   const isPortrait = statsLayout === "grid";
@@ -61,7 +64,7 @@ const WallpaperDetails = ({
 
           <ColorPalette palette={wallpaper.palette} />
           <WallpaperTags tags={wallpaper.tags} />
-          <AboutWallpaper wallpaper={wallpaper} category={category} />
+          <AboutWallpaper wallpaper={wallpaper} category={category} extraCategories={extraCategories} />
         </div>
 
         <div
@@ -155,7 +158,7 @@ const WallpaperDetails = ({
         <WallpaperTags tags={wallpaper.tags} />
       </div>
 
-      <AboutWallpaper wallpaper={wallpaper} category={category} />
+      <AboutWallpaper wallpaper={wallpaper} category={category} extraCategories={extraCategories} />
     </div>
   );
 };

@@ -60,7 +60,7 @@ describe("GET /api/admin/wallpapers", () => {
     expectKeys(item, [
       "id", "title", "fileUrl", "thumbUrl", "dominantColor", "width", "height", "fileSizeBytes", "format", "status", "tags",
       "isFeatured", "isPremium", "isMobile", "isAiGenerated", "downloadCount", "likeCount", "viewCount", "trendingScore",
-      "createdAt", "category", "uploader",
+      "createdAt", "category", "extraCategories", "uploader",
     ]);
     expect(item.status).toBe("pending");
     expect(item.uploader).toEqual({ id: creator.id, username: creator.username });

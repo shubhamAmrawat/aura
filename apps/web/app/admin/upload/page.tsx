@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/lib/toast";
 import { StatusBadge, Toggle, inputStyle } from "../_components/ui";
 import { readImageHeaderSize } from "@/lib/imageSize";
+import ExtraCategories from "../_components/ExtraCategories";
 
 /**
  * Bulk upload, review first:
@@ -40,9 +41,11 @@ type Item = {
   title: string;
   description: string;
   categoryId: string;
+  /** up to 2 more categories the wallpaper is also listed in */
+  extraCategoryIds: string[];
   tagsText: string;
   /** fields the admin changed by hand — the AI never overwrites these */
-  edited: { title: boolean; description: boolean; category: boolean; tags: boolean };
+  edited: { title: boolean; description: boolean; category: boolean; tags: boolean; extras: boolean };
   status: Status;
   failedAt?: Stage;
   progress: number;
@@ -50,7 +53,7 @@ type Item = {
   key?: string;
   fileUrl?: string;
   /** the AI's category pick and how sure it is */
-  ai?: { categoryId: string | null; confidence: number; warnings: string[] };
+  ai?: { categoryId: string | null; extraIds: string[]; confidence: number; warnings: string[] };
   result?: { id: string; status: string; warnings: string[]; category: { name: string; auto: boolean } };
 };
 type Defaults = { categoryId: string; tagsText: string; isPremium: boolean; isAiGenerated: boolean; publish: boolean; aiText: boolean };
@@ -96,7 +99,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Worth trying again: network errors, rate limits, server errors (and an expired upload link). */
 const retryable = (status: number) => status === 0 || status === 403 || status === 408 || status === 429 || status >= 500;
 
-const NOT_EDITED = { title: false, description: false, category: false, tags: false };
+const NOT_EDITED = { title: false, description: false, category: false, tags: false, extras: false };
 
 export default function BulkUploadPage() {
   const { toast } = useToast();
@@ -188,12 +191,14 @@ export default function BulkUploadPage() {
         const d = defaultsRef.current;
         setItems((prev) => prev.map((i) => {
           if (i.id !== id) return i;
-          const next: Item = { ...i, status: "review", failedAt: undefined, width: draft.width, height: draft.height, ai: { categoryId: draft.category?.id ?? null, confidence: draft.confidence, warnings: draft.warnings } };
+          const aiExtras = (draft.extraCategories ?? []).map((c) => c.id);
+          const next: Item = { ...i, status: "review", failedAt: undefined, width: draft.width, height: draft.height, ai: { categoryId: draft.category?.id ?? null, extraIds: aiExtras, confidence: draft.confidence, warnings: draft.warnings } };
           if (d.aiText && !i.edited.title && draft.title) next.title = draft.title;
           if (d.aiText && !i.edited.description && draft.description) next.description = draft.description;
           if (d.aiText && !i.edited.tags && draft.tags.length) next.tagsText = parseTags([i.tagsText, ...draft.tags].join(",")).join(", ");
           // The batch is on "Auto" and the admin hasn't picked one → use the AI's category
           if (!i.edited.category && i.categoryId === AUTO && draft.category) next.categoryId = draft.category.id;
+          if (!i.edited.extras) next.extraCategoryIds = aiExtras.filter((id) => id !== next.categoryId).slice(0, 2);
           return next;
         }));
         return;
@@ -259,7 +264,7 @@ export default function BulkUploadPage() {
       if (width < UPLOAD_MIN_EDGE || height < UPLOAD_MIN_EDGE) { URL.revokeObjectURL(previewUrl); skipped.push(`${file.name}: smaller than ${UPLOAD_MIN_EDGE}×${UPLOAD_MIN_EDGE}`); continue; }
       added.push({
         id: crypto.randomUUID(), file, previewUrl, width, height,
-        title: titleFromName(file.name), description: "", categoryId: d.categoryId, tagsText: d.tagsText,
+        title: titleFromName(file.name), description: "", categoryId: d.categoryId, extraCategoryIds: [], tagsText: d.tagsText,
         edited: { ...NOT_EDITED }, status: "queued", progress: 0,
       });
     }
@@ -319,6 +324,7 @@ export default function BulkUploadPage() {
       key: it.key, fileUrl: it.fileUrl, fileType: it.file.type, fileSizeBytes: it.file.size,
       width: it.width, height: it.height,
       title: it.title.trim(), description: it.description.trim() || null, tags: parseTags(it.tagsText), categoryId: it.categoryId,
+      extraCategoryIds: it.extraCategoryIds.filter((c) => c !== it.categoryId),
       isPremium: d.isPremium, isAiGenerated: d.isAiGenerated, publish: d.publish,
       // what's on screen is final — the AI's suggestions are already in the fields
       aiTitle: false, aiText: false,
@@ -597,6 +603,17 @@ function UploadRow({ item: i, categories, editable, showErrors, aiText, onChange
             style={inputStyle}
           />
         </div>
+        {(i.status === "review" || i.status === "failed" || i.status === "done" || i.extraCategoryIds.length > 0) && (
+          <ExtraCategories
+            compact
+            value={i.extraCategoryIds}
+            primaryId={i.categoryId && i.categoryId !== AUTO ? i.categoryId : null}
+            categories={categories}
+            aiIds={i.ai?.extraIds}
+            disabled={!editable}
+            onChange={(ids) => edit("extras", { extraCategoryIds: ids })}
+          />
+        )}
         <textarea
           aria-label={`Description for ${i.file.name}`}
           value={i.description}

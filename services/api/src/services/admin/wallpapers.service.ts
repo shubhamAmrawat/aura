@@ -2,6 +2,7 @@ import { and, asc, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "d
 import { db } from "../../config/db";
 import { categories, users, wallpapers } from "../../models";
 import { ApiError } from "../../utils/ApiError";
+import { extraCategoriesSql, getExtraCategoryIds, inCategorySql, normalizeExtraCategories, removeExtra, setExtraCategories } from "../wallpaperCategories.service";
 import { logAdminAction } from "../../utils/audit";
 import { generateWallpaperTextEmbedding } from "../../integrations/openai";
 import { removeWallpaper } from "../wallpaperRemoval.service";
@@ -59,6 +60,8 @@ const listColumns = {
   createdAt: wallpapers.createdAt,
   categoryId: categories.id,
   categoryName: categories.name,
+  /** extra categories besides the primary one: [{ id, name }] */
+  extraCategories: extraCategoriesSql,
   uploaderId: users.id,
   uploaderUsername: users.username,
 };
@@ -84,7 +87,7 @@ function whereFor(f: WallpaperListFilters): SQL | undefined {
     c.push(or(...parts)!);
   }
   if (f.categoryId === "none") c.push(isNull(wallpapers.categoryId));
-  else if (f.categoryId) c.push(eq(wallpapers.categoryId, f.categoryId));
+  else if (f.categoryId) c.push(inCategorySql(f.categoryId)); // primary or extra
   if (f.uploader === "none") c.push(isNull(wallpapers.uploaderId));
   else if (f.uploader) c.push(ilike(users.username, `%${escapeLike(f.uploader.replace(/^@/, ""))}%`));
   if (f.featured !== undefined) c.push(eq(wallpapers.isFeatured, f.featured));
@@ -179,6 +182,8 @@ export type WallpaperPatch = {
   description?: string | null;
   tags?: string[];
   categoryId?: string | null;
+  /** extra categories (max 2, not the primary); replaces the current extras */
+  extraCategoryIds?: string[];
   isFeatured?: boolean;
   isPremium?: boolean;
   isMobile?: boolean;
@@ -207,9 +212,18 @@ export async function updateWallpaper(adminId: string, id: string, patch: Wallpa
   if (!current) throw new ApiError(404, "Wallpaper not found");
   if (patch.categoryId !== undefined) await assertCategory(patch.categoryId);
 
+  // Extra categories: compared and saved separately (they live in wallpaper_categories)
+  const { extraCategoryIds: wantExtras, ...fieldPatch } = patch;
+  const primary = patch.categoryId !== undefined ? patch.categoryId : current.categoryId;
+  const currentExtras = await getExtraCategoryIds(id);
+  const nextExtras = wantExtras !== undefined
+    ? await normalizeExtraCategories(wantExtras, primary)
+    : currentExtras.filter((c) => c !== primary); // a new primary that was an extra stops being one
+
   const changes: Record<string, { from: unknown; to: unknown }> = {};
-  for (const key of Object.keys(patch) as (keyof WallpaperPatch)[]) {
-    const to = patch[key];
+  if (!sameTags(currentExtras, nextExtras)) changes.extraCategoryIds = { from: currentExtras, to: nextExtras };
+  for (const key of Object.keys(fieldPatch) as (keyof typeof fieldPatch)[]) {
+    const to = fieldPatch[key];
     if (to === undefined) continue;
     const from = current[key];
     const changed = key === "tags" ? !sameTags(from as string[], to as string[]) : from !== to;
@@ -218,8 +232,10 @@ export async function updateWallpaper(adminId: string, id: string, patch: Wallpa
 
   if (Object.keys(changes).length === 0) return getWallpaperDetail(id);
 
-  const set: Record<string, unknown> = Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, v.to]));
+  const set: Record<string, unknown> = Object.fromEntries(Object.entries(changes).filter(([k]) => k !== "extraCategoryIds").map(([k, v]) => [k, v.to]));
   await db.transaction(async (tx) => {
+    if ("extraCategoryIds" in changes) await setExtraCategories(id, nextExtras, tx);
+    else if (primary) await removeExtra(id, primary, tx);
     // Featuring puts it at the end of the home-page order; unfeaturing removes its position
     if ("isFeatured" in changes) set.featuredOrder = changes.isFeatured!.to ? await nextFeaturedOrder(tx) : null;
     await tx.update(wallpapers).set({ ...set, updatedAt: new Date() }).where(eq(wallpapers.id, id));

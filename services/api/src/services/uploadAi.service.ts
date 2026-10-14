@@ -12,6 +12,8 @@ export type UploadAnalysis = {
   tags: string[];
   categoryId: string | null;
   alternativeId: string | null;
+  /** 0–2 other categories it also clearly belongs to (never the primary) */
+  extraCategoryIds: string[];
   confidence: number;
   newCategoryIdea: string | null;
   reason: string;
@@ -41,6 +43,12 @@ A clear SUBJECT wins over a STYLE (an anime character on a dark background is "a
 Use a STYLE category only when there is no clear subject. Anything showing anime/manga, superhero/comic, video game, film or
 TV characters MUST go in anime, superheroes or games-franchises (when those exist).
 alternative: the second-best category, or "none". confidence: 0.9+ obvious, 0.7–0.9 likely, below 0.7 unsure.
+also: up to 2 OTHER categories it also belongs in — most wallpapers fit at least one more. Add a category when a visitor
+browsing it would be happy to find this wallpaper there: a broader subject (lotus or roses → "nature"; a mountain lake →
+"nature"), a setting, or a STYLE that clearly describes the look (mostly black and moody → "dark"; glowing lights → "neon";
+few elements and empty space → "minimal"; abstract shapes → "abstract"). Examples: misty dark forest → "forest", also
+["nature", "dark"]; neon-lit rainy street → "cyberpunk", also ["neon", "city"]; pink lotus painting → "floral", also
+["nature"]. Never repeat the main category; use [] only when nothing else genuinely fits.
 If nothing fits, category "none" and a short new category name in new_category_idea; otherwise new_category_idea is "".
 reason: max 12 words.`;
 }
@@ -60,13 +68,30 @@ function schema(slugs: string[]) {
         tags: { type: "array", items: { type: "string" } },
         category: choice,
         alternative: choice,
+        also: { type: "array", items: choice },
         confidence: { type: "number" },
         new_category_idea: { type: "string" },
         reason: { type: "string" },
       },
-      required: ["visual_description", "title", "description", "tags", "category", "alternative", "confidence", "new_category_idea", "reason"],
+      required: ["visual_description", "title", "description", "tags", "category", "alternative", "also", "confidence", "new_category_idea", "reason"],
     },
   } as const;
+}
+
+/** Nature sub-subjects: a wallpaper filed under one of these also belongs in "nature". */
+const NATURE_FAMILY = new Set(["floral", "forest", "mountains", "ocean", "sunset"]);
+
+/**
+ * The model is cautious with extras, so two simple rules fill the gaps: nature sub-subjects also go in
+ * "nature", and when it suggested nothing its runner-up category is used. Never the main one; max 2.
+ */
+function withDefaultExtras(also: string[], out: { categoryId: string | null; alternativeId: string | null }, options: CategoryOption[]) {
+  const slugOf = (id: string | null) => options.find((c) => c.id === id)?.slug;
+  const extras = [...also];
+  const nature = options.find((c) => c.slug === "nature")?.id;
+  if (nature && NATURE_FAMILY.has(slugOf(out.categoryId) ?? "")) extras.unshift(nature);
+  if (!also.length && out.alternativeId) extras.push(out.alternativeId);
+  return [...new Set(extras)].filter((id) => id !== out.categoryId).slice(0, 2);
 }
 
 const cleanTitle = (t: unknown) => {
@@ -97,13 +122,13 @@ export async function analyzeUpload(
   options: CategoryOption[]
 ): Promise<UploadAnalysis> {
   const empty: UploadAnalysis = {
-    title: null, description: null, tags: [], categoryId: null, alternativeId: null,
+    title: null, description: null, tags: [], categoryId: null, alternativeId: null, extraCategoryIds: [],
     confidence: 0, newCategoryIdea: null, reason: "AI analysis failed", visualDescription: "",
   };
   try {
     const res = await getOpenAI().chat.completions.create({
       model: CATEGORY_AI_MODEL,
-      temperature: 0.4,
+      temperature: 0.2, // low: the same image should land in the same categories every time
       max_tokens: 600,
       response_format: { type: "json_schema", json_schema: schema(options.map((c) => c.slug)) as never },
       messages: [
@@ -127,11 +152,14 @@ export async function analyzeUpload(
       tags: cleanTags(raw.tags),
       categoryId: idOf(raw.category),
       alternativeId: idOf(raw.alternative),
+      extraCategoryIds: [],
       confidence: Math.max(0, Math.min(1, Number(raw.confidence) || 0)),
       newCategoryIdea: typeof raw.new_category_idea === "string" && raw.new_category_idea.trim() ? raw.new_category_idea.trim().slice(0, 40) : null,
       reason: String(raw.reason ?? "").slice(0, 200),
       visualDescription: String(raw.visual_description ?? "").replace(/\s+/g, " ").trim().slice(0, 600),
     };
+    const also = Array.isArray(raw.also) ? raw.also.map(idOf).filter((id: string | null): id is string => !!id) : [];
+    out.extraCategoryIds = withDefaultExtras(also, out, options);
     return out;
   } catch (e) {
     console.error("[upload-ai] analysis failed:", e instanceof Error ? e.message : e);

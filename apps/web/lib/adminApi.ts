@@ -145,6 +145,8 @@ export type AdminWallpaper = {
   trendingScore: number;
   createdAt: string;
   category: { id: string; name: string } | null;
+  /** extra categories besides the main one (max 2) */
+  extraCategories: { id: string; name: string }[];
   uploader: { id: string; username: string } | null;
 };
 
@@ -201,6 +203,7 @@ export type WallpaperPatch = Partial<{
   description: string | null;
   tags: string[];
   categoryId: string | null;
+  extraCategoryIds: string[];
   isFeatured: boolean;
   isPremium: boolean;
   isMobile: boolean;
@@ -289,6 +292,7 @@ export type AdminUploadPayload = {
   description?: string | null;
   tags: string[];
   categoryId: string;
+  extraCategoryIds?: string[];
   isPremium: boolean;
   isAiGenerated: boolean;
   publish: boolean;
@@ -339,6 +343,7 @@ export type UploadDraft = {
   tags: string[];
   category: { id: string; name: string } | null;
   alternative: { id: string; name: string } | null;
+  extraCategories: { id: string; name: string }[];
   confidence: number;
   moderation: { status: string; reason: string | null };
   warnings: string[];

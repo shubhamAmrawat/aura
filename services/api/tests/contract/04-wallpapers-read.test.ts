@@ -130,7 +130,7 @@ describe("GET /api/wallpapers/:id", () => {
       "id", "title", "description", "fileUrl", "cdnVariants", "blurhash", "dominantColor", "palette",
       "width", "height", "fileSizeBytes", "format", "categoryId", "uploaderId", "tags", "isPremium",
       "isFeatured", "isAiGenerated", "isMobile", "downloadCount", "likeCount", "viewCount",
-      "trendingScore", "status", "createdAt", "updatedAt", "embedding",
+      "trendingScore", "status", "createdAt", "updatedAt", "embedding", "extraCategoryIds",
     ]);
     expect(res.body.data.id).toBe(real!.id);
   });

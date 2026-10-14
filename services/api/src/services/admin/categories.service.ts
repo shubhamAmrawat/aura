@@ -21,8 +21,10 @@ export function slugify(name: string): string {
 // Correlated subqueries: the outer column must be table-qualified — drizzle renders a bare
 // "id" inside select(), which would silently resolve to wallpapers.id.
 const CAT_ID = sql.raw(`"categories"."id"`);
-const total = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.category_id = ${CAT_ID})`;
-const live = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.category_id = ${CAT_ID} AND w.status = 'approved')`;
+// A wallpaper counts towards its primary category and each of its extra categories.
+const IN_CAT = sql`(w.category_id = ${CAT_ID} OR w.id IN (SELECT wallpaper_id FROM wallpaper_categories WHERE category_id = ${CAT_ID}))`;
+const total = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE ${IN_CAT})`;
+const live = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE ${IN_CAT} AND w.status = 'approved')`;
 /** What the category looks like: its cover, else its most downloaded live wallpaper. */
 const preview = sql<string | null>`COALESCE(${sql.raw(`"categories"."cover_image_url"`)}, (
   SELECT w.file_url FROM wallpapers w
@@ -194,6 +196,15 @@ export async function deleteCategory(adminId: string, id: string, moveTo?: strin
     if (target) {
       const res = await tx.update(wallpapers).set({ categoryId: target.id }).where(eq(wallpapers.categoryId, id)).returning({ id: wallpapers.id });
       count = res.length;
+      // Wallpapers that had this as an extra category get the target as an extra instead
+      // (unless it's already their primary); the old rows go with the category (ON DELETE CASCADE).
+      await tx.execute(sql`
+        INSERT INTO wallpaper_categories (wallpaper_id, category_id)
+        SELECT wc.wallpaper_id, ${target.id}::uuid FROM wallpaper_categories wc
+        JOIN wallpapers w ON w.id = wc.wallpaper_id
+        WHERE wc.category_id = ${id}::uuid AND w.category_id IS DISTINCT FROM ${target.id}::uuid
+        ON CONFLICT DO NOTHING`);
+      await tx.execute(sql`DELETE FROM wallpaper_categories wc USING wallpapers w WHERE w.id = wc.wallpaper_id AND wc.category_id = w.category_id`);
       // Merged: /category/<deleted slug> (and its older slugs) now lead to the target
       await tx.update(categoryRedirects).set({ categoryId: target.id }).where(eq(categoryRedirects.categoryId, id));
       await tx

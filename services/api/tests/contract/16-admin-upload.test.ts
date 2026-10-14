@@ -199,7 +199,7 @@ describe("review before publishing: analyze → publish / discard", () => {
     const res = await api("POST", "/api/admin/uploads/analyze", { token: admin.token, json: { ...f, title: "img 320x480 1234", tags: ["mine"] } });
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
-      ["alternative", "category", "confidence", "description", "height", "isMobile", "key", "moderation", "tags", "thumbUrl", "title", "warnings", "width"]
+      ["alternative", "category", "confidence", "description", "extraCategories", "height", "isMobile", "key", "moderation", "tags", "thumbUrl", "title", "warnings", "width"]
     );
     expect(res.body).toMatchObject({ key: f.key, width: 320, height: 480, isMobile: true });
     expect(typeof res.body.title).toBe("string");

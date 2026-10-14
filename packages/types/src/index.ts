@@ -21,6 +21,8 @@ export interface Wallpaper {
   isMobile: boolean;
   /** Present on single-wallpaper responses. */
   categoryId?: string | null;
+  /** Extra categories it is also listed in (single-wallpaper responses). */
+  extraCategoryIds?: string[];
   downloadCount: number;
   likeCount: number;
   createdAt: string;

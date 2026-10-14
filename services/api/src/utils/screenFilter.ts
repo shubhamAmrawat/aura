@@ -22,11 +22,13 @@ export function parseScreenFilter(raw: string | undefined): ScreenFilter | null 
  * `visibleCategoryFilterSql` is an `AND …` fragment for raw db.execute queries over wallpapers.
  */
 const HIDDEN_CATEGORY_IDS = `(SELECT "categories"."id" FROM "categories" WHERE "categories"."is_hidden")`;
+/** …and none of its extra categories (wallpaper_categories) is hidden either. */
+const NO_HIDDEN_EXTRA = `NOT EXISTS (SELECT 1 FROM "wallpaper_categories" "wc" WHERE "wc"."wallpaper_id" = "wallpapers"."id" AND "wc"."category_id" IN ${HIDDEN_CATEGORY_IDS})`;
 export const visibleCategorySql = sql.raw(
-  `("wallpapers"."category_id" IS NULL OR "wallpapers"."category_id" NOT IN ${HIDDEN_CATEGORY_IDS})`
+  `(("wallpapers"."category_id" IS NULL OR "wallpapers"."category_id" NOT IN ${HIDDEN_CATEGORY_IDS}) AND ${NO_HIDDEN_EXTRA})`
 );
 export const visibleCategoryFilterSql = sql.raw(
-  `AND (category_id IS NULL OR category_id NOT IN ${HIDDEN_CATEGORY_IDS})`
+  `AND (category_id IS NULL OR category_id NOT IN ${HIDDEN_CATEGORY_IDS}) AND ${NO_HIDDEN_EXTRA}`
 );
 
 /** Raw-SQL fragment for the screen filter (used inside db.execute queries). */

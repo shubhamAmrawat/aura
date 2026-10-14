@@ -9,6 +9,7 @@ import { checkImageSafety } from "../../integrations/sightengine";
 import { deleteThumbFor, prepareUploadedImage, type ThumbVariant } from "../wallpaperThumb.service";
 import { CATEGORY_AI_MODEL } from "../categoryAi.service";
 import { analyzeUpload, embedWallpaper, type UploadAnalysis } from "../uploadAi.service";
+import { normalizeExtraCategories, setExtraCategories } from "../wallpaperCategories.service";
 import type { ImageMetadata } from "../../utils/imageMetadata";
 import type { ModerationResult } from "../../integrations/sightengine";
 import type { AdminUploadInput, UploadAnalyzeInput } from "../../validators/admin.schema";
@@ -41,6 +42,8 @@ export type UploadDraftView = {
   tags: string[];
   category: { id: string; name: string } | null;
   alternative: { id: string; name: string } | null;
+  /** extra categories the AI suggests besides the main one (0–2) */
+  extraCategories: { id: string; name: string }[];
   confidence: number;
   moderation: ModerationResult;
   warnings: string[];
@@ -166,6 +169,7 @@ async function draftView(d: Draft, cats: { id: string; name: string }[]): Promis
     tags: d.analysis.tags,
     category: named(d.analysis.categoryId),
     alternative: named(d.analysis.alternativeId),
+    extraCategories: (d.analysis.extraCategoryIds ?? []).map(named).filter((c): c is { id: string; name: string } => !!c),
     confidence: d.analysis.confidence,
     moderation: d.moderation,
     warnings,
@@ -233,6 +237,8 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   if (!category) throw new ApiError(400, "The AI couldn't pick a category. Choose one and publish again.");
 
   const embedding = await embedWallpaper(ai.visualDescription, { title, description, tags });
+  // Extras: what the admin sent, else the AI's suggestions (never the primary, max 2)
+  const extras = await normalizeExtraCategories(input.extraCategoryIds ?? ai.extraCategoryIds ?? [], category.id);
 
   const warnings: string[] = [];
   if (moderation.status !== "approved") {
@@ -294,6 +300,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         format: wallpapers.format,
         createdAt: wallpapers.createdAt,
       });
+    if (extras.length) await setExtraCategories(row!.id, extras, tx);
     await tx.delete(uploadDrafts).where(eq(uploadDrafts.key, input.key));
     await logAdminAction(
       {
@@ -301,7 +308,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         action: "wallpaper.upload",
         targetType: "wallpaper",
         targetId: row!.id,
-        details: { title, published: input.publish, moderation: moderation.status, category: category.name, autoCategory: auto, warnings: warnings.length },
+        details: { title, published: input.publish, moderation: moderation.status, category: category.name, extraCategories: extras.length, autoCategory: auto, warnings: warnings.length },
       },
       tx
     );

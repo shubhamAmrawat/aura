@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ExtraCategories from "../_components/ExtraCategories";
 import {
   approveWallpaper,
   deleteAdminWallpaper,
@@ -24,6 +25,7 @@ type Form = {
   description: string;
   tags: string[];
   categoryId: string;
+  extraCategoryIds: string[];
   isFeatured: boolean;
   isPremium: boolean;
   isMobile: boolean;
@@ -35,6 +37,7 @@ const toForm = (w: AdminWallpaperDetail): Form => ({
   description: w.description ?? "",
   tags: w.tags,
   categoryId: w.category?.id ?? "",
+  extraCategoryIds: (w.extraCategories ?? []).map((c) => c.id),
   isFeatured: w.isFeatured,
   isPremium: w.isPremium,
   isMobile: w.isMobile,
@@ -85,6 +88,8 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
     if ((form.description.trim() || null) !== w.description) p.description = form.description.trim() || null;
     if (form.tags.join("\u0000") !== w.tags.join("\u0000")) p.tags = form.tags;
     if ((form.categoryId || null) !== (w.category?.id ?? null)) p.categoryId = form.categoryId || null;
+    const extras = form.extraCategoryIds.filter((id) => id !== form.categoryId);
+    if (extras.join() !== (w.extraCategories ?? []).map((c) => c.id).join()) p.extraCategoryIds = extras;
     for (const k of ["isFeatured", "isPremium", "isMobile", "isAiGenerated"] as const) if (form[k] !== w[k]) p[k] = form[k];
     return p;
   }, [w, form]);
@@ -264,6 +269,15 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Also shown in <span className="opacity-70">(up to 2 more categories)</span></span>
+                <ExtraCategories
+                  value={form.extraCategoryIds}
+                  primaryId={form.categoryId || null}
+                  categories={categories}
+                  onChange={(ids) => set("extraCategoryIds", ids)}
+                />
+              </div>
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>Tags · {form.tags.length}/30</span>
                 <div className="rounded-lg p-2 flex flex-wrap gap-1.5" style={inputStyle}>

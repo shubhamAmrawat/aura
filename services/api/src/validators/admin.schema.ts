@@ -95,6 +95,12 @@ const tagList = z
     return out;
   });
 
+/** Extra categories besides the primary one (max 2). */
+const extraCategoryIds = z
+  .array(z.string().regex(UUID, "Invalid category"), { message: "extraCategoryIds must be a list of category ids" })
+  // 3 allowed here: one may be the primary, which the service drops; the service enforces max 2
+  .max(3, "A wallpaper can have at most 2 extra categories.");
+
 export const WallpaperPatchBody = z
   .object({
     title: z.string().trim().min(1, "Title is required").max(120, "Title can be at most 120 characters").optional(),
@@ -107,6 +113,7 @@ export const WallpaperPatchBody = z
       .transform((v) => (v === undefined ? undefined : v || null)),
     tags: tagList.optional(),
     categoryId: z.string().regex(UUID, "Invalid category").nullable().optional(),
+    extraCategoryIds: extraCategoryIds.optional(),
     isFeatured: z.boolean({ message: "isFeatured must be true or false" }).optional(),
     isPremium: z.boolean({ message: "isPremium must be true or false" }).optional(),
     isMobile: z.boolean({ message: "isMobile must be true or false" }).optional(),
@@ -188,6 +195,8 @@ export const AdminUploadBody = z
     tags: tagList.default([]),
     /** a category id, or "auto" to let the AI pick from the image */
     categoryId: z.string({ message: "Category is required" }).refine((v) => v === "auto" || UUID.test(v), "Category is required"),
+    /** extra categories; omitted = the AI's suggestions from the draft */
+    extraCategoryIds: extraCategoryIds.optional(),
     isPremium: z.boolean({ message: "isPremium must be true or false" }).default(false),
     isAiGenerated: z.boolean({ message: "isAiGenerated must be true or false" }).default(false),
     publish: z.boolean({ message: "publish must be true or false" }).default(true),

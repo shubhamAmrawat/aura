@@ -5,10 +5,12 @@ import { aspectLabel, listJoin, paletteNames, screenFit } from "@/lib/wallpaperA
 interface AboutWallpaperProps {
   wallpaper: Wallpaper;
   category: { name: string; slug: string } | null;
+  /** other categories it is also listed in */
+  extraCategories?: { name: string; slug: string }[];
 }
 
 /** "About this wallpaper": readable facts built from the wallpaper's own data. */
-export default function AboutWallpaper({ wallpaper: w, category }: AboutWallpaperProps) {
+export default function AboutWallpaper({ wallpaper: w, category, extraCategories = [] }: AboutWallpaperProps) {
   const orientation = w.height > w.width ? "portrait" : w.width === w.height ? "square" : "landscape";
   const device = w.height > w.width ? "phone" : "desktop";
   const aspect = aspectLabel(w.width, w.height);
@@ -34,6 +36,19 @@ export default function AboutWallpaper({ wallpaper: w, category }: AboutWallpape
                 {category.name} wallpapers
               </Link>{" "}
               collection
+              {extraCategories.length > 0 && (
+                <>
+                  {" "}and also appears in{" "}
+                  {extraCategories.map((c, n) => (
+                    <span key={c.slug}>
+                      {n > 0 && (n === extraCategories.length - 1 ? " and " : ", ")}
+                      <Link href={`/category/${c.slug}`} className="underline underline-offset-2 hover:text-white">
+                        {c.name}
+                      </Link>
+                    </span>
+                  ))}
+                </>
+              )}
             </>
           ) : (
             <>Browse more in our <Link href="/categories" className="underline underline-offset-2 hover:text-white">categories</Link></>

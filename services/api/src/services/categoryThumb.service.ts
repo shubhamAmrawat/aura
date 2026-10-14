@@ -92,5 +92,5 @@ export async function deleteThumbFile(url: string | null | undefined): Promise<v
   await deleteFile(key).catch((e) => console.error("[category-thumbs] delete failed:", e instanceof Error ? e.message : e));
 }
 
-/** Live wallpaper count per category, for the public list. */
-export const liveCount = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.category_id = ${sql.raw(`"categories"."id"`)} AND w.status = 'approved')`;
+/** Live wallpaper count per category (primary or extra category), for the public list. */
+export const liveCount = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.status = 'approved' AND (w.category_id = ${sql.raw(`"categories"."id"`)} OR w.id IN (SELECT wallpaper_id FROM wallpaper_categories WHERE category_id = ${sql.raw(`"categories"."id"`)})))`;

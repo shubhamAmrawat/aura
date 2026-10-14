@@ -8,6 +8,7 @@ import { deleteFile, generateUploadUrl } from "../integrations/r2";
 import { generateVisionEmbedding, generateWallpaperTextEmbedding } from "../integrations/openai";
 import type { UploadInput } from "../validators/wallpaper.schema";
 import { resolveCategorySlug } from "./category.service";
+import { extraCategoryIdsSql, inCategorySql } from "./wallpaperCategories.service";
 import { deleteThumbFor, prepareUploadedImage, thumbUrlSql, type ThumbVariant } from "./wallpaperThumb.service";
 
 /** Columns returned by every list/feed endpoint. */
@@ -58,7 +59,7 @@ export async function listWallpapers(params: {
 
   if (params.categorySlug) {
     const catRow = await resolveCategorySlug(params.categorySlug); // follows renamed/merged slugs
-    conditions.push(catRow ? eq(wallpapers.categoryId, catRow.id) : sql`1 = 0`);
+    conditions.push(catRow ? inCategorySql(catRow.id) : sql`1 = 0`); // primary or extra category
   }
 
   if (params.q) {
@@ -103,8 +104,16 @@ export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSe
   return rest;
 }
 
-/** True when an admin has hidden this wallpaper's category from the public site. */
-async function inHiddenCategory(categoryId: string | null) {
+/** True when an admin has hidden the wallpaper's primary category or one of its extra categories. */
+async function inHiddenCategory(wallpaperId: string, categoryId: string | null) {
+  const [extra] = await db.execute<{ hidden: boolean }>(sql`
+    SELECT EXISTS (SELECT 1 FROM wallpaper_categories wc JOIN categories c ON c.id = wc.category_id
+                   WHERE wc.wallpaper_id = ${wallpaperId}::uuid AND c.is_hidden) AS hidden`);
+  if (extra?.hidden) return true;
+  return inHiddenPrimary(categoryId);
+}
+
+async function inHiddenPrimary(categoryId: string | null) {
   if (!categoryId) return false;
   const [cat] = await db.select({ isHidden: categories.isHidden }).from(categories).where(eq(categories.id, categoryId)).limit(1);
   return cat?.isHidden === true;
@@ -114,8 +123,13 @@ async function inHiddenCategory(categoryId: string | null) {
 export async function getWallpaper(id: string) {
   const [record] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
   if (!record || record.status === "hidden") throw new ApiError(404, "Wallpaper not found"); // hidden = uploader disabled
-  if (await inHiddenCategory(record.categoryId)) throw new ApiError(404, "Wallpaper not found");
-  const { textEmbedding: _textEmbedding, ...wallpaper } = record;
+  if (await inHiddenCategory(record.id, record.categoryId)) throw new ApiError(404, "Wallpaper not found");
+  const [{ extraCategoryIds } = { extraCategoryIds: [] as string[] }] = await db
+    .select({ extraCategoryIds: extraCategoryIdsSql })
+    .from(wallpapers)
+    .where(eq(wallpapers.id, record.id));
+  const { textEmbedding: _textEmbedding, ...rest } = record;
+  const wallpaper = { ...rest, extraCategoryIds };
   return withoutReviewFields(wallpaper);
 }
 
@@ -125,7 +139,7 @@ export async function getWallpaper(id: string) {
  */
 export async function getSimilar(id: string, params: { limit: number; offset: number; screen: ScreenFilter | null }) {
   const [src] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
-  if (!src || src.status === "hidden" || (await inHiddenCategory(src.categoryId))) throw new ApiError(404, "Wallpaper not found");
+  if (!src || src.status === "hidden" || (await inHiddenCategory(src.id, src.categoryId))) throw new ApiError(404, "Wallpaper not found");
   if (!src.textEmbedding) return null; // caller responds with an empty, uncached result
 
   const embeddingStr = `[${src.textEmbedding.join(",")}]`;

@@ -105,6 +105,13 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
   const categoryRow =
     categoriesResult.status === "fulfilled" ? categoriesResult.value.find((c) => c.id === wallpaper.categoryId) : undefined;
   const category = categoryRow ? { name: categoryRow.name, slug: categoryRow.slug } : null;
+  const extraCategories =
+    categoriesResult.status === "fulfilled"
+      ? (wallpaper.extraCategoryIds ?? [])
+          .map((cid) => categoriesResult.value.find((c) => c.id === cid))
+          .filter((c): c is NonNullable<typeof c> => !!c)
+          .map((c) => ({ name: c.name, slug: c.slug }))
+      : [];
 
   return (
     <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
@@ -152,7 +159,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
               className="w-full md:w-[45%] md:shrink-0 md:flex md:h-[calc(100vh-72px)] md:min-h-0 md:flex-col md:overflow-hidden px-6 py-8 md:px-5 md:py-4 lg:px-8 lg:py-6 xl:px-10 xl:py-8 border-t md:border-t-0 md:border-l"
               style={{ borderColor: "var(--border)" }}
             >
-              <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" category={category} />
+              <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" category={category} extraCategories={extraCategories} />
             </div>
 
           </div>
@@ -189,6 +196,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
                 wallpaper={wallpaper}
                 statsLayout="row"
                 category={category}
+                extraCategories={extraCategories}
               />
             </div>
           </div>
