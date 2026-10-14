@@ -94,3 +94,9 @@ export async function deleteThumbFile(url: string | null | undefined): Promise<v
 
 /** Live wallpaper count per category (primary or extra category), for the public list. */
 export const liveCount = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.status = 'approved' AND (w.category_id = ${sql.raw(`"categories"."id"`)} OR w.id IN (SELECT wallpaper_id FROM wallpaper_categories WHERE category_id = ${sql.raw(`"categories"."id"`)})))`;
+
+/** Same count limited to one device shape (is_mobile), for `?screen=` on the public list. */
+export function liveCountFor(screen: "mobile" | "tablet") {
+  const isMobile = screen === "mobile" ? sql.raw("true") : sql.raw("false");
+  return sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.status = 'approved' AND w.is_mobile = ${isMobile} AND (w.category_id = ${sql.raw(`"categories"."id"`)} OR w.id IN (SELECT wallpaper_id FROM wallpaper_categories WHERE category_id = ${sql.raw(`"categories"."id"`)})))`;
+}

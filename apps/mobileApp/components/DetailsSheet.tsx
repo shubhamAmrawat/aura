@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react"
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native"
-import { Wallpaper } from "../lib/api"
+import { router } from "expo-router"
+import { Category, Wallpaper } from "../lib/api"
+import { getCategoryMap } from "../lib/categoryNames"
 import { Colors } from "../constants"
 
 
@@ -10,6 +13,34 @@ interface DetailsSheetProps {
 }
 
 const DetailsSheet = ({ visible, onClose, wallpaper }: DetailsSheetProps) => {
+  const [categories, setCategories] = useState<Category[]>([])
+  const categoryKey = [wallpaper.categoryId, ...(wallpaper.extraCategoryIds ?? [])].filter(Boolean).join(",")
+  useEffect(() => {
+    if (!visible || !categoryKey) {
+      setCategories([])
+      return
+    }
+    let alive = true
+    getCategoryMap()
+      .then((map) => {
+        if (!alive) return
+        setCategories(categoryKey.split(",").map((id) => map.get(id)).filter((c): c is Category => Boolean(c)))
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [visible, categoryKey])
+
+  const openCategory = (c: Category) => {
+    onClose()
+    router.push({ pathname: "/category/[slug]", params: { slug: c.slug, name: c.name } })
+  }
+  const openTag = (tag: string) => {
+    onClose()
+    router.push({ pathname: "/feed/[kind]", params: { kind: "tag", q: tag } })
+  }
+
   const resolution = `${wallpaper.width} x ${wallpaper.height}`
   const fileSizeMB = wallpaper.fileSizeBytes
   ? `${(wallpaper.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
@@ -29,6 +60,7 @@ const DetailsSheet = ({ visible, onClose, wallpaper }: DetailsSheetProps) => {
             {/* handle bar */}
             <View style={styles.handle} />
 
+            {!!wallpaper.title && <Text style={styles.sheetTitle}>{wallpaper.title}</Text>}
             {!!wallpaper.description && (
               <Text style={styles.description}>{wallpaper.description}</Text>
             )}
@@ -68,6 +100,18 @@ const DetailsSheet = ({ visible, onClose, wallpaper }: DetailsSheetProps) => {
               </View>
             )}
 
+            {categories.length > 0 && (
+              <View style={styles.tagsSection}>
+                <Text style={styles.sectionTitle}>Categories</Text>
+                <View style={styles.categoryRow}>
+                  {categories.map((c) => (
+                    <Pressable key={c.id} onPress={() => openCategory(c)} style={({ pressed }) => [styles.categoryChip, pressed && { opacity: 0.75 }]}>
+                      <Text style={styles.categoryText}>{c.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
             {wallpaper.tags.length > 0 && (
               <View style={styles.tagsSection}>
                 <Text style={styles.sectionTitle}>Tags</Text>
@@ -77,9 +121,9 @@ const DetailsSheet = ({ visible, onClose, wallpaper }: DetailsSheetProps) => {
                   contentContainerStyle={styles.tagsRow}
                 >
                   {wallpaper.tags.map((tag) => (
-                    <View key={tag} style={styles.tagChip}>
+                    <Pressable key={tag} onPress={() => openTag(tag)} style={({ pressed }) => [styles.tagChip, pressed && { opacity: 0.75 }]}>
                       <Text style={styles.tagText}>#{tag}</Text>
-                    </View>
+                    </Pressable>
                   ))}
                 </ScrollView>
               </View>
@@ -123,6 +167,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.borderHover,
     alignSelf: "center",
     marginBottom: 8,
+  },
+  sheetTitle: {
+    color: Colors.textPrimary,
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "800",
   },
   description: {
     color: Colors.textSecondary,
@@ -190,6 +240,24 @@ const styles = StyleSheet.create({
   tagsRow: {
     gap: 8,
     paddingRight: 8,
+  },
+  categoryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  categoryChip: {
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    backgroundColor: Colors.accentMuted,
+    borderWidth: 1,
+    borderColor: "rgba(129, 238, 78, 0.35)",
+  },
+  categoryText: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: "700",
   },
   tagChip: {
     borderWidth: 1,

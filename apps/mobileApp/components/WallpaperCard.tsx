@@ -1,13 +1,11 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Wallpaper } from "../lib/api";
+import { WallpaperTile } from "../lib/api";
 import { Image } from "expo-image";
 import { useLayoutInfo } from "../hooks/useLayout";
-import { router } from "expo-router";
-import { useScreenFilter } from "../lib/ScreenFilterContext";
+import { openWallpaper } from "../lib/openWallpaper";
 
-const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
+const WallpaperCard = ({ wallpaper }: { wallpaper: WallpaperTile }) => {
   const { cardGap } = useLayoutInfo();
-  const { screen } = useScreenFilter();
 
   const aspectRatio =
     wallpaper.width && wallpaper.height ? wallpaper.width / wallpaper.height : 9 / 16;
@@ -15,20 +13,7 @@ const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
   return (
     <View style={[styles.wallpaperCard, { marginHorizontal: cardGap / 2, marginBottom: cardGap }]}>
       <Pressable
-        onPress={() =>
-          router.push({
-            pathname: `/wallpaper/${wallpaper.id}`,
-            params: {
-              dominantColor: wallpaper.dominantColor?.replace("#", "") ?? "",
-              blurhash: wallpaper.blurhash ?? "",
-              fileUrl: wallpaper.fileUrl ?? "",
-              title: wallpaper.title ?? "",
-              w: String(wallpaper.width ?? 0),
-              h: String(wallpaper.height ?? 0),
-              screen,
-            },
-          })
-        }
+        onPress={() => openWallpaper(wallpaper)}
         style={({ pressed }) => ({
           borderRadius: 10,
           overflow: "hidden",
@@ -36,8 +21,10 @@ const WallpaperCard = ({ wallpaper }: { wallpaper: Wallpaper }) => {
         })}
       >
         <Image
-          source={wallpaper.fileUrl}
-          style={[styles.wallpaperImage, { aspectRatio }]}
+          // small 600px thumbnail in grids; the detail screen loads the full image
+          source={wallpaper.thumbUrl || wallpaper.fileUrl}
+          recyclingKey={wallpaper.id}
+          style={[styles.wallpaperImage, { aspectRatio, backgroundColor: wallpaper.dominantColor || "#1A1A1A" }]}
           placeholder={wallpaper.blurhash ? { blurhash: wallpaper.blurhash } : null}
           contentFit="cover"
           placeholderContentFit="cover"

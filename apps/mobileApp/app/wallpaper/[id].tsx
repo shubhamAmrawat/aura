@@ -14,6 +14,9 @@
   import { useToast } from "../../lib/ToastContext";
   import { useAuth } from "../../lib/AuthContext";
   import WallpaperDock from "../../components/WallpaperDock";
+  import LockClockPreview from "../../components/LockClockPreview";
+  import DockAction from "../../components/DockAction";
+  import * as Haptics from "expo-haptics";
 
   export default function WallpaperDetail() {
     // ─── Route params ────────────────────────────────────────────────────────────
@@ -25,6 +28,7 @@
       dominantColor: paramColor,
       blurhash: paramBlurhash,
       fileUrl: paramFileUrl,
+      thumbUrl: paramThumbUrl,
       title: paramTitle,
       w, h,
     } = useLocalSearchParams<{
@@ -32,6 +36,7 @@
       dominantColor: string;
       blurhash: string;
       fileUrl?: string;
+      thumbUrl?: string;
       title: string;
       w: string;
       h: string;
@@ -46,6 +51,7 @@
         title: paramTitle ?? "",
         description: null,
         fileUrl: paramFileUrl ?? "",
+        thumbUrl: paramThumbUrl || null,
         blurhash: paramBlurhash ?? "",
         dominantColor: paramColor ? `#${paramColor}` : "#0A0A0A",
         palette: [],
@@ -66,7 +72,7 @@
         status: "approved",
         createdAt: "",
       }),
-      [id, paramTitle, paramFileUrl, paramBlurhash, paramColor, w, h]
+      [id, paramTitle, paramFileUrl, paramThumbUrl, paramBlurhash, paramColor, w, h]
     );
 
     // ─── State ───────────────────────────────────────────────────────────────────
@@ -76,6 +82,7 @@
     const [activeIndex, setActiveIndex] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
     const [likeLoading, setLikeLoading] = useState(false);
+    const [showClock, setShowClock] = useState(false);
     const likeScale = useRef(new Animated.Value(1)).current;
 
     // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -182,7 +189,8 @@
 
     const fetchWallpaper = async () => {
       const res = await getWallpaperById(id);
-      setWallpaper(res);
+      // the detail endpoint has no thumbUrl; keep the one from the tile so the placeholder doesn't flicker
+      setWallpaper((prev) => ({ ...res, thumbUrl: res.thumbUrl ?? prev?.thumbUrl ?? null }));
     };
 
     const fetchSimilarWallpapers = async () => {
@@ -201,6 +209,7 @@
       setLikeLoading(true);
       setIsLiked(!previousLiked);
       animateLikePress();
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
 
       try {
         const res = await toggleWallpaperLike(activeWallpaperId);
@@ -233,6 +242,7 @@
 
     const renderWallpaperItem = ({ item, index }: { item: Wallpaper; index: number }) => {
       const itemPreviewUrl = item.fileUrl ?? "";
+      const itemThumbUrl = item.thumbUrl || "";
       const itemPreviewBlurhash = item.blurhash ?? "";
       const itemPreviewWidth = item.width ?? 0;
       const itemPreviewHeight = item.height ?? 0;
@@ -282,7 +292,7 @@
           <View style={[styles.wallpaperFrame, { width: imageWidth, height: imageHeight }]}>
             {itemPreviewUrl ? (
               <Image
-                source={itemPreviewUrl}
+                source={itemThumbUrl || itemPreviewUrl}
                 style={styles.wallpaperBackdrop}
                 contentFit="cover"
                 blurRadius={28}
@@ -293,10 +303,12 @@
               source={itemPreviewUrl || null}
               style={{ width: displayedImageWidth, height: displayedImageHeight, zIndex: 1 }}
               contentFit="cover"
-              placeholder={itemPreviewBlurhash ? { blurhash: itemPreviewBlurhash } : null}
+              // the grid's thumbnail is already cached, so show it sharp while the full image loads
+              placeholder={itemThumbUrl ? { uri: itemThumbUrl } : itemPreviewBlurhash ? { blurhash: itemPreviewBlurhash } : null}
               placeholderContentFit="cover"
               transition={400}
             />
+            {showClock && isActive ? <LockClockPreview width={displayedImageWidth} /> : null}
           </View>
         </View>
       );
@@ -332,20 +344,15 @@
 
           <Text
             style={[styles.title, { color: contrastColor }]}
-            numberOfLines={1}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
           >
             {displayTitle}
           </Text>
 
-          <Pressable hitSlop={12} onPress={handleToggleLike} disabled={likeLoading}>
-            <Animated.View style={{ transform: [{ scale: likeScale }] }}>
-              <Ionicons
-                name={isLiked ? "heart" : "heart-outline"}
-                size={24}
-                color={isLiked ? "#FF4D8D" : contrastColor}
-              />
-            </Animated.View>
-          </Pressable>
+          {/* same width as the back button so the title stays centred */}
+          <View style={styles.headerSpacer} />
         </View>
 
         <FlatList
@@ -359,6 +366,7 @@
           contentContainerStyle={{ paddingHorizontal: PEEK }}  // ← symmetric
           keyExtractor={(item) => item.id}
           renderItem={renderWallpaperItem}
+          extraData={`${activeIndex}-${showClock}`}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           style={{ flex: 1 }}
@@ -373,6 +381,32 @@
             bottomOffset={bottomPadding + 16}
             screenWidth={width}
             wallpaper={dockWallpaper}
+            leadingActions={
+              <>
+                <DockAction
+                  label={isLiked ? "Liked" : "Like"}
+                  active={isLiked}
+                  activeColor="#FF4D8D"
+                  disabled={likeLoading}
+                  onPress={handleToggleLike}
+                  icon={
+                    <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+                      <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#FF4D8D" : Colors.textPrimary} />
+                    </Animated.View>
+                  }
+                />
+                <DockAction
+                  label="Preview"
+                  active={showClock}
+                  accessibilityLabel={showClock ? "Hide lock screen preview" : "Show lock screen preview"}
+                  onPress={() => {
+                    setShowClock((v) => !v);
+                    void Haptics.selectionAsync().catch(() => undefined);
+                  }}
+                  icon={<Ionicons name={showClock ? "time" : "time-outline"} size={24} color={showClock ? Colors.accent : Colors.textPrimary} />}
+                />
+              </>
+            }
           />
         ) : null}
 
@@ -389,13 +423,17 @@
       paddingHorizontal: 20,
       zIndex: 1,
     },
+    headerSpacer: {
+      width: 28,
+    },
     title: {
       flex: 1,
-      marginHorizontal: 14,
+      marginHorizontal: 12,
       textAlign: "center",
-      fontSize: 16,
+      fontSize: 15,
+      lineHeight: 19,
       fontWeight: "700",
-      letterSpacing: 0.8,
+      letterSpacing: 0.2,
     },
     wallpaperFrame: {
       alignItems: "center",

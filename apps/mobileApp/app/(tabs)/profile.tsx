@@ -12,13 +12,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import Header from "../components/Header";
-import { Colors } from "../constants";
-import { useAuth } from "../lib/AuthContext";
+import Header from "../../components/Header";
+import { Colors } from "../../constants";
+import { useAuth } from "../../lib/AuthContext";
 import { router } from "expo-router";
-import ConfirmModal from "../components/ConfirmModal";
-import { useToast } from "../lib/ToastContext";
-import { Images } from "../constants";
+import ConfirmModal from "../../components/ConfirmModal";
+import SignInPrompt from "../../components/SignInPrompt";
+import { useToast } from "../../lib/ToastContext";
+import { Images } from "../../constants";
 import {
   confirmAvatarUpload,
   confirmCoverUpload,
@@ -29,8 +30,8 @@ import {
   uploadAvatarToSignedUrl,
   uploadCoverDirect,
   uploadCoverToSignedUrl,
-} from "../lib/profileApi";
-import { ensureCameraPermission, ensureMediaLibraryPermission } from "../lib/permissions";
+} from "../../lib/profileApi";
+import { ensureCameraPermission, ensureMediaLibraryPermission } from "../../lib/permissions";
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
@@ -112,7 +113,7 @@ export default function Profile() {
   if (!loaded) {
     return (
       <View style={styles.container}>
-        <Header title="Profile" logo={false} titleFontSize={20} showBackButton={true} />
+        <Header title="Profile" logo={false} titleFontSize={20} />
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>Loading profile...</Text>
           <Text style={styles.stateSubtext}>Fetching your account details.</Text>
@@ -124,12 +125,8 @@ export default function Profile() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Header title="Profile" logo={false} titleFontSize={20} showBackButton={true} />
-        <View style={styles.centerState}>
-          <Ionicons name="person-circle-outline" size={52} color={Colors.accent} />
-          <Text style={styles.stateTitle}>No active session</Text>
-          <Text style={styles.stateSubtext}>Sign in to view your profile details.</Text>
-        </View>
+        <Header title="Profile" logo={false} titleFontSize={20} />
+        <SignInPrompt icon="person-outline" title="Your Aurora profile" text="Sign in to set your avatar, keep your likes and download history." />
       </View>
     );
   }
@@ -352,7 +349,7 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      <Header title="Profile" logo={false} titleFontSize={20} showBackButton={true} />
+      <Header title="Profile" logo={false} titleFontSize={20} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

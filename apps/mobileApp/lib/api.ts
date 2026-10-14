@@ -43,6 +43,15 @@ export type Wallpaper = {
   categoryId: string | null
   status: string
   createdAt: string
+  /** 600px WebP for grids (null until generated); fileUrl is the full original. */
+  thumbUrl?: string | null
+  /** Up to 2 extra categories (detail endpoint only). */
+  extraCategoryIds?: string[]
+}
+
+/** The fields a grid tile needs (feeds, likes, search all return at least these). */
+export type WallpaperTile = Pick<Wallpaper, "id" | "title" | "fileUrl" | "blurhash" | "dominantColor" | "width" | "height"> & {
+  thumbUrl?: string | null
 }
 export type Category = {
   id: string
@@ -50,7 +59,16 @@ export type Category = {
   slug: string
   description?: string | null
   coverImageUrl: string | null
+  coverThumbUrl?: string | null
   sortOrder?: number
+  wallpaperCount?: number
+}
+
+export type CategoryDetails = {
+  slug: string
+  name: string
+  description: string | null
+  intro: string | null
 }
 export async function request<T>(
   path:string , 

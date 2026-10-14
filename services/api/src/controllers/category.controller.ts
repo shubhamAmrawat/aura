@@ -1,10 +1,12 @@
 import { route } from "../utils/asyncRoute";
 import { listCategories, listCategoryRedirects, resolveCategorySlug } from "../services/category.service";
-import { param } from "../utils/request";
+import { param, queryParam } from "../utils/request";
+import { parseScreenFilter } from "../utils/screenFilter";
 import { ApiError } from "../utils/ApiError";
 
-export const getCategories = route("Failed to fetch categories", async (_req, res) => {
-  const data = await listCategories();
+/** GET /api/categories[?screen=mobile|tablet] */
+export const getCategories = route("Failed to fetch categories", async (req, res) => {
+  const data = await listCategories(parseScreenFilter(queryParam(req, "screen")));
   res.setHeader("Cache-Control", "public, s-maxage=86400, stale-while-revalidate=604800");
   res.json({ data });
 });

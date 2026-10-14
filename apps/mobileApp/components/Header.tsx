@@ -55,10 +55,10 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   title: {
-    color: Colors.accent,
+    color: Colors.textPrimary,
     fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 3,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   logo: {
     width: 104,

@@ -32,6 +32,8 @@ function AppGate() {
 
   useEffect(() => {
     let isMounted = true;
+    // Phones only ever see phone wallpapers, which needs no explaining; tablets get a one-time note.
+    if (deviceType !== "tablet") return;
 
     const maybeShowFilterToast = async () => {
       try {

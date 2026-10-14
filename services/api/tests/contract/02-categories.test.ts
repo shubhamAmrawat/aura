@@ -21,4 +21,30 @@ describe("GET /api/categories", () => {
     expect(data.some((c) => c.wallpaperCount > 0)).toBe(true);
     for (let i = 1; i < data.length; i++) expect(data[i - 1].sortOrder).toBeLessThanOrEqual(data[i].sortOrder);
   });
+
+  it("?screen=mobile counts only phone wallpapers and drops empty categories", async () => {
+    const [all, mobile, tablet] = await Promise.all([
+      api("GET", "/api/categories"),
+      api("GET", "/api/categories?screen=mobile"),
+      api("GET", "/api/categories?screen=tablet"),
+    ]);
+    expect(mobile.status).toBe(200);
+    expect(tablet.status).toBe(200);
+    const byId = new Map((all.body.data as any[]).map((c) => [c.id, c]));
+    for (const list of [mobile.body.data as any[], tablet.body.data as any[]]) {
+      for (const c of list) {
+        expect(c.wallpaperCount).toBeGreaterThan(0);
+        expect(c.wallpaperCount).toBeLessThanOrEqual(byId.get(c.id).wallpaperCount);
+      }
+      for (let i = 1; i < list.length; i++) expect(list[i - 1].sortOrder).toBeLessThanOrEqual(list[i].sortOrder);
+    }
+    const m = new Map((mobile.body.data as any[]).map((c) => [c.id, c.wallpaperCount]));
+    const t = new Map((tablet.body.data as any[]).map((c) => [c.id, c.wallpaperCount]));
+    for (const c of all.body.data as any[]) expect((m.get(c.id) ?? 0) + (t.get(c.id) ?? 0)).toBe(c.wallpaperCount);
+  });
+
+  it("rejects an unknown screen value", async () => {
+    const res = await api("GET", "/api/categories?screen=watch");
+    expect(res.status).toBe(400);
+  });
 });

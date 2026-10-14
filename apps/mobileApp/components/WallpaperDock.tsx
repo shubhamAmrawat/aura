@@ -6,7 +6,7 @@ import { downloadWallpaper } from "../lib/downloadWallpaper"
 import { trackWallpaperDownload } from "../lib/wallpaperApi"
 import { Wallpaper } from "../lib/api"
 import { useToast } from "../lib/ToastContext"
-import { useState } from "react"
+import { ReactNode, useState } from "react"
 import { applyWallpaper, WallpaperCropArea, WallpaperTarget } from "../lib/applyWallpaper"
 import ApplySheet from "./ApplySheet"
 import DetailsSheet from "./DetailsSheet"
@@ -17,10 +17,12 @@ interface DockProps {
   bottomOffset: number
   screenWidth: number
   wallpaper: Wallpaper
+  /** Extra buttons shown before Download (the detail screen's Like and lock-screen Preview). */
+  leadingActions?: ReactNode
 }
 
 
-const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
+const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions }: DockProps) => {
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [showApplySheet, setShowApplySheet] = useState(false)
@@ -100,6 +102,8 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper }: DockProps) => {
           { bottom: bottomOffset, width: screenWidth - 30 }
         ]}
       >
+        {leadingActions}
+
         <Pressable style={styles.dockButtons} onPress={handleDownload} disabled={downloading}>
           <Ionicons
             name={downloading ? "hourglass-outline" : "download-outline"}
@@ -162,19 +166,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: Colors.cardBorder,
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
     paddingVertical: 14,
     alignSelf: 'center',
     justifyContent: 'space-around',
   },
   dockButtons: {
+    flex: 1,
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 16,
   },
   label: {
     color: Colors.textPrimary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   }
 })

@@ -1,12 +1,24 @@
-import { Category, request, Wallpaper } from "./api";
+import { Category, CategoryDetails, request, Wallpaper, WallpaperTile } from "./api";
 
 export type ScreenFilter = "mobile" | "tablet";
 export type SearchApiMode = "semantic" | "keyword" | "hybrid" | "none";
 export type SearchSuggestionSource = "editorial" | "trending-title" | "trending-tag";
 
-export async function getCategories():Promise<Category[]>{
-  const res = await request<{ data: Category[] }>("/api/categories");
+/** Public categories; with `screen`, only those that have wallpapers for that device. */
+export async function getCategories(screen?: ScreenFilter): Promise<Category[]> {
+  const res = await request<{ data: Category[] }>(`/api/categories${screen ? `?screen=${screen}` : ""}`);
   return res.data;
+}
+
+/** Name, description and intro for a category page (follows renamed slugs). */
+export async function getCategoryDetails(slug: string): Promise<CategoryDetails> {
+  return request<CategoryDetails>(`/api/categories/resolve/${encodeURIComponent(slug)}`);
+}
+
+/** Wallpapers the logged-in user has liked, newest first. */
+export async function getLikedWallpapers(): Promise<WallpaperTile[]> {
+  const res = await request<{ data: WallpaperTile[] }>("/api/likes");
+  return res.data ?? [];
 }
 
 export async function getWallpapers(params:{
@@ -59,6 +71,8 @@ type SearchWallpaperApiItem = {
   description?: string | null;
   fileUrl?: string | null;
   file_url?: string | null;
+  thumbUrl?: string | null;
+  thumb_url?: string | null;
   blurhash?: string | null;
   dominantColor?: string | null;
   dominant_color?: string | null;
@@ -97,6 +111,7 @@ type SimilarWallpaperApiItem = {
   title: string;
   description?: string | null;
   file_url?: string | null;
+  thumb_url?: string | null;
   blurhash?: string | null;
   dominant_color?: string | null;
   width?: number | string | null;
@@ -133,6 +148,7 @@ function mapSimilarWallpaper(item: SimilarWallpaperApiItem): Wallpaper {
     title: item.title,
     description: item.description ?? null,
     fileUrl: item.file_url ?? "",
+    thumbUrl: item.thumb_url ?? null,
     blurhash: item.blurhash ?? "",
     dominantColor: item.dominant_color ?? "#0A0A0A",
     width: toNumber(item.width),
@@ -161,6 +177,7 @@ function mapSearchWallpaper(item: SearchWallpaperApiItem): Wallpaper {
     title: item.title,
     description: item.description ?? null,
     fileUrl: item.fileUrl ?? item.file_url ?? "",
+    thumbUrl: item.thumbUrl ?? item.thumb_url ?? null,
     blurhash: item.blurhash ?? "",
     dominantColor: item.dominantColor ?? item.dominant_color ?? "#0A0A0A",
     width: toNumber(item.width),

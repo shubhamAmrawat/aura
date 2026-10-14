@@ -1,11 +1,18 @@
-import { Ionicons } from "@expo/vector-icons"
-import { Tabs } from "expo-router"
-import { useInsets } from "../../hooks/useInsets";
+import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import { Image } from "expo-image";
 import { Colors } from "../../constants";
+import { useAuth } from "../../lib/AuthContext";
 
+type IconName = keyof typeof Ionicons.glyphMap;
+
+const icon =
+  (on: IconName, off: IconName) =>
+  ({ focused, color }: { focused: boolean; color: string }) => <Ionicons name={focused ? on : off} size={24} color={color} />;
 
 const TabLayout = () => {
-  const { bottomPadding } = useInsets();
+  const { user } = useAuth();
+
   return (
     <Tabs
       screenOptions={{
@@ -19,51 +26,26 @@ const TabLayout = () => {
         tabBarInactiveTintColor: Colors.textSecondary,
       }}
     >
-      <Tabs.Screen name="index" options={{
-        title: "Home", tabBarIcon: ({ focused, color }) => (
-          <Ionicons
-            name={focused ? "home" : "home-outline"}
-            size={24}
-            color={color}
-          />
-        )
-      }} />
-
-      <Tabs.Screen name="search" options={{
-        title: "Search", tabBarIcon: ({ focused, color }) => (
-          <Ionicons
-            name={focused ? "search" : "search-outline"}
-            size={24}
-            color={color}
-          />
-        )
-      }} />
-
-      <Tabs.Screen name="trending" options={{
-        title: "Trending", tabBarIcon: ({ focused, color }) => (
-          <Ionicons
-            name={focused ? "trending-up" : "trending-up-outline"}
-            size={24}
-            color={color}
-          />
-        )
-      }} />
-
+      <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: icon("home", "home-outline") }} />
+      <Tabs.Screen name="explore" options={{ title: "Explore", tabBarIcon: icon("compass", "compass-outline") }} />
+      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: icon("heart", "heart-outline") }} />
       <Tabs.Screen
-        name="Latest"
+        name="profile"
         options={{
-          title: "Latest",
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons
-            name={focused ? "time" : "time-outline"}
-              size={24}
-              color={color}
-            />
-          ),
+          title: "Profile",
+          tabBarIcon: ({ focused, color }) =>
+            user?.avatarUrl ? (
+              <Image
+                source={user.avatarUrl}
+                style={{ width: 26, height: 26, borderRadius: 13, borderWidth: focused ? 2 : 0, borderColor: Colors.accent }}
+              />
+            ) : (
+              <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
+            ),
         }}
       />
     </Tabs>
-  )
-}
+  );
+};
 
-export default TabLayout
+export default TabLayout;

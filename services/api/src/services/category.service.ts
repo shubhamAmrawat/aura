@@ -1,11 +1,16 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../config/db";
 import { categories, categoryRedirects } from "../models";
-import { liveCount } from "./categoryThumb.service";
+import { liveCount, liveCountFor } from "./categoryThumb.service";
+import type { ScreenFilter } from "../utils/screenFilter";
 
-/** Public list (hidden categories left out): display order, with a small cover thumbnail and the number of live wallpapers. */
-export function listCategories() {
-  return db
+/**
+ * Public list (hidden categories left out): display order, with a small cover thumbnail and the number of live wallpapers.
+ * With `screen`, the count covers only that device shape and categories with none are left out.
+ */
+export async function listCategories(screen: ScreenFilter | null = null) {
+  const count = screen ? liveCountFor(screen) : liveCount;
+  const rows = await db
     .select({
       id: categories.id,
       name: categories.name,
@@ -14,11 +19,12 @@ export function listCategories() {
       coverImageUrl: categories.coverImageUrl,
       coverThumbUrl: categories.coverThumbUrl,
       sortOrder: categories.sortOrder,
-      wallpaperCount: liveCount,
+      wallpaperCount: count,
     })
     .from(categories)
     .where(eq(categories.isHidden, false))
     .orderBy(categories.sortOrder);
+  return screen ? rows.filter((r) => r.wallpaperCount > 0) : rows;
 }
 
 /** Every old slug → the current slug of the category it now belongs to. */
