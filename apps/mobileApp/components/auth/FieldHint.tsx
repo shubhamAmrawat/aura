@@ -1,4 +1,5 @@
 import { Text, StyleSheet } from 'react-native'
+import { AUTH_ERROR } from './AuthInput'
 
 /** Small red inline message under a field (renders nothing without text). */
 export default function FieldHint({ text }: { text?: string | false | null }) {
@@ -8,7 +9,7 @@ export default function FieldHint({ text }: { text?: string | false | null }) {
 
 const styles = StyleSheet.create({
   hint: {
-    color: '#E05252',
+    color: AUTH_ERROR,
     fontSize: 12,
     marginTop: -6,
     marginLeft: 6,

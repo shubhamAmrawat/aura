@@ -236,8 +236,13 @@ export async function updateWallpaper(adminId: string, id: string, patch: Wallpa
   await db.transaction(async (tx) => {
     if ("extraCategoryIds" in changes) await setExtraCategories(id, nextExtras, tx);
     else if (primary) await removeExtra(id, primary, tx);
-    // Featuring puts it at the end of the home-page order; unfeaturing removes its position
-    if ("isFeatured" in changes) set.featuredOrder = changes.isFeatured!.to ? await nextFeaturedOrder(tx) : null;
+    // Featuring puts it at the end of its list (website for desktop, app for phone); unfeaturing removes its position
+    const shapeChanged = "isMobile" in changes && current.isFeatured && !("isFeatured" in changes);
+    if ("isFeatured" in changes || shapeChanged) {
+      const featured = "isFeatured" in changes ? (changes.isFeatured!.to as boolean) : true;
+      const isMobile = "isMobile" in changes ? (changes.isMobile!.to as boolean) : current.isMobile;
+      set.featuredOrder = featured ? await nextFeaturedOrder(isMobile, tx) : null;
+    }
     await tx.update(wallpapers).set({ ...set, updatedAt: new Date() }).where(eq(wallpapers.id, id));
     await logAdminAction(
       { adminId, action: "wallpaper.update", targetType: "wallpaper", targetId: id, details: { title: patch.title ?? current.title, changes } },

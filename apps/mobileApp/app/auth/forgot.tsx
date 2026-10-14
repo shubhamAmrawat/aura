@@ -1,32 +1,26 @@
 import { useEffect, useState } from 'react'
-import {
-  View, Text, TextInput, Pressable,
-  KeyboardAvoidingView, ActivityIndicator, StyleSheet, BackHandler,
-} from 'react-native'
-import { Image } from 'expo-image'
-import { LinearGradient } from 'expo-linear-gradient'
+import { View, Text, Pressable, BackHandler } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import { Colors, Images } from '../../constants'
+import * as Haptics from 'expo-haptics'
 import { forgotPassword, loginWithPassword, resetPassword, verifyResetCode } from '../../lib/authApi'
 import { useAuth } from '../../lib/AuthContext'
 import { useToast } from '../../lib/ToastContext'
-import { useLayoutInfo } from '../../hooks/useLayout'
 import { isValidEmail, MIN_PASSWORD_LENGTH } from '../../lib/validation'
 import PasswordField from '../../components/auth/PasswordField'
 import FieldHint from '../../components/auth/FieldHint'
 import CodeInput, { CODE_LENGTH } from '../../components/auth/CodeInput'
+import AuthShell from '../../components/auth/AuthShell'
+import AuthInput from '../../components/auth/AuthInput'
+import AuthButton from '../../components/auth/AuthButton'
+import AuthError from '../../components/auth/AuthError'
+import { authText, CardHeading } from '../../components/auth/AuthText'
 
-const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
 const RESEND_COOLDOWN_SECONDS = 60
 
 type Step = 'email' | 'code' | 'password'
 
 /** Forgot password: email → code → new password, then signs the user in. */
 export default function ForgotPasswordScreen() {
-  const { width, height, deviceType } = useLayoutInfo()
-  const isTablet = deviceType === 'tablet'
-  const isLandscapeTablet = isTablet && width > height
   const params = useLocalSearchParams<{ email?: string }>()
   const { onLogin } = useAuth()
   const { showToast } = useToast()
@@ -84,6 +78,7 @@ export default function ForgotPasswordScreen() {
       else showToast('If an account exists, a new code was sent.', { type: 'success' })
     } catch (e: any) {
       setError(e.message || 'Failed to send code')
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined)
     } finally {
       setLoading(false)
     }
@@ -101,6 +96,7 @@ export default function ForgotPasswordScreen() {
       setStep('password')
     } catch (e: any) {
       setError(e.message || 'Invalid code')
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined)
       setCode('')
     } finally {
       setLoading(false)
@@ -115,10 +111,12 @@ export default function ForgotPasswordScreen() {
       await resetPassword({ email: email.trim(), newPassword })
       const res = await loginWithPassword({ email: email.trim(), password: newPassword })
       await onLogin(res.token, res.user)
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined)
       showToast('Password updated. Welcome back!', { type: 'success' })
       router.replace('/(tabs)')
     } catch (e: any) {
       setError(e.message || 'Failed to reset password')
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined)
       setLoading(false)
     }
   }
@@ -126,221 +124,114 @@ export default function ForgotPasswordScreen() {
   const title =
     step === 'email' ? 'Reset your password' : step === 'code' ? 'Check your inbox' : 'Choose a new password'
 
+  const cfg =
+    step === 'email'
+      ? { label: 'Send reset code', onPress: handleSendCode, enabled: emailValid }
+      : step === 'code'
+        ? { label: 'Verify code', onPress: () => handleVerifyCode(), enabled: code.length === CODE_LENGTH }
+        : { label: 'Set new password', onPress: handleReset, enabled: passwordsMatch }
+
   return (
-    <KeyboardAvoidingView behavior="padding" style={styles.root}>
-      <Image
-        source={{ uri: Images.AUTH_WALLPAPER_URL }}
-        placeholder={{ blurhash: BLURHASH }}
-        contentFit="cover"
-        style={StyleSheet.absoluteFillObject}
-        transition={400}
-      />
-      <LinearGradient
-        colors={['rgba(5,5,5,0.18)', 'rgba(7,7,7,0.50)', 'rgba(8,8,8,0.85)']}
-        locations={[0, 0.35, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <LinearGradient
-        colors={['rgba(0,0,0,0)', Colors.bgScrim]}
-        locations={[0.38, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      <View style={[
-        styles.content,
-        isTablet && styles.contentTablet,
-        isLandscapeTablet && styles.contentTabletLandscape,
-      ]}>
-        <View style={[styles.hero, isLandscapeTablet && styles.heroTabletLandscape]}>
-          <Text style={styles.brandTitle}>AURORA</Text>
-          <Text style={styles.brandSub}>Account recovery</Text>
-        </View>
-
-        <View style={[
-          styles.card,
-          isTablet && styles.cardTablet,
-          isLandscapeTablet && styles.cardTabletLandscape,
-        ]}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Text style={styles.cardSubtitle}>
+    <AuthShell
+      tagline="Account recovery"
+      leading="back"
+      onLeadingPress={() => (step === 'email' ? router.back() : goTo(step === 'password' ? 'code' : 'email'))}
+    >
+      <CardHeading
+        title={title}
+        subtitle={
+          <>
             {step === 'email' && "Enter your email and we'll send you a 6-digit code."}
-            {step === 'code' && <>Enter the code sent to{'\n'}<Text style={styles.emailValue}>{email.trim()}</Text></>}
-            {step === 'password' && <>Set a new password for{'\n'}<Text style={styles.emailValue}>{email.trim()}</Text></>}
-          </Text>
+            {step === 'code' && <>Enter the code sent to{'\n'}<Text style={authText.emphasis}>{email.trim()}</Text></>}
+            {step === 'password' && <>Set a new password for{'\n'}<Text style={authText.emphasis}>{email.trim()}</Text></>}
+          </>
+        }
+      />
 
-          {/* Step 1: email */}
-          {step === 'email' && (
-            <>
-              <View style={[styles.inputRow, showEmailError && styles.inputRowError]}>
-                <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor={Colors.textMuted}
-                  value={email}
-                  onChangeText={(t) => { setEmail(t.trim()); setError('') }}
-                  onBlur={() => setEmailTouched(true)}
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="go"
-                  onSubmitEditing={handleSendCode}
-                  autoFocus={!params.email}
-                  underlineColorAndroid="transparent"
-                />
-              </View>
-              <FieldHint text={showEmailError && 'Enter a valid email address'} />
-            </>
-          )}
+      {/* Step 1: email */}
+      {step === 'email' && (
+        <>
+          <AuthInput
+            icon="mail-outline"
+            status={showEmailError ? 'error' : 'idle'}
+            placeholder="Email address"
+            value={email}
+            onChangeText={(t) => { setEmail(t.trim()); setError('') }}
+            onBlur={() => setEmailTouched(true)}
+            keyboardType="email-address"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={handleSendCode}
+            autoFocus={!params.email}
+          />
+          <FieldHint text={showEmailError && 'Enter a valid email address'} />
+        </>
+      )}
 
-          {/* Step 2: code */}
-          {step === 'code' && (
-            <CodeInput value={code} onChange={(c) => { setCode(c); setError('') }} onComplete={handleVerifyCode} />
-          )}
+      {/* Step 2: code */}
+      {step === 'code' && (
+        <CodeInput value={code} onChange={(c) => { setCode(c); setError('') }} onComplete={handleVerifyCode} />
+      )}
 
-          {/* Step 3: new password */}
-          {step === 'password' && (
-            <>
-              <PasswordField
-                placeholder={`New password (min ${MIN_PASSWORD_LENGTH} characters)`}
-                value={newPassword}
-                onChangeText={(t) => { setNewPassword(t); setError('') }}
-                status={tooShort ? 'error' : 'idle'}
-                autoComplete="new-password"
-                textContentType="newPassword"
-                autoFocus
-              />
-              <FieldHint text={tooShort && `At least ${MIN_PASSWORD_LENGTH} characters (${MIN_PASSWORD_LENGTH - newPassword.length} more)`} />
-              <PasswordField
-                placeholder="Repeat new password"
-                value={confirmPassword}
-                onChangeText={(t) => { setConfirmPassword(t); setError('') }}
-                onBlur={() => setConfirmTouched(true)}
-                status={!confirmPassword ? 'idle' : passwordsMatch ? 'ok' : showMismatch ? 'error' : 'idle'}
-                showStatusIcon
-                autoComplete="new-password"
-                textContentType="newPassword"
-                returnKeyType="go"
-                onSubmitEditing={handleReset}
-              />
-              <FieldHint text={showMismatch && 'Passwords do not match'} />
-            </>
-          )}
+      {/* Step 3: new password */}
+      {step === 'password' && (
+        <>
+          <PasswordField
+            placeholder={`New password (min ${MIN_PASSWORD_LENGTH} characters)`}
+            value={newPassword}
+            onChangeText={(t) => { setNewPassword(t); setError('') }}
+            status={tooShort ? 'error' : 'idle'}
+            autoComplete="new-password"
+            textContentType="newPassword"
+            autoFocus
+          />
+          <FieldHint text={tooShort && `At least ${MIN_PASSWORD_LENGTH} characters (${MIN_PASSWORD_LENGTH - newPassword.length} more)`} />
+          <PasswordField
+            placeholder="Repeat new password"
+            value={confirmPassword}
+            onChangeText={(t) => { setConfirmPassword(t); setError('') }}
+            onBlur={() => setConfirmTouched(true)}
+            status={!confirmPassword ? 'idle' : passwordsMatch ? 'ok' : showMismatch ? 'error' : 'idle'}
+            showStatusIcon
+            autoComplete="new-password"
+            textContentType="newPassword"
+            returnKeyType="go"
+            onSubmitEditing={handleReset}
+          />
+          <FieldHint text={showMismatch && 'Passwords do not match'} />
+        </>
+      )}
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+      <AuthError message={error} />
 
-          {(() => {
-            const cfg =
-              step === 'email'
-                ? { label: 'Send reset code', onPress: handleSendCode, enabled: emailValid }
-                : step === 'code'
-                  ? { label: 'Verify code', onPress: () => handleVerifyCode(), enabled: code.length === CODE_LENGTH }
-                  : { label: 'Set new password', onPress: handleReset, enabled: passwordsMatch }
-            return (
-              <Pressable
-                style={({ pressed }) => [styles.button, !cfg.enabled && styles.buttonDisabled, pressed && cfg.enabled && { opacity: 0.9 }]}
-                onPress={cfg.onPress}
-                disabled={loading || !cfg.enabled}
-              >
-                {loading
-                  ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-                  : <Text style={styles.buttonText}>{cfg.label}</Text>}
-              </Pressable>
-            )
-          })()}
+      <AuthButton label={cfg.label} onPress={cfg.onPress} enabled={cfg.enabled} loading={loading} />
 
-          <View style={styles.linkRow}>
-            {step === 'email' && (
-              <Pressable hitSlop={8} onPress={() => router.back()}>
-                <Text style={styles.linkMuted}>← Back to sign in</Text>
-              </Pressable>
-            )}
-            {step === 'code' && (
-              <>
-                <Pressable hitSlop={8} disabled={loading} onPress={() => goTo('email')}>
-                  <Text style={styles.linkMuted}>← Change email</Text>
-                </Pressable>
-                <Pressable hitSlop={8} disabled={loading || cooldown > 0} onPress={handleSendCode}>
-                  <Text style={[styles.linkAccent, cooldown > 0 && styles.linkDisabled]}>
-                    {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
-                  </Text>
-                </Pressable>
-              </>
-            )}
-            {step === 'password' && (
-              <Pressable hitSlop={8} disabled={loading} onPress={() => { setCode(''); goTo('email') }}>
-                <Text style={styles.linkMuted}>← Start over</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
+      <View style={authText.linkRow}>
+        {step === 'email' && (
+          <Pressable hitSlop={8} onPress={() => router.back()}>
+            <Text style={authText.linkMuted}>Back to sign in</Text>
+          </Pressable>
+        )}
+        {step === 'code' && (
+          <>
+            <Pressable hitSlop={8} disabled={loading} onPress={() => goTo('email')}>
+              <Text style={authText.linkMuted}>Change email</Text>
+            </Pressable>
+            <Pressable hitSlop={8} disabled={loading || cooldown > 0} onPress={handleSendCode}>
+              <Text style={[authText.linkAccent, cooldown > 0 && authText.linkDisabled]}>
+                {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+        {step === 'password' && (
+          <Pressable hitSlop={8} disabled={loading} onPress={() => { setCode(''); goTo('email') }}>
+            <Text style={authText.linkMuted}>Start over</Text>
+          </Pressable>
+        )}
       </View>
-    </KeyboardAvoidingView>
+    </AuthShell>
   )
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: Colors.bgPrimary },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingBottom: 34,
-    paddingTop: 88,
-    gap: 16,
-  },
-  contentTablet: {
-    justifyContent: 'center',
-    paddingTop: 42,
-    paddingBottom: 28,
-    alignItems: 'center',
-    gap: 20,
-  },
-  contentTabletLandscape: { paddingTop: 28, paddingBottom: 20, gap: 16 },
-  hero: { gap: 8, paddingHorizontal: 4 },
-  heroTabletLandscape: { width: '100%', maxWidth: 760, alignSelf: 'center' },
-  card: {
-    backgroundColor: Colors.cardSurface,
-    borderColor: Colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 26,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    gap: 14,
-  },
-  cardTablet: { width: '100%', maxWidth: 920, paddingHorizontal: 24, paddingVertical: 22, borderRadius: 28 },
-  cardTabletLandscape: { maxWidth: 760, paddingVertical: 18 },
-  brandTitle: { color: Colors.textPrimary, fontSize: 38, fontWeight: '900', letterSpacing: 5 },
-  brandSub: { color: '#D0CFCF', fontSize: 14, letterSpacing: 0.6, lineHeight: 20 },
-  cardTitle: { color: Colors.textPrimary, fontSize: 22, fontWeight: '700' },
-  cardSubtitle: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
-  emailValue: { color: Colors.textPrimary, fontWeight: '700' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.bgOverlay,
-    borderWidth: 1,
-    borderColor: Colors.borderHover,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  inputRowError: { borderColor: '#E05252' },
-  input: { flex: 1, color: Colors.textPrimary, fontSize: 15, paddingVertical: 12 },
-  error: { color: '#E05252', fontSize: 12, textAlign: 'center' },
-  button: {
-    backgroundColor: Colors.accent,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonDisabled: { opacity: 0.45 },
-  buttonText: { color: Colors.bgPrimary, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
-  linkRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  linkMuted: { color: Colors.textSecondary, fontSize: 13 },
-  linkAccent: { color: Colors.accent, fontSize: 13, fontWeight: '600' },
-  linkDisabled: { opacity: 0.5 },
-})

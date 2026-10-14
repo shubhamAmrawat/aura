@@ -22,14 +22,33 @@ import {
   updateAdminWallpaper,
   type AdminWallpaper,
   type FeaturedItem,
+  type FeaturedList,
   type FeaturedState,
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, inputStyle } from "../_components/ui";
 import WallpaperLightbox, { type LightboxWallpaper } from "../_components/WallpaperLightbox";
 
+/** The two independent lists: same page, switched by the tabs at the top. */
+const LISTS: Record<FeaturedList, { tab: string; place: string; shape: string; blurb: string }> = {
+  web: {
+    tab: "Website",
+    place: "website home page",
+    shape: "desktop",
+    blurb: "The website's home page hero shows the first live desktop wallpapers in this order. Drag to reorder.",
+  },
+  mobile: {
+    tab: "Mobile app",
+    place: "app's Featured row",
+    shape: "phone",
+    blurb: "The app's Featured row shows the first live phone wallpapers in this order. Drag to reorder.",
+  },
+};
+
 export default function FeaturedPage() {
   const { toast } = useToast();
+  const [list, setList] = useState<FeaturedList>("web");
+  const meta = LISTS[list];
   const [state, setState] = useState<FeaturedState | null>(null);
   const [order, setOrder] = useState<FeaturedItem[]>([]);
   const [error, setError] = useState("");
@@ -59,11 +78,18 @@ export default function FeaturedPage() {
   const load = useCallback(async () => {
     setError("");
     try {
-      apply(await getFeatured());
+      apply(await getFeatured(list));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     }
-  }, []);
+  }, [list]);
+
+  const switchList = (next: FeaturedList) => {
+    if (next === list) return;
+    setState(null);
+    setOrder([]);
+    setList(next);
+  };
 
   useEffect(() => { void load(); }, [load]);
 
@@ -91,14 +117,17 @@ export default function FeaturedPage() {
     const byId = new Map(order.map((w) => [w.id, w]));
     const cut = next.indexOf(DIVIDER);
     let limit = next.slice(0, cut).filter((id) => byId.get(id)?.status === "approved").length;
-    if (limit < 1) { limit = 1; toast("At least one wallpaper stays on the home page.", "error"); }
-    if (limit > state.maxLimit) { limit = state.maxLimit; toast(`The home page shows at most ${state.maxLimit}.`, "error"); }
+    if (limit < 1) { limit = 1; toast(`At least one wallpaper stays on the ${meta.place}.`, "error"); }
+    if (limit > state.maxLimit) { limit = state.maxLimit; toast(`The ${meta.place} shows at most ${state.maxLimit}.`, "error"); }
     setOrder(next.filter((id) => id !== DIVIDER).map((id) => byId.get(id)!));
     setDraftLimit(limit);
   };
 
-  /** Returns the suffix for the success toast: instant refresh, or the 2-minute cache fallback. */
-  const refreshSite = async () => ((await refreshHomeHero()) ? "home page updated." : "home page updates within 2 minutes.");
+  /** Returns the suffix for the success toast. The website's hero is cached (refreshed now, or within 2 minutes); the app reads it live. */
+  const refreshSite = async () =>
+    list === "mobile"
+      ? "the app shows it on its next refresh."
+      : (await refreshHomeHero()) ? "home page updated." : "home page updates within 2 minutes.";
 
   const onDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
@@ -118,9 +147,9 @@ export default function FeaturedPage() {
     setSaving(true);
     try {
       const nextLimit = draftLimit;
-      if (orderChanged) apply(await saveFeaturedOrder(order.map((w) => w.id)));
+      if (orderChanged) apply(await saveFeaturedOrder(order.map((w) => w.id), list));
       if (nextLimit !== state.limit) {
-        const s = await saveFeaturedLimit(nextLimit);
+        const s = await saveFeaturedLimit(nextLimit, list);
         setState((prev) => (prev ? { ...prev, limit: s.limit } : s));
         setLimitDraft(String(s.limit));
         setDraftLimit(s.limit);
@@ -144,7 +173,7 @@ export default function FeaturedPage() {
     if (next === state.limit) { setLimitDraft(String(state.limit)); return; }
     setLimitBusy(true);
     try {
-      const s = await saveFeaturedLimit(next);
+      const s = await saveFeaturedLimit(next, list);
       setState((prev) => (prev ? { ...prev, limit: s.limit } : s));
       setLimitDraft(String(s.limit));
       setDraftLimit(s.limit);
@@ -177,9 +206,23 @@ export default function FeaturedPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Featured</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            The home page hero shows the first live wallpapers in this order. Drag to reorder.
-          </p>
+          <div role="tablist" aria-label="Featured list" className="mt-3 inline-flex p-1 rounded-lg" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+            {(Object.keys(LISTS) as FeaturedList[]).map((key) => (
+              <button
+                key={key}
+                role="tab"
+                aria-selected={list === key}
+                disabled={dirty && list !== key}
+                title={dirty && list !== key ? "Save or reset your changes first" : undefined}
+                onClick={() => switchList(key)}
+                className="text-sm font-semibold px-4 py-1.5 rounded-md disabled:opacity-40"
+                style={list === key ? { background: "var(--accent)", color: "var(--bg-primary)" } : { color: "var(--text-secondary)" }}
+              >
+                {LISTS[key].tab}
+              </button>
+            ))}
+          </div>
+          <p className="text-sm mt-2" style={{ color: "var(--text-secondary)" }}>{meta.blurb}</p>
         </div>
         <button
           onClick={() => setPicker(true)}
@@ -199,11 +242,11 @@ export default function FeaturedPage() {
           {/* Side panel: limit + live home preview (above the list on small screens) */}
           <aside className="lg:order-2 lg:sticky lg:top-6 flex flex-col gap-4">
             <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-              <label htmlFor="featured-limit" className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Shown on the home page</label>
+              <label htmlFor="featured-limit" className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Shown on the {meta.place}</label>
               <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                 {order.length} featured · {shownIds.size} shown · the rest wait in reserve
               </p>
-              <div className="mt-3 flex items-center gap-2" role="group" aria-label="Number shown on home page">
+              <div className="mt-3 flex items-center gap-2" role="group" aria-label={`Number shown on the ${meta.place}`}>
                 <button aria-label="Show one fewer" disabled={limitBusy || dirty || state.limit <= 1} onClick={() => changeLimit(state.limit - 1)} className="w-9 h-9 rounded-lg text-lg disabled:opacity-30 hover:bg-white/5" style={{ border: "1px solid var(--border-hover)", color: "var(--text-primary)" }}>−</button>
                 <input
                   id="featured-limit"
@@ -234,11 +277,11 @@ export default function FeaturedPage() {
 
             {shownIds.size > 0 && (
               <div className="rounded-xl p-4" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Home page preview</p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{dirty ? "Unsaved order" : "Live"} · hero rotates in this order</p>
-                <ol className="mt-3 grid grid-cols-2 gap-2">
+                <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{list === "mobile" ? "App preview" : "Home page preview"}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{dirty ? "Unsaved order" : "Live"} · {list === "mobile" ? "Featured row, left to right" : "hero rotates in this order"}</p>
+                <ol className={`mt-3 grid gap-2 ${list === "mobile" ? "grid-cols-3" : "grid-cols-2"}`}>
                   {order.filter((w) => shownIds.has(w.id)).map((w, i) => (
-                    <li key={w.id} className={`relative rounded-md overflow-hidden ${i === 0 ? "col-span-2" : ""}`} style={{ aspectRatio: "16 / 9", background: w.dominantColor }}>
+                    <li key={w.id} className={`relative rounded-md overflow-hidden ${i === 0 && list === "web" ? "col-span-2" : ""}`} style={{ aspectRatio: list === "mobile" ? "9 / 16" : "16 / 9", background: w.dominantColor }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={w.thumbUrl ?? w.fileUrl} alt={w.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                       <span className="absolute top-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(0,0,0,0.65)", color: "#fff" }}>{i + 1}</span>
@@ -254,7 +297,7 @@ export default function FeaturedPage() {
           {order.length === 0 ? (
             <div className="mt-10 text-center">
               <p className="font-semibold" style={{ color: "var(--text-primary)" }}>Nothing featured yet</p>
-              <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>Add wallpapers to fill the home page hero.</p>
+              <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>Add {meta.shape} wallpapers to fill the {meta.place}.</p>
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -277,6 +320,7 @@ export default function FeaturedPage() {
                         onRemove={() => setRemoving(w)}
                         onPreview={() => setPreview(w)}
                         removeDisabled={dirty}
+                        list={list}
                       />
                     );
                   })}
@@ -310,7 +354,7 @@ export default function FeaturedPage() {
       {removing && (
         <ConfirmDialog
           title="Remove from featured?"
-          body={<>“{removing.title}” stays live on the site; it just leaves the home page hero.</>}
+          body={<>“{removing.title}” stays live; it just leaves the {meta.place}.</>}
           confirmLabel="Remove"
           busy={busyRemove}
           onCancel={() => setRemoving(null)}
@@ -320,6 +364,7 @@ export default function FeaturedPage() {
 
       {picker && (
         <AddPicker
+          list={list}
           onClose={() => setPicker(false)}
           onAdded={async (title) => {
             await load();
@@ -377,7 +422,8 @@ function ReserveDivider({ empty, canUp, canDown, onMove }: { empty: boolean; can
   );
 }
 
-function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, onPreview, removeDisabled }: {
+function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, onPreview, removeDisabled, list }: {
+  list: FeaturedList;
   item: FeaturedItem;
   index: number;
   shown: boolean;
@@ -412,12 +458,12 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
         </button>
         <span className="w-6 text-center text-sm font-semibold tabular-nums" style={{ color: shown ? "var(--accent)" : "var(--text-muted)" }}>{index + 1}</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" onClick={onPreview} className="w-20 h-12 rounded object-cover cursor-zoom-in shrink-0" style={{ background: w.dominantColor }} title="View full size" />
+        <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" onClick={onPreview} className={`rounded object-cover cursor-zoom-in shrink-0 ${w.isMobile ? "w-9 h-16" : "w-20 h-12"}`} style={{ background: w.dominantColor }} title="View full size" />
         <div className="flex-1 min-w-0">
           <p className="text-sm truncate" style={{ color: "var(--text-primary)" }}>{w.title}</p>
           <p className="text-[11px] flex items-center gap-2" style={{ color: "var(--text-muted)" }}>
             <span>{w.isMobile ? "Mobile" : "Desktop"} · {resolutionOf(w.width, w.height).label}</span>
-            {w.status !== "approved" ? <><StatusBadge status={w.status} /> <span>not live — skipped on the home page</span></> : shown ? <span style={{ color: "var(--accent)" }}>On home page</span> : null}
+            {w.status !== "approved" ? <><StatusBadge status={w.status} /> <span>not live — skipped {list === "mobile" ? "in the app" : "on the home page"}</span></> : shown ? <span style={{ color: "var(--accent)" }}>{list === "mobile" ? "Shown in the app" : "On home page"}</span> : null}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -443,8 +489,9 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
   );
 }
 
-/** Search live, not-yet-featured wallpapers and add them to the end of the list. */
-function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title: string) => Promise<void> }) {
+/** Search live, not-yet-featured wallpapers of the list's shape and add them to the end of that list. */
+function AddPicker({ list, onClose, onAdded }: { list: FeaturedList; onClose: () => void; onAdded: (title: string) => Promise<void> }) {
+  const isMobile = list === "mobile";
   const { toast } = useToast();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<AdminWallpaper[]>([]);
@@ -456,7 +503,7 @@ function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title:
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const page = await listAdminWallpapers({ q: q.trim() || undefined, status: "approved", featured: "false", sort: "trending", limit: 24 });
+        const page = await listAdminWallpapers({ q: q.trim() || undefined, status: "approved", featured: "false", mobile: isMobile ? "true" : "false", sort: "trending", limit: 24 });
         if (alive) setResults(page.data);
       } catch {
         if (alive) setResults([]);
@@ -465,7 +512,7 @@ function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title:
       }
     }, 300);
     return () => { alive = false; clearTimeout(t); };
-  }, [q]);
+  }, [q, isMobile]);
 
   const add = async (w: AdminWallpaper) => {
     setAdding(w.id);
@@ -483,15 +530,15 @@ function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title:
   return (
     <Modal onClose={onClose} width={760} labelledBy="picker-title">
       <div className="flex items-center justify-between gap-3">
-        <p id="picker-title" className="font-semibold" style={{ color: "var(--text-primary)" }}>Add to featured</p>
+        <p id="picker-title" className="font-semibold" style={{ color: "var(--text-primary)" }}>Add to featured · {LISTS[list].tab}</p>
         <button onClick={onClose} className="text-sm px-2 py-1 rounded hover:bg-white/5" style={{ color: "var(--text-secondary)" }}>Done</button>
       </div>
-      <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Search live wallpapers by title or tag" className="rounded-lg px-3 py-2 text-sm" style={inputStyle} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 content-start min-h-[200px] max-h-[60vh] overflow-y-auto pr-1" style={{ opacity: loading ? 0.6 : 1 }}>
+      <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder={`Search live ${LISTS[list].shape} wallpapers by title or tag`} className="rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+      <div className={`grid gap-3 ${isMobile ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4"} content-start min-h-[200px] max-h-[60vh] overflow-y-auto pr-1`} style={{ opacity: loading ? 0.6 : 1 }}>
         {results.map((w) => (
           <div key={w.id} className="rounded-lg overflow-hidden flex flex-col shrink-0" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" className="w-full aspect-video object-cover" style={{ background: w.dominantColor }} />
+            <img src={w.thumbUrl ?? w.fileUrl} alt="" loading="lazy" className={`w-full object-cover ${isMobile ? "aspect-[9/16]" : "aspect-video"}`} style={{ background: w.dominantColor }} />
             <div className="p-2 flex flex-col gap-1.5">
               <p className="text-xs truncate" style={{ color: "var(--text-primary)" }} title={w.title}>{w.title}</p>
               <button disabled={adding !== null} onClick={() => add(w)} className="text-xs font-semibold py-1.5 rounded-md disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
@@ -500,7 +547,7 @@ function AddPicker({ onClose, onAdded }: { onClose: () => void; onAdded: (title:
             </div>
           </div>
         ))}
-        {!loading && results.length === 0 && <p className="col-span-full text-sm text-center py-10" style={{ color: "var(--text-muted)" }}>No live, unfeatured wallpapers match.</p>}
+        {!loading && results.length === 0 && <p className="col-span-full text-sm text-center py-10" style={{ color: "var(--text-muted)" }}>No live, unfeatured {LISTS[list].shape} wallpapers match.</p>}
       </div>
     </Modal>
   );

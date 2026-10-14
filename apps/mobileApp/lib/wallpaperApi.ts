@@ -15,6 +15,12 @@ export async function getCategoryDetails(slug: string): Promise<CategoryDetails>
   return request<CategoryDetails>(`/api/categories/resolve/${encodeURIComponent(slug)}`);
 }
 
+/** Featured wallpapers of one device shape, in the admin-chosen order and count. */
+export async function getFeaturedWallpapers(screen: ScreenFilter): Promise<Wallpaper[]> {
+  const res = await request<{ data: Wallpaper[] }>(`/api/featured?screen=${screen}`);
+  return res.data ?? [];
+}
+
 /** Wallpapers the logged-in user has liked, newest first. */
 export async function getLikedWallpapers(): Promise<WallpaperTile[]> {
   const res = await request<{ data: WallpaperTile[] }>("/api/likes");

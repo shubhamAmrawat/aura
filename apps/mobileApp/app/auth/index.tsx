@@ -1,30 +1,30 @@
 import { useState } from 'react'
-import {
-  View, Text, TextInput, Pressable,
-  KeyboardAvoidingView,
-  ActivityIndicator, StyleSheet
-} from 'react-native'
-import { Image } from 'expo-image'
-import { router } from 'expo-router'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Images } from '../../constants'
+import { router } from 'expo-router'
+import * as Haptics from 'expo-haptics'
+import { Colors } from '../../constants'
 import { loginWithPassword, sendOtp } from '../../lib/authApi'
-import { useLayoutInfo } from '../../hooks/useLayout'
 import { useAuth } from '../../lib/AuthContext'
 import { useToast } from '../../lib/ToastContext'
 import { isValidEmail } from '../../lib/validation'
+import { GOOGLE_SIGN_IN_ENABLED } from '../../lib/authConfig'
+import AuthShell, { leaveAuth } from '../../components/auth/AuthShell'
+import AuthInput from '../../components/auth/AuthInput'
+import AuthButton from '../../components/auth/AuthButton'
+import AuthSwitch from '../../components/auth/AuthSwitch'
+import AuthError from '../../components/auth/AuthError'
 import PasswordField from '../../components/auth/PasswordField'
 import FieldHint from '../../components/auth/FieldHint'
+import { authText, CardHeading, LegalNote } from '../../components/auth/AuthText'
 
-const BLURHASH = "LUH_iU%4u4%fyGkEx^obK+OYwin4"
+const buzz = (type: Haptics.NotificationFeedbackType) => void Haptics.notificationAsync(type).catch(() => undefined)
 
 export default function AuthIndex() {
-  const { width, height, deviceType } = useLayoutInfo()
-  const isTablet = deviceType === 'tablet'
-  const isLandscapeTablet = isTablet && width > height
   const { onLogin } = useAuth()
   const { showToast } = useToast()
+  // With Google on, the card opens on a choice (Google / email); otherwise straight on the email form.
+  const [showEmailForm, setShowEmailForm] = useState(!GOOGLE_SIGN_IN_ENABLED)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [emailTouched, setEmailTouched] = useState(false)
@@ -32,7 +32,6 @@ export default function AuthIndex() {
   const [loading, setLoading] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
   const [error, setError] = useState('')
-
   const emailValid = isValidEmail(email)
   const showEmailError = email.length > 0 && !emailValid && emailTouched
   const busy = loading || sendingCode
@@ -54,6 +53,7 @@ export default function AuthIndex() {
       router.push({ pathname: '/auth/otp', params: { email: email.trim(), type } })
     } catch (e: any) {
       setError(e.message || 'Failed to send code')
+      buzz(Haptics.NotificationFeedbackType.Error)
     } finally {
       setSendingCode(false)
     }
@@ -67,330 +67,148 @@ export default function AuthIndex() {
     try {
       const res = await loginWithPassword({ email: email.trim(), password })
       await onLogin(res.token, res.user)
+      buzz(Haptics.NotificationFeedbackType.Success)
       showToast('Welcome back!', { type: 'success' })
       router.replace('/(tabs)')
     } catch (e: any) {
       setError(e.message || 'Sign in failed')
+      buzz(Haptics.NotificationFeedbackType.Error)
     } finally {
       setLoading(false)
     }
   }
 
+  // Placeholder until native Google sign-in is added (button hidden while the flag is off).
+  const handleGoogle = () => showToast('Google sign-in is coming soon.', { type: 'info' })
+
+  const isLogin = mode === 'login'
+
   return (
-    <KeyboardAvoidingView
-      behavior="padding"
-      style={styles.root}
+    <AuthShell
+      tagline="Wallpapers made for your phone."
+      leading={showEmailForm && GOOGLE_SIGN_IN_ENABLED ? 'back' : 'close'}
+      onLeadingPress={() => (showEmailForm && GOOGLE_SIGN_IN_ENABLED ? setShowEmailForm(false) : leaveAuth())}
+      below={
+        <Pressable onPress={leaveAuth} hitSlop={8} style={styles.skip}>
+          <Text style={styles.skipText}>Explore without an account</Text>
+        </Pressable>
+      }
     >
-      <Image
-        source={{ uri: Images.AUTH_WALLPAPER_URL }}
-        placeholder={{ blurhash: BLURHASH }}
-        contentFit="cover"
-        style={StyleSheet.absoluteFillObject}
-        transition={400}
-      />
-      <LinearGradient
-        colors={['rgba(5,5,5,0.18)', 'rgba(7,7,7,0.50)', 'rgba(8,8,8,0.85)']}
-        locations={[0, 0.35, 1]}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <LinearGradient
-        colors={['rgba(0,0,0,0)', Colors.bgScrim]}
-        locations={[0.38, 1]}
-        style={StyleSheet.absoluteFillObject}
+      {!showEmailForm ? (
+        <>
+          <CardHeading title="Welcome" subtitle="Sign in or create an account to save your likes." />
+          <AuthButton variant="google" label="Continue with Google" onPress={handleGoogle} />
+          <Pressable
+            onPress={() => setShowEmailForm(true)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.emailChoice, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="mail-outline" size={18} color={Colors.textPrimary} />
+            <Text style={styles.emailChoiceText}>Continue with email</Text>
+          </Pressable>
+          <LegalNote />
+        </>
+      ) : (
+      <>
+      <CardHeading
+        title={isLogin ? 'Welcome back' : 'Create your account'}
+        subtitle={isLogin ? 'Sign in to sync your likes and downloads.' : "Start with your email. We'll send a code to verify it."}
       />
 
-      <View style={[
-        styles.content,
-        isTablet && styles.contentTablet,
-        isLandscapeTablet && styles.contentTabletLandscape,
-      ]}>
-        <View style={[
-          styles.hero,
-          isLandscapeTablet && styles.heroTabletLandscape,
-        ]}>
-          <Text style={styles.brandTitle}>AURORA</Text>
-          <Text style={styles.brandSub}>Wallpaper experiences crafted for you</Text>
+      <AuthSwitch
+        options={[
+          { value: 'login', label: 'Sign In' },
+          { value: 'signup', label: 'Sign Up' },
+        ]}
+        value={mode}
+        onChange={switchMode}
+      />
+
+      <AuthInput
+        icon="mail-outline"
+        status={showEmailError ? 'error' : 'idle'}
+        placeholder="Email address"
+        value={email}
+        onChangeText={(t) => { setEmail(t.trim()); setError('') }}
+        onBlur={() => setEmailTouched(true)}
+        keyboardType="email-address"
+        autoComplete="email"
+        textContentType="emailAddress"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType={isLogin ? 'next' : 'go'}
+        onSubmitEditing={() => { if (!isLogin) handleSendOtp('signup') }}
+      />
+      <FieldHint text={showEmailError && 'Enter a valid email address'} />
+
+      {isLogin && (
+        <PasswordField
+          placeholder="Password"
+          value={password}
+          onChangeText={(t) => { setPassword(t); setError('') }}
+          autoComplete="current-password"
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={handlePasswordLogin}
+        />
+      )}
+
+      <AuthError message={error} />
+
+      {isLogin ? (
+        <AuthButton label="Sign In" onPress={handlePasswordLogin} enabled={emailValid && !!password && !sendingCode} loading={loading} />
+      ) : (
+        <AuthButton label="Continue" onPress={() => handleSendOtp('signup')} enabled={emailValid} loading={sendingCode} />
+      )}
+
+      {isLogin && (
+        <View style={authText.linkRow}>
+          <Pressable
+            hitSlop={8}
+            disabled={busy}
+            onPress={() => router.push({ pathname: '/auth/forgot', params: { email: emailValid ? email.trim() : '' } })}
+          >
+            <Text style={authText.linkMuted}>Forgot password?</Text>
+          </Pressable>
+          <Pressable hitSlop={8} disabled={busy} onPress={() => handleSendOtp('login')}>
+            {sendingCode
+              ? <ActivityIndicator color={Colors.accent} size="small" />
+              : <Text style={authText.linkAccent}>Email me a code</Text>}
+          </Pressable>
         </View>
+      )}
 
-        <View style={[
-          styles.card,
-          isTablet && styles.cardTablet,
-          isLandscapeTablet && styles.cardTabletLandscape,
-        ]}>
-          <Text style={styles.cardTitle}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</Text>
-          <Text style={styles.cardSubtitle}>
-            {mode === 'login' ? 'Sign in with your email and password.' : 'Start with your email. We will verify it instantly.'}
-          </Text>
-
-          <View style={styles.segmented}>
-            <Pressable
-              style={[styles.segBtn, mode === 'login' && styles.segBtnActive]}
-              onPress={() => switchMode('login')}
-            >
-              <Text style={[styles.segText, mode === 'login' && styles.segTextActive]}>
-                Sign In
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.segBtn, mode === 'signup' && styles.segBtnActive]}
-              onPress={() => switchMode('signup')}
-            >
-              <Text style={[styles.segText, mode === 'signup' && styles.segTextActive]}>
-                Sign Up
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.inputRow, showEmailError && styles.inputRowError]}>
-            <Ionicons name="mail-outline" size={18} color={Colors.textSecondary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={Colors.textMuted}
-              value={email}
-              onChangeText={(t) => { setEmail(t.trim()); setError('') }}
-              onBlur={() => setEmailTouched(true)}
-              keyboardType="email-address"
-              autoComplete="email"
-              textContentType="emailAddress"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType={mode === 'login' ? 'next' : 'go'}
-              onSubmitEditing={() => { if (mode === 'signup') handleSendOtp('signup') }}
-              underlineColorAndroid="transparent"
-            />
-          </View>
-          <FieldHint text={showEmailError && 'Enter a valid email address'} />
-
-          {mode === 'login' && (
-            <PasswordField
-              placeholder="Password"
-              value={password}
-              onChangeText={(t) => { setPassword(t); setError('') }}
-              autoComplete="current-password"
-              textContentType="password"
-              returnKeyType="go"
-              onSubmitEditing={handlePasswordLogin}
-            />
-          )}
-
-          {error ? (
-            <Text style={styles.error}>{error}</Text>
-          ) : null}
-
-          {mode === 'login' ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                (!emailValid || !password) && styles.buttonDisabled,
-                pressed && { opacity: 0.9 },
-              ]}
-              onPress={handlePasswordLogin}
-              disabled={busy || !emailValid || !password}
-            >
-              {loading
-                ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-                : <Text style={styles.buttonText}>Sign In</Text>
-              }
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [styles.button, !emailValid && styles.buttonDisabled, pressed && { opacity: 0.9 }]}
-              onPress={() => handleSendOtp('signup')}
-              disabled={busy || !emailValid}
-            >
-              {sendingCode
-                ? <ActivityIndicator color={Colors.bgPrimary} size="small" />
-                : <Text style={styles.buttonText}>Continue</Text>
-              }
-            </Pressable>
-          )}
-
-          {mode === 'login' && (
-            <View style={styles.linkRow}>
-              <Pressable
-                hitSlop={8}
-                disabled={busy}
-                onPress={() => router.push({ pathname: '/auth/forgot', params: { email: emailValid ? email.trim() : '' } })}
-              >
-                <Text style={styles.linkMuted}>Forgot password?</Text>
-              </Pressable>
-              <Pressable hitSlop={8} disabled={busy} onPress={() => handleSendOtp('login')}>
-                {sendingCode
-                  ? <ActivityIndicator color={Colors.accent} size="small" />
-                  : <Text style={styles.linkAccent}>Sign in with a code instead</Text>}
-              </Pressable>
-            </View>
-          )}
-
-          <Text style={styles.footerCopy}>By continuing, you agree to Aurora terms and privacy policy.</Text>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
+      <LegalNote />
+      </>
+      )}
+    </AuthShell>
   )
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.bgPrimary,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingBottom: 34,
-    paddingTop: 88,
-    gap: 16,
-  },
-  contentTablet: {
+  emailChoice: {
+    height: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 42,
-    paddingBottom: 28,
-    alignItems: 'center',
-    gap: 20,
-  },
-  contentTabletLandscape: {
-    paddingTop: 28,
-    paddingBottom: 20,
-    gap: 16,
-  },
-  hero: {
-    gap: 8,
-    paddingHorizontal: 4,
-  },
-  heroTabletLandscape: {
-    width: '100%',
-    maxWidth: 760,
-    alignSelf: 'center',
-  },
-  card: {
-    backgroundColor: Colors.cardSurface,
-    borderColor: Colors.cardBorder,
-    borderWidth: 1,
-    borderRadius: 26,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
-    gap: 14,
-  },
-  cardTablet: {
-    width: '100%',
-    maxWidth: 920,
-    paddingHorizontal: 24,
-    paddingVertical: 22,
-    borderRadius: 28,
-  },
-  cardTabletLandscape: {
-    maxWidth: 760,
-    paddingVertical: 18,
-  },
-  brandTitle: {
-    color: Colors.textPrimary,
-    fontSize: 38,
-    fontWeight: '900',
-    letterSpacing: 5,
-  },
-  brandSub: {
-    color: '#D0CFCF',
-    fontSize: 14,
-    letterSpacing: 0.6,
-    lineHeight: 20,
-  },
-  cardTitle: {
-    color: Colors.textPrimary,
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  cardSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  segmented: {
-    flexDirection: 'row',
-    backgroundColor: Colors.bgOverlay,
-    borderWidth: 1,
-    borderColor: Colors.borderHover,
-    borderRadius: 16,
-    padding: 4,
-    gap: 4,
-  },
-  segBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  segBtnActive: {
-    backgroundColor: Colors.accent,
-  },
-  segText: {
-    color: '#E4E0DA',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  segTextActive: {
-    color: Colors.bgPrimary,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.bgOverlay,
-    borderWidth: 1,
-    borderColor: Colors.borderHover,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
   },
-  input: {
-    flex: 1,
+  emailChoiceText: {
     color: Colors.textPrimary,
     fontSize: 15,
-    paddingVertical: 12,
+    fontWeight: '700',
   },
-  inputRowError: {
-    borderColor: '#E05252',
+  skip: {
+    alignSelf: 'center',
+    paddingVertical: 4,
   },
-  error: {
-    color: '#E05252',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  linkMuted: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-  },
-  linkAccent: {
-    color: Colors.accent,
+  skipText: {
+    color: 'rgba(245,240,235,0.62)',
     fontSize: 13,
     fontWeight: '600',
-  },
-  button: {
-    backgroundColor: Colors.accent,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: {
-    color: Colors.bgPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  footerCopy: {
-    color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
   },
 })

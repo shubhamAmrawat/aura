@@ -302,7 +302,7 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
                 </div>
               </div>
               <div className="flex flex-col">
-                <Toggle label="Featured (home page hero)" checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} />
+                <Toggle label={form.isMobile ? "Featured (app's Featured row)" : "Featured (website home page)"} checked={form.isFeatured} onChange={(v) => set("isFeatured", v)} />
                 <Toggle label="Premium" checked={form.isPremium} onChange={(v) => set("isPremium", v)} />
                 <Toggle label={form.isMobile ? "Mobile wallpaper (portrait)" : "Desktop wallpaper (landscape)"} checked={form.isMobile} onChange={(v) => set("isMobile", v)} />
                 <Toggle label="AI-generated" checked={form.isAiGenerated} onChange={(v) => set("isAiGenerated", v)} />

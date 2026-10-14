@@ -143,13 +143,19 @@ export const WallpaperBulkBody = z
 
 // ─── Featured (home page hero) ──────────────────────────────
 
+/** Which featured list: the website's (desktop wallpapers) or the app's (phone wallpapers). */
+export const FeaturedListParam = z.enum(["web", "mobile"], { message: "list must be web or mobile" }).default("web");
+export const FeaturedListQuery = z.object({ list: FeaturedListParam });
+
 export const FeaturedOrderBody = z.object({
+  list: FeaturedListParam,
   ids: z
     .array(z.string().regex(UUID, "Invalid wallpaper id"), { message: "ids must be a list of wallpaper ids" })
     .max(500, "Too many wallpapers"),
 });
 
 export const FeaturedLimitBody = z.object({
+  list: FeaturedListParam,
   limit: z
     .number({ message: "limit must be a number from 1 to 10" })
     .int("limit must be a number from 1 to 10")

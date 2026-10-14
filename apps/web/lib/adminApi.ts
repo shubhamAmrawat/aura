@@ -245,7 +245,9 @@ export type FeaturedItem = {
   featuredOrder: number | null;
   createdAt: string;
 };
-export type FeaturedState = { limit: number; maxLimit: number; items: FeaturedItem[] };
+/** "web" = the website's hero (desktop wallpapers), "mobile" = the app's Featured row (phone wallpapers). */
+export type FeaturedList = "web" | "mobile";
+export type FeaturedState = { list: FeaturedList; limit: number; maxLimit: number; items: FeaturedItem[] };
 
 async function adminPut<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API}/api/admin${path}`, {
@@ -259,9 +261,9 @@ async function adminPut<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-export const getFeatured = () => adminGet<FeaturedState>("/featured");
-export const saveFeaturedOrder = (ids: string[]) => adminPut<FeaturedState>("/featured/order", { ids });
-export const saveFeaturedLimit = (limit: number) => adminPut<FeaturedState>("/featured/limit", { limit });
+export const getFeatured = (list: FeaturedList) => adminGet<FeaturedState>(`/featured?list=${list}`);
+export const saveFeaturedOrder = (ids: string[], list: FeaturedList) => adminPut<FeaturedState>("/featured/order", { ids, list });
+export const saveFeaturedLimit = (limit: number, list: FeaturedList) => adminPut<FeaturedState>("/featured/limit", { limit, list });
 
 /** Ask the web app to refresh the cached home-page hero right away (same-origin, admin cookie). */
 export async function refreshHomeHero(): Promise<boolean> {

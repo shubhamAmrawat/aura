@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Category, WallpaperTile } from "../lib/api";
-import { getCategories, getTrendingWallpapers, getWallpapers, ScreenFilter } from "../lib/wallpaperApi";
+import { getCategories, getFeaturedWallpapers, getTrendingWallpapers, ScreenFilter } from "../lib/wallpaperApi";
 import { openWallpaper } from "../lib/openWallpaper";
 import { useLayoutInfo } from "../hooks/useLayout";
 import { Colors } from "../constants";
@@ -24,15 +24,15 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
   useEffect(() => {
     let alive = true;
     Promise.allSettled([
-      getWallpapers({ featured: true, limit: 10, screen }),
+      getFeaturedWallpapers(screen),
       getTrendingWallpapers({ limit: 18, screen }),
       getCategories(screen),
     ]).then(([f, t, c]) => {
       if (!alive) return;
-      const feat = f.status === "fulfilled" ? f.value.data : [];
+      const feat = f.status === "fulfilled" ? f.value : [];
       const trend = t.status === "fulfilled" ? t.value.data : [];
-      // Until enough wallpapers of this shape are featured, lead with the top trending ones.
-      const lead = feat.length >= 3 ? feat : trend.slice(0, 6);
+      // The app's own featured list (admin › Featured › Mobile app); top trending only while it is empty.
+      const lead = feat.length > 0 ? feat : trend.slice(0, 6);
       const leadIds = new Set(lead.map((w) => w.id));
       setFeatured(lead);
       setTrending(trend.filter((w) => !leadIds.has(w.id)).slice(0, 12));

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { View, TextInput, Pressable, StyleSheet, type TextInputProps } from 'react-native'
+import { Pressable, View, type TextInputProps } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { Colors } from '../../constants'
+import AuthInput, { AUTH_ERROR } from './AuthInput'
 
 type Status = 'idle' | 'ok' | 'error'
 
@@ -12,51 +13,28 @@ export default function PasswordField({
   ...inputProps
 }: TextInputProps & { status?: Status; showStatusIcon?: boolean }) {
   const [visible, setVisible] = useState(false)
-  const borderColor =
-    status === 'ok' ? Colors.accent : status === 'error' ? ERROR : Colors.borderHover
 
   return (
-    <View style={[styles.row, { borderColor }]}>
-      <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
-      <TextInput
-        style={styles.input}
-        placeholderTextColor={Colors.textMuted}
-        secureTextEntry={!visible}
-        autoCapitalize="none"
-        autoCorrect={false}
-        underlineColorAndroid="transparent"
-        {...inputProps}
-      />
-      {showStatusIcon && status === 'ok' && <Ionicons name="checkmark" size={18} color={Colors.accent} />}
-      {showStatusIcon && status === 'error' && <Ionicons name="close" size={18} color={ERROR} />}
-      <Pressable
-        onPress={() => setVisible((v) => !v)}
-        hitSlop={10}
-        accessibilityLabel={visible ? 'Hide password' : 'Show password'}
-      >
-        <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textSecondary} />
-      </Pressable>
-    </View>
+    <AuthInput
+      icon="lock-closed-outline"
+      status={status}
+      secureTextEntry={!visible}
+      autoCapitalize="none"
+      autoCorrect={false}
+      {...inputProps}
+      right={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {showStatusIcon && status === 'ok' && <Ionicons name="checkmark" size={18} color={Colors.accent} />}
+          {showStatusIcon && status === 'error' && <Ionicons name="close" size={18} color={AUTH_ERROR} />}
+          <Pressable
+            onPress={() => setVisible((v) => !v)}
+            hitSlop={10}
+            accessibilityLabel={visible ? 'Hide password' : 'Show password'}
+          >
+            <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(245,240,235,0.55)" />
+          </Pressable>
+        </View>
+      }
+    />
   )
 }
-
-const ERROR = '#E05252'
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Colors.bgOverlay,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-  },
-  input: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: 15,
-    paddingVertical: 12,
-  },
-})

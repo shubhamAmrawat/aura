@@ -76,12 +76,13 @@ const styles = StyleSheet.create({
   },
   box: {
     flex: 1,
+    minWidth: 0,
     maxWidth: 74,
     aspectRatio: 1,
     borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: Colors.borderHover,
-    backgroundColor: Colors.bgOverlay,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     color: Colors.textPrimary,
     fontSize: 24,
     lineHeight: 24,
@@ -94,6 +95,6 @@ const styles = StyleSheet.create({
   },
   boxFilled: {
     borderColor: Colors.accent,
-    backgroundColor: 'rgba(129,238,78,0.14)',
+    backgroundColor: 'rgba(129,238,78,0.10)',
   },
 })

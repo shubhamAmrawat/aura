@@ -10,8 +10,4 @@ export const Images={
   
   DEFAULT_COVER_IMAGE_URL:
   "https://res.cloudinary.com/dvzm9b086/image/upload/v1777111603/default-cover_mu8ie0.png",
-  
-  
-  AUTH_WALLPAPER_URL: "https://cdn.aurora-walls.com/wallpapers/local-f9a84ba4-3734-4236-8673-45f758a85246.png"
-  
 }

@@ -78,8 +78,8 @@ function describe(e: ActivityEntry): React.ReactNode {
     case "category.suggestions.apply": return <>Applied {plural(d.count, "AI category suggestion")}</>;
     case "category.suggestions.auto_apply": return <>Auto-filed {plural(d.count, "wallpaper")} into categories (AI)</>;
     case "category.suggestions.dismiss": return <>Dismissed {plural(d.count, "AI category suggestion")}</>;
-    case "featured.reorder": return <>Reordered the featured wallpapers</>;
-    case "featured.limit": return <>Home page now shows <b>{d.to}</b> featured wallpapers (was {d.from})</>;
+    case "featured.reorder": return <>Reordered the {d.list === "mobile" ? "app's" : "website's"} featured wallpapers</>;
+    case "featured.limit": return <>{d.list === "mobile" ? "The app" : "The website"} now shows <b>{d.to}</b> featured wallpapers (was {d.from})</>;
     case "user.creator.grant": return <>Made {usr} a creator</>;
     case "user.creator.revoke": return <>Removed creator from {usr}</>;
     case "user.unlock": return <>Unlocked sign-in for {usr}</>;
