@@ -51,6 +51,14 @@ export async function loginWithPassword(payload: { email: string, password: stri
   });
 }
 
+/** Sign in or sign up with a Google ID token (from lib/googleAuth). New accounts get isNewUser: true. */
+export async function loginWithGoogle(credential: string): Promise<LoginResponse & { isNewUser: boolean }> {
+  return await request<LoginResponse & { isNewUser: boolean }>("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+}
+
 /** Forgot step 1: always answers the same (never reveals if the email exists). */
 export async function forgotPassword(email: string): Promise<{ message: string }> {
   return await request<{ message: string }>("/api/auth/forgot-password", {

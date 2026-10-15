@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { Colors } from '../../constants'
-import { loginWithPassword, sendOtp } from '../../lib/authApi'
+import { loginWithGoogle, loginWithPassword, sendOtp } from '../../lib/authApi'
+import { getGoogleIdToken } from '../../lib/googleAuth'
 import { useAuth } from '../../lib/AuthContext'
 import { useToast } from '../../lib/ToastContext'
 import { isValidEmail } from '../../lib/validation'
@@ -31,6 +32,7 @@ export default function AuthIndex() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [sendingCode, setSendingCode] = useState(false)
+  const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState('')
   const emailValid = isValidEmail(email)
   const showEmailError = email.length > 0 && !emailValid && emailTouched
@@ -78,8 +80,30 @@ export default function AuthIndex() {
     }
   }
 
-  // Placeholder until native Google sign-in is added (button hidden while the flag is off).
-  const handleGoogle = () => showToast('Google sign-in is coming soon.', { type: 'info' })
+  // Google account picker → ID token → our API (same endpoint as the website); signs up new users too.
+  const handleGoogle = async () => {
+    if (googleBusy) return
+    setGoogleBusy(true)
+    try {
+      const google = await getGoogleIdToken()
+      if (google.status === 'cancelled') return
+      if (google.status === 'error') {
+        showToast(google.message, { type: 'error', position: 'top' })
+        buzz(Haptics.NotificationFeedbackType.Error)
+        return
+      }
+      const res = await loginWithGoogle(google.idToken)
+      await onLogin(res.token, res.user)
+      buzz(Haptics.NotificationFeedbackType.Success)
+      showToast(res.isNewUser ? 'Welcome to Aurora!' : 'Welcome back!', { type: 'success' })
+      router.replace('/(tabs)')
+    } catch (e: any) {
+      showToast(e?.message || 'Google sign-in failed. Please try again.', { type: 'error', position: 'top' })
+      buzz(Haptics.NotificationFeedbackType.Error)
+    } finally {
+      setGoogleBusy(false)
+    }
+  }
 
   const isLogin = mode === 'login'
 
@@ -97,7 +121,7 @@ export default function AuthIndex() {
       {!showEmailForm ? (
         <>
           <CardHeading title="Welcome" subtitle="Sign in or create an account to save your likes." />
-          <AuthButton variant="google" label="Continue with Google" onPress={handleGoogle} />
+          <AuthButton variant="google" label="Continue with Google" onPress={handleGoogle} loading={googleBusy} />
           <Pressable
             onPress={() => setShowEmailForm(true)}
             accessibilityRole="button"

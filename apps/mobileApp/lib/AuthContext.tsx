@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { User } from "./api";
 import { deleteToken, getToken, saveToken } from "./tokenStorage";
 import { getMe } from "./authApi";
+import { signOutOfGoogle } from "./googleAuth";
 type AuthContextType = {
   user: User | null;
   loaded: boolean
@@ -57,6 +58,7 @@ export function AuthProvider({children}:{children:ReactNode}){
   
   const onLogout = async () => {
     await deleteToken();
+    void signOutOfGoogle(); // so the next Google sign-in shows the account picker again
     setUser(null);
   };
   
