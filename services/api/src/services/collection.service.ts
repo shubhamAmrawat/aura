@@ -77,6 +77,9 @@ export function listUserCollections(userId: string) {
       coverUrl: sql<string | null>`(
         SELECT file_url FROM wallpapers WHERE id = ${collections.coverWallpaperId} LIMIT 1
       )`,
+      coverThumbUrl: sql<string | null>`(
+        SELECT cdn_variants -> 'thumb' ->> 'url' FROM wallpapers WHERE id = ${collections.coverWallpaperId} LIMIT 1
+      )`,
       createdAt: collections.createdAt,
       wallpaperCount: sql<number>`count(${collectionWallpapers.wallpaperId})::int`,
     })

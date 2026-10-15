@@ -65,8 +65,8 @@ describe("collection lifecycle", () => {
     const res = await api("GET", "/api/collections", { token: owner.token });
     expect(res.status).toBe(200);
     expect(res.body.data.length).toBe(1);
-    expectKeys(res.body.data[0], ["id", "title", "description", "isPublic", "coverWallpaperId", "coverUrl", "createdAt", "wallpaperCount"]);
-    expect(res.body.data[0]).toMatchObject({ id: colId, wallpaperCount: 0, coverUrl: null });
+    expectKeys(res.body.data[0], ["id", "title", "description", "isPublic", "coverWallpaperId", "coverUrl", "coverThumbUrl", "createdAt", "wallpaperCount"]);
+    expect(res.body.data[0]).toMatchObject({ id: colId, wallpaperCount: 0, coverUrl: null, coverThumbUrl: null });
     expect((await api("GET", "/api/collections", { token: other.token })).body).toEqual({ data: [] });
   });
 

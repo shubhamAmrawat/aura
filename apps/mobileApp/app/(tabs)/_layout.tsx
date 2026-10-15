@@ -28,7 +28,7 @@ const TabLayout = () => {
     >
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: icon("home", "home-outline") }} />
       <Tabs.Screen name="explore" options={{ title: "Explore", tabBarIcon: icon("compass", "compass-outline") }} />
-      <Tabs.Screen name="saved" options={{ title: "Saved", tabBarIcon: icon("heart", "heart-outline") }} />
+      <Tabs.Screen name="library" options={{ title: "Library", tabBarIcon: icon("albums", "albums-outline") }} />
       <Tabs.Screen
         name="profile"
         options={{

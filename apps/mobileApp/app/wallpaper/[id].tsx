@@ -1,5 +1,5 @@
   import { router, useLocalSearchParams } from "expo-router";
-  import { useEffect, useMemo, useRef, useState } from "react";
+  import { useCallback, useEffect, useMemo, useRef, useState } from "react";
   import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
   import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike, trackWallpaperView } from "../../lib/wallpaperApi";
   import { Wallpaper } from "../../lib/api";
@@ -16,6 +16,8 @@
   import WallpaperDock from "../../components/WallpaperDock";
   import LockClockPreview from "../../components/LockClockPreview";
   import DockAction from "../../components/DockAction";
+  import SaveSheet from "../../components/SaveSheet";
+  import { getSavedWallpaperIds } from "../../lib/collectionsApi";
   import * as Haptics from "expo-haptics";
 
   export default function WallpaperDetail() {
@@ -83,6 +85,9 @@
     const [isLiked, setIsLiked] = useState(false);
     const [likeLoading, setLikeLoading] = useState(false);
     const [showClock, setShowClock] = useState(false);
+    // Bookmark: filled when the wallpaper is in any of the user's collections.
+    const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+    const [showSaveSheet, setShowSaveSheet] = useState(false);
     const likeScale = useRef(new Animated.Value(1)).current;
 
     // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -100,6 +105,7 @@
     );
     const activeWallpaper = carouselData[activeIndex] ?? wallpaper;
     const activeWallpaperId = activeWallpaper?.id ?? id;
+    const isSaved = savedIds.has(activeWallpaperId);
 
     // ─── Derived display values ───────────────────────────────────────────────────
     // Use wallpaper API data when available, fall back to params immediately.
@@ -197,6 +203,41 @@
       const res = await getSimilarWallpapers(id, screen);
       setSimilarWallpapers(res);
     };
+
+    useEffect(() => {
+      if (!user) {
+        setSavedIds(new Set());
+        return;
+      }
+      let alive = true;
+      getSavedWallpaperIds()
+        .then((ids) => alive && setSavedIds(new Set(ids)))
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }, [user]);
+
+    const openSave = () => {
+      if (!user) {
+        showToast("Please login to save wallpapers.", { type: "info", position: "top" });
+        return;
+      }
+      void Haptics.selectionAsync().catch(() => undefined);
+      setShowSaveSheet(true);
+    };
+
+    const onSavedChange = useCallback(
+      (saved: boolean) =>
+        setSavedIds((prev) => {
+          if (prev.has(activeWallpaperId) === saved) return prev;
+          const next = new Set(prev);
+          if (saved) next.add(activeWallpaperId);
+          else next.delete(activeWallpaperId);
+          return next;
+        }),
+      [activeWallpaperId]
+    );
 
     const handleToggleLike = async () => {
       if (!activeWallpaperId || likeLoading) return;
@@ -352,7 +393,14 @@
           </Text>
 
           {/* same width as the back button so the title stays centred */}
-          <View style={styles.headerSpacer} />
+          <Pressable
+            onPress={openSave}
+            hitSlop={12}
+            style={styles.headerSpacer}
+            accessibilityLabel={isSaved ? "Saved to a collection. Change collections" : "Save to collection"}
+          >
+            <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={26} color={isSaved ? Colors.accent : contrastColor} />
+          </Pressable>
         </View>
 
         <FlatList
@@ -376,6 +424,12 @@
             Download · Apply · Details buttons go here (built next) */}
 
         
+        <SaveSheet
+          visible={showSaveSheet}
+          onClose={() => setShowSaveSheet(false)}
+          wallpaperId={activeWallpaperId}
+          onSavedChange={onSavedChange}
+        />
         {dockWallpaper ? (
           <WallpaperDock
             bottomOffset={bottomPadding + 16}
@@ -403,7 +457,7 @@
                     setShowClock((v) => !v);
                     void Haptics.selectionAsync().catch(() => undefined);
                   }}
-                  icon={<Ionicons name={showClock ? "time" : "time-outline"} size={24} color={showClock ? Colors.accent : Colors.textPrimary} />}
+                  icon={<Ionicons name={showClock ? "lock-closed" : "lock-closed-outline"} size={24} color={showClock ? Colors.accent : Colors.textPrimary} />}
                 />
               </>
             }
