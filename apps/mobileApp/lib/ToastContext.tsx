@@ -1,8 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import AppToast, { type ToastPosition, type ToastType } from "../components/AppToast";
 
+export type ToastAction = { label: string; onPress: () => void };
+
 type ToastState = {
   visible: boolean;
+  action?: ToastAction;
   message: string;
   type: ToastType;
   duration: number;
@@ -13,6 +16,8 @@ type ShowToastOptions = {
   type?: ToastType;
   duration?: number;
   position?: ToastPosition;
+  /** A button on the toast (e.g. Undo). Tapping it runs onPress and hides the toast. */
+  action?: ToastAction;
 };
 
 type ToastContextValue = {
@@ -49,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       const duration = options?.duration ?? 2600;
       const position = options?.position ?? "bottom";
       clearTimer();
-      setToast({ visible: true, message, type, duration, position });
+      setToast({ visible: true, message, type, duration, position, action: options?.action });
     },
     [clearTimer]
   );
@@ -80,6 +85,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         type={toast.type}
         position={toast.position}
         onClose={hideToast}
+        action={
+          toast.action
+            ? {
+                label: toast.action.label,
+                onPress: () => {
+                  hideToast();
+                  toast.action?.onPress();
+                },
+              }
+            : undefined
+        }
       />
     </ToastContext.Provider>
   );

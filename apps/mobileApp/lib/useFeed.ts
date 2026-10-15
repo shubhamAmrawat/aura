@@ -78,7 +78,13 @@ export function useFeed<T extends { id: string }>(
     void load(true);
   }, [load]);
 
+  /** Reload from the start without the pull-to-refresh spinner (background sync). */
+  const reload = useCallback(async () => {
+    hasMore.current = true;
+    await load(true);
+  }, [load]);
+
   const loadMore = useCallback(() => void load(false), [load]);
 
-  return { items, status, loadingMore, refreshing, loadMore, refresh, retry };
+  return { items, status, loadingMore, refreshing, loadMore, refresh, reload, retry };
 }

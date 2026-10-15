@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import Header from "../../components/Header";
 import MasonryFeed from "../../components/MasonryFeed";
-import NewCollectionForm from "../../components/NewCollectionForm";
+import CollectionForm from "../../components/CollectionForm";
+import Sheet from "../../components/Sheet";
 import SignInPrompt from "../../components/SignInPrompt";
 import { Colors } from "../../constants";
 import { useAuth } from "../../lib/AuthContext";
-import { Collection, getMyCollections } from "../../lib/collectionsApi";
+import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
 import { getLikedWallpapers } from "../../lib/wallpaperApi";
 import { useFeed } from "../../lib/useFeed";
 
@@ -30,45 +31,28 @@ const Library = () => {
   );
   const feed = useFeed(fetchLiked, user?.id ?? "guest", 1000);
 
-  const [collections, setCollections] = useState<Collection[] | null>(null);
-  const [collectionsFailed, setCollectionsFailed] = useState(false);
+  // Collections come from the shared store, which every screen keeps up to date.
+  const { collections, status } = useCollections();
+  const { refresh: refreshCollections } = useCollectionActions();
   const [refreshing, setRefreshing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 
-  const loadCollections = useCallback(async () => {
-    if (!user) return;
-    try {
-      setCollectionsFailed(false);
-      setCollections(await getMyCollections());
-    } catch {
-      setCollectionsFailed(true);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    setCollections(null);
-    void loadCollections();
-  }, [loadCollections]);
-
-  // Likes and collections change on other screens, so reload whenever the tab comes back into view.
+  // Likes change on the wallpaper screen, so reload them whenever the tab comes back into view.
   const firstFocus = useRef(true);
-  const { refresh } = feed;
+  const { reload } = feed;
   useFocusEffect(
     useCallback(() => {
       if (firstFocus.current) {
         firstFocus.current = false;
         return;
       }
-      if (user) {
-        void refresh();
-        void loadCollections();
-      }
-    }, [user, refresh, loadCollections])
+      if (user) void reload();
+    }, [user, reload])
   );
 
   const onRefreshCollections = async () => {
     setRefreshing(true);
-    await loadCollections();
+    await refreshCollections();
     setRefreshing(false);
   };
 
@@ -123,27 +107,31 @@ const Library = () => {
 
       {section === "liked" ? (
         <MasonryFeed feed={feed} emptyIcon="heart-outline" emptyText="Tap the heart on any wallpaper and it shows up here." />
-      ) : collectionsFailed && !collections ? (
-        <Pressable onPress={() => void loadCollections()} style={styles.center}>
-          <Text style={styles.muted}>Couldn't load your collections. Tap to retry.</Text>
+      ) : status === "error" && !collections ? (
+        <Pressable onPress={() => void refreshCollections()} style={styles.center}>
+          <Text style={styles.muted}>Couldn&apos;t load your collections. Tap to retry.</Text>
         </Pressable>
+      ) : !collections ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={Colors.accent} />
+        </View>
       ) : (
         <FlatList
-          data={collections ?? []}
+          data={collections}
           keyExtractor={(c) => c.id}
           numColumns={2}
           columnWrapperStyle={{ gap: GAP }}
           contentContainerStyle={styles.grid}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshCollections} tintColor={Colors.accent} colors={[Colors.accent]} />}
           ListHeaderComponent={
-            collections && collections.length === 0 ? (
+            collections.length === 0 ? (
               <Text style={styles.hint}>
                 Collections are your own folders of wallpapers. Make one here, or open a wallpaper and go to Details › Save to collection.
               </Text>
             ) : null
           }
           ListFooterComponent={
-            collections ? <View style={styles.footerRow}>{collections.length % 2 === 0 ? newCard : null}</View> : null
+            <View style={styles.footerRow}>{collections.length % 2 === 0 ? newCard : null}</View>
           }
           renderItem={({ item, index }) => {
             const cover = item.coverThumbUrl ?? item.coverUrl;
@@ -171,7 +159,7 @@ const Library = () => {
               </Pressable>
             );
             // Odd count: the "New collection" card fills the empty slot beside the last one.
-            const isLastOdd = collections && collections.length % 2 === 1 && index === collections.length - 1;
+            const isLastOdd = collections.length % 2 === 1 && index === collections.length - 1;
             return isLastOdd ? (
               <>
                 {card}
@@ -184,21 +172,10 @@ const Library = () => {
         />
       )}
 
-      <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
-        <KeyboardAvoidingView style={styles.modalWrap} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowCreate(false)} />
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>New collection</Text>
-            <NewCollectionForm
-              onCancel={() => setShowCreate(false)}
-              onCreated={(c) => {
-                setShowCreate(false);
-                setCollections((cs) => [{ ...c, coverUrl: null, coverThumbUrl: null, wallpaperCount: 0 }, ...(cs ?? [])]);
-              }}
-            />
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <Sheet visible={showCreate} onClose={() => setShowCreate(false)}>
+        <Text style={styles.sheetTitle}>New collection</Text>
+        <CollectionForm mode="create" onCancel={() => setShowCreate(false)} onDone={() => setShowCreate(false)} />
+      </Sheet>
     </View>
   );
 };
@@ -248,16 +225,7 @@ const styles = StyleSheet.create({
   cardMeta: { color: Colors.textMuted, fontSize: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32 },
   muted: { color: Colors.textSecondary, fontSize: 14, textAlign: "center" },
-  modalWrap: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: Colors.bgScrim },
-  modalCard: {
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: Colors.borderHover,
-    backgroundColor: Colors.bgElevated,
-    padding: 18,
-    gap: 14,
-  },
-  modalTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: "800" },
+  sheetTitle: { color: Colors.textPrimary, fontSize: 20, fontWeight: "800", marginBottom: 14 },
 });
 
 export default Library;

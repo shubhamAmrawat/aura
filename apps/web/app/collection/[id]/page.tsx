@@ -95,7 +95,7 @@ export default function CollectionPage() {
     try {
       const updated = await updateCollection(collection.id, {
         title: editTitle.trim(),
-        description: editDescription.trim() || undefined,
+        description: editDescription.trim() || null,
         isPublic: editIsPublic,
       });
       setCollection((prev) => prev ? { ...prev, ...updated } : prev);
@@ -235,6 +235,7 @@ export default function CollectionPage() {
               <input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
+                maxLength={60}
                 placeholder="Collection title"
                 className="w-full px-4 py-2.5 rounded-lg text-sm outline-none"
                 style={{ background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
@@ -244,6 +245,7 @@ export default function CollectionPage() {
               <textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
+                maxLength={300}
                 placeholder="Description (optional)"
                 rows={2}
                 className="w-full px-4 py-2.5 rounded-lg text-sm outline-none resize-none"

@@ -337,6 +337,7 @@ const BookmarkButton = ({
                     type="text"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
+                    maxLength={60}
                     placeholder="Collection name"
                     autoFocus
                     className="w-full px-3 py-2 rounded-lg text-sm outline-none"

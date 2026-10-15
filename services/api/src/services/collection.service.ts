@@ -90,13 +90,13 @@ export function listUserCollections(userId: string) {
     .orderBy(desc(collections.createdAt));
 }
 
-export async function createCollection(userId: string, input: { title: string; description?: any; isPublic?: any }) {
+export async function createCollection(userId: string, input: { title: string; description?: string | null; isPublic?: boolean }) {
   const [created] = await db
     .insert(collections)
     .values({
       userId,
-      title: input.title.trim(),
-      description: input.description?.trim() ?? null,
+      title: input.title,
+      description: input.description ?? null,
       isPublic: input.isPublic ?? false,
     })
     .returning();
@@ -114,12 +114,16 @@ async function findOwnedCollection(userId: string, id: string) {
   return row;
 }
 
-export async function updateCollection(userId: string, id: string, input: { title?: any; description?: any; isPublic?: any }) {
+export async function updateCollection(
+  userId: string,
+  id: string,
+  input: { title?: string; description?: string | null; isPublic?: boolean }
+) {
   await findOwnedCollection(userId, id);
 
   const updates: Record<string, any> = {};
-  if (input.title !== undefined) updates.title = input.title.trim();
-  if (input.description !== undefined) updates.description = input.description?.trim() ?? null;
+  if (input.title !== undefined) updates.title = input.title;
+  if (input.description !== undefined) updates.description = input.description;
   if (input.isPublic !== undefined) updates.isPublic = input.isPublic;
 
   const updated = await db.update(collections).set(updates).where(eq(collections.id, id)).returning();

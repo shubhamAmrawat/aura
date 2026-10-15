@@ -1,5 +1,5 @@
   import { router, useLocalSearchParams } from "expo-router";
-  import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+  import { useEffect, useMemo, useRef, useState } from "react";
   import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
   import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike, trackWallpaperView } from "../../lib/wallpaperApi";
   import { Wallpaper } from "../../lib/api";
@@ -16,8 +16,7 @@
   import WallpaperDock from "../../components/WallpaperDock";
   import LockClockPreview from "../../components/LockClockPreview";
   import DockAction from "../../components/DockAction";
-  import SaveSheet from "../../components/SaveSheet";
-  import { getSavedWallpaperIds } from "../../lib/collectionsApi";
+  import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
   import * as Haptics from "expo-haptics";
 
   export default function WallpaperDetail() {
@@ -86,8 +85,8 @@
     const [likeLoading, setLikeLoading] = useState(false);
     const [showClock, setShowClock] = useState(false);
     // Bookmark: filled when the wallpaper is in any of the user's collections.
-    const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-    const [showSaveSheet, setShowSaveSheet] = useState(false);
+    const { savedIds } = useCollections();
+    const { openSaveSheet } = useCollectionActions();
     const likeScale = useRef(new Animated.Value(1)).current;
 
     // ─── Layout ──────────────────────────────────────────────────────────────────
@@ -204,40 +203,11 @@
       setSimilarWallpapers(res);
     };
 
-    useEffect(() => {
-      if (!user) {
-        setSavedIds(new Set());
-        return;
-      }
-      let alive = true;
-      getSavedWallpaperIds()
-        .then((ids) => alive && setSavedIds(new Set(ids)))
-        .catch(() => undefined);
-      return () => {
-        alive = false;
-      };
-    }, [user]);
-
     const openSave = () => {
-      if (!user) {
-        showToast("Please login to save wallpapers.", { type: "info", position: "top" });
-        return;
-      }
+      if (!activeWallpaper) return;
       void Haptics.selectionAsync().catch(() => undefined);
-      setShowSaveSheet(true);
+      openSaveSheet(activeWallpaper);
     };
-
-    const onSavedChange = useCallback(
-      (saved: boolean) =>
-        setSavedIds((prev) => {
-          if (prev.has(activeWallpaperId) === saved) return prev;
-          const next = new Set(prev);
-          if (saved) next.add(activeWallpaperId);
-          else next.delete(activeWallpaperId);
-          return next;
-        }),
-      [activeWallpaperId]
-    );
 
     const handleToggleLike = async () => {
       if (!activeWallpaperId || likeLoading) return;
@@ -424,12 +394,6 @@
             Download · Apply · Details buttons go here (built next) */}
 
         
-        <SaveSheet
-          visible={showSaveSheet}
-          onClose={() => setShowSaveSheet(false)}
-          wallpaperId={activeWallpaperId}
-          onSavedChange={onSavedChange}
-        />
         {dockWallpaper ? (
           <WallpaperDock
             bottomOffset={bottomPadding + 16}

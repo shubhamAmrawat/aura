@@ -125,7 +125,7 @@ export async function deleteCollection(collectionId: string): Promise<void> {
 
 export async function updateCollection(
   collectionId: string,
-  payload: { title?: string; description?: string; isPublic?: boolean }
+  payload: { title?: string; description?: string | null; isPublic?: boolean }
 ): Promise<Collection> {
   const response = await fetch(`${API_URL}/api/collections/${collectionId}`, {
     method: "PUT",

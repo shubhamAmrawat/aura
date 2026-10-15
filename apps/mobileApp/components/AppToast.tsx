@@ -11,6 +11,7 @@ type AppToastProps = {
   type?: ToastType;
   position?: ToastPosition;
   onClose?: () => void;
+  action?: { label: string; onPress: () => void };
 };
 
 const TOAST_THEME: Record<ToastType, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
@@ -25,6 +26,7 @@ export default function AppToast({
   type = "info",
   position = "bottom",
   onClose,
+  action,
 }: AppToastProps) {
   if (!visible) return null;
   const theme = TOAST_THEME[type];
@@ -39,6 +41,11 @@ export default function AppToast({
         <Text style={styles.message} numberOfLines={2}>
           {message}
         </Text>
+        {action ? (
+          <Pressable onPress={action.onPress} hitSlop={8} style={styles.action} accessibilityRole="button">
+            <Text style={styles.actionText}>{action.label}</Text>
+          </Pressable>
+        ) : null}
         {!!onClose && (
           <Pressable onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={18} color={Colors.textSecondary} />
@@ -76,6 +83,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  action: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.accentMuted,
+  },
+  actionText: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: "800",
   },
   message: {
     flex: 1,

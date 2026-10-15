@@ -78,6 +78,28 @@ describe("collection lifecycle", () => {
     expect(res.body.collection.title).toBe("Renamed");
   });
 
+  it("create/update validation: lengths, types, clearing the description", async () => {
+    const long = "x".repeat(61);
+    expectError(await api("POST", "/api/collections", { token: owner.token, json: { title: long } }), 400, "Collection title must be 60 characters or fewer");
+    expectError(await api("POST", "/api/collections", { token: owner.token, json: { title: "ok", isPublic: "yes" } }), 400, "isPublic must be true or false");
+    expectError(await api("POST", "/api/collections", { token: owner.token, json: { title: "ok", description: 5 } }), 400, "Description must be text");
+    expectError(await api("POST", "/api/collections", { token: owner.token, json: { title: "ok", description: "d".repeat(301) } }), 400, "Description must be 300 characters or fewer");
+
+    expectError(await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: {} }), 400, "Nothing to update");
+    expectError(await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { title: "  " } }), 400, "Collection title is required");
+    expectError(await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { title: 7 } }), 400, "Collection title is required");
+    expectError(await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { title: long } }), 400, "Collection title must be 60 characters or fewer");
+    expectError(await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { isPublic: 1 } }), 400, "isPublic must be true or false");
+
+    const set = await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { description: "  hello  " } });
+    expect(set.status).toBe(200);
+    expect(set.body.collection).toMatchObject({ title: "Renamed", description: "hello" });
+    const cleared = await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { description: null } });
+    expect(cleared.body.collection.description).toBeNull();
+    const blank = await api("PUT", `/api/collections/${colId}`, { token: owner.token, json: { description: "   " } });
+    expect(blank.body.collection.description).toBeNull();
+  });
+
   it("add wallpapers: validation, ownership, cover, duplicates", async () => {
     expectError(await api("POST", `/api/collections/${colId}/wallpapers`, { token: owner.token, json: {} }), 400, "wallpaperId is required");
     expectError(await api("POST", `/api/collections/${colId}/wallpapers`, { token: other.token, json: { wallpaperId: wp1 } }), 404, "Collection not found");

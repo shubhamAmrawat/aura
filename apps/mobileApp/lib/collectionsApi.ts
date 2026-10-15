@@ -35,10 +35,21 @@ export async function getCollectionsForWallpaper(wallpaperId: string): Promise<C
   return res.data ?? [];
 }
 
-export async function createCollection(input: { title: string; isPublic: boolean }): Promise<Collection> {
+export async function createCollection(input: { title: string; isPublic: boolean; description?: string | null }): Promise<Collection> {
   const res = await request<{ collection: Collection }>("/api/collections", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+  return res.collection;
+}
+
+export async function updateCollection(
+  id: string,
+  patch: { title?: string; description?: string | null; isPublic?: boolean }
+): Promise<Collection> {
+  const res = await request<{ collection: Collection }>(`/api/collections/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(patch),
   });
   return res.collection;
 }

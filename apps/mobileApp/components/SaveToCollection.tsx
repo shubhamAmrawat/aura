@@ -3,26 +3,21 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { Colors } from "../constants";
-import {
-  addToCollection,
-  CollectionCheck,
-  getCollectionsForWallpaper,
-  removeFromCollection,
-} from "../lib/collectionsApi";
-import NewCollectionForm from "./NewCollectionForm";
+import { WallpaperTile } from "../lib/api";
+import { CollectionCheck, getCollectionsForWallpaper } from "../lib/collectionsApi";
+import { useCollectionActions } from "../lib/CollectionsContext";
+import CollectionForm from "./CollectionForm";
 
 type Props = {
-  wallpaperId: string;
-  /** Shows a back arrow when the view sits inside another sheet. */
-  onBack?: () => void;
-  /** Called whenever "is this wallpaper in any of my collections?" changes. */
-  onSavedChange?: (saved: boolean) => void;
+  wallpaper: WallpaperTile;
   /** Called shortly after a successful save, so the sheet can close itself. */
   onDone?: () => void;
 };
 
 /** Tick the collections this wallpaper belongs in, or make a new one. */
-const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props) => {
+const SaveToCollection = ({ wallpaper, onDone }: Props) => {
+  const wallpaperId = wallpaper.id;
+  const { addToCollection, removeFromCollection } = useCollectionActions();
   // After a save, close the sheet ~1.5 s later; any further tap in the sheet cancels that.
   const doneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelDone = () => {
@@ -64,13 +59,6 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
 
   useEffect(load, [load]);
 
-  const savedNow = rows ? rows.some((r) => r.hasWallpaper) : null;
-  const onSavedChangeRef = useRef(onSavedChange);
-  onSavedChangeRef.current = onSavedChange;
-  useEffect(() => {
-    if (savedNow !== null) onSavedChangeRef.current?.(savedNow);
-  }, [savedNow]);
-
   const setBusy = (id: string, on: boolean) =>
     setPending((s) => {
       const n = new Set(s);
@@ -87,8 +75,11 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
     setRows((rs) => rs?.map((r) => (r.id === row.id ? { ...r, hasWallpaper: next } : r)) ?? rs);
     void Haptics.selectionAsync().catch(() => undefined);
     try {
-      if (next) await addToCollection(row.id, wallpaperId);
-      else await removeFromCollection(row.id, wallpaperId);
+      if (next) await addToCollection(row.id, wallpaper);
+      else
+        await removeFromCollection(row.id, [wallpaperId], {
+          savedElsewhere: (rows ?? []).some((r) => r.id !== row.id && r.hasWallpaper),
+        });
       say(next ? `Saved to ${row.title}` : `Removed from ${row.title}`);
       if (next) scheduleDone();
     } catch {
@@ -104,7 +95,7 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
     setRows((rs) => [{ id: c.id, title: c.title, isPublic: c.isPublic, hasWallpaper: true }, ...(rs ?? [])]);
     setBusy(c.id, true);
     try {
-      await addToCollection(c.id, wallpaperId);
+      await addToCollection(c.id, wallpaper);
       say(`Saved to ${c.title}`);
       scheduleDone();
     } catch {
@@ -118,11 +109,6 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
   return (
     <View style={styles.wrap}>
       <View style={styles.titleRow}>
-        {onBack ? (
-          <Pressable onPress={onBack} hitSlop={10} accessibilityLabel="Back" style={styles.back}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
-          </Pressable>
-        ) : null}
         <Text style={styles.title}>Save to collection</Text>
       </View>
 
@@ -151,7 +137,7 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
         <ScrollView style={styles.list} contentContainerStyle={{ gap: 8 }} keyboardShouldPersistTaps="handled">
           {creating ? (
             <View style={styles.formCard}>
-              <NewCollectionForm onCreated={onCreated} onCancel={rows.length ? () => setCreating(false) : undefined} />
+              <CollectionForm mode="create" onDone={onCreated} onCancel={rows.length ? () => setCreating(false) : undefined} />
             </View>
           ) : (
             <Pressable onPress={() => { cancelDone(); setCreating(true); }} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
@@ -192,7 +178,6 @@ const SaveToCollection = ({ wallpaperId, onBack, onSavedChange, onDone }: Props)
 const styles = StyleSheet.create({
   wrap: { gap: 14 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  back: { padding: 2 },
   title: { color: Colors.textPrimary, fontSize: 20, fontWeight: "800" },
   status: {
     flexDirection: "row",
