@@ -12,6 +12,7 @@ import { useInsets } from "../../hooks/useInsets";
 import { useAuth } from "../../lib/AuthContext";
 import { PRIVACY_URL, TERMS_URL } from "../../lib/authConfig";
 import { useToast } from "../../lib/ToastContext";
+import { Sentry } from "../../lib/sentry";
 
 const CONTACT_URL = "https://www.aurora-walls.com/contact";
 const APP_VERSION = Constants.expoConfig?.version ?? "";
@@ -101,6 +102,19 @@ const Settings = () => {
           <SettingsRow icon="chatbubble-ellipses-outline" label="Contact & feedback" onPress={() => open(CONTACT_URL)} external divider />
           {APP_VERSION ? <SettingsRow icon="information-circle-outline" label="Version" value={APP_VERSION} divider /> : null}
         </SettingsSection>
+
+        {__DEV__ ? (
+          <SettingsSection title="Developer (dev builds only)">
+            <SettingsRow
+              icon="bug-outline"
+              label="Send test error to Sentry"
+              onPress={() => {
+                Sentry.captureException(new Error("Sentry test error from the Aurora app"), { tags: { test: "manual" } });
+                showToast("Test error sent. Check Sentry › Issues.", { type: "success", position: "top" });
+              }}
+            />
+          </SettingsSection>
+        ) : null}
 
         {user ? (
           <SettingsSection>

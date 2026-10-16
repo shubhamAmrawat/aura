@@ -1,4 +1,6 @@
-import { Stack } from "expo-router";
+// Sentry first, so errors during startup are reported too.
+import { navigationIntegration, Sentry } from "../lib/sentry";
+import { Stack, useNavigationContainerRef, type ErrorBoundaryProps } from "expo-router";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
@@ -10,10 +12,21 @@ import * as SystemUI from "expo-system-ui";
 import * as SecureStore from "expo-secure-store";
 import { Colors } from "../constants/colors";
 import SplashScreen from "../components/SplashScreen";
+import ErrorScreen from "../components/ErrorScreen";
 
 SystemUI.setBackgroundColorAsync(Colors.bgSecondary);
 
+/** A screen that crashes while rendering shows this instead of a blank screen. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <ErrorScreen error={error} retry={retry} />;
+}
+
 const RootLayout = () => {
+  const navigationRef = useNavigationContainerRef();
+  useEffect(() => {
+    if (navigationRef) navigationIntegration.registerNavigationContainer(navigationRef);
+  }, [navigationRef]);
+
   return (
     <SafeAreaProvider>
       <ScreenFilterProvider>
@@ -83,4 +96,4 @@ function AppGate() {
   );
 }
 
-export default RootLayout;
+export default Sentry.wrap(RootLayout);

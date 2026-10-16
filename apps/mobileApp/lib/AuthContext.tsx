@@ -4,6 +4,7 @@ import { User } from "./api";
 import { deleteToken, getToken, saveToken } from "./tokenStorage";
 import { getMe } from "./authApi";
 import { signOutOfGoogle } from "./googleAuth";
+import { Sentry } from "./sentry";
 type AuthContextType = {
   user: User | null;
   loaded: boolean
@@ -56,6 +57,11 @@ export function AuthProvider({children}:{children:ReactNode}){
     }
   };
   
+  // Crash reports say which account hit them (id only, no email or name).
+  useEffect(() => {
+    Sentry.setUser(user ? { id: user.id } : null);
+  }, [user?.id]);
+
   const onLogout = async () => {
     await deleteToken();
     void signOutOfGoogle(); // so the next Google sign-in shows the account picker again
