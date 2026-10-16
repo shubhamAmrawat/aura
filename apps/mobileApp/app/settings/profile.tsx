@@ -15,8 +15,6 @@ import * as ImagePicker from "expo-image-picker";
 import Header from "../../components/Header";
 import { Colors } from "../../constants";
 import { useAuth } from "../../lib/AuthContext";
-import { router } from "expo-router";
-import ConfirmModal from "../../components/ConfirmModal";
 import SignInPrompt from "../../components/SignInPrompt";
 import { useToast } from "../../lib/ToastContext";
 import { Images } from "../../constants";
@@ -47,10 +45,10 @@ function formatDate(value?: string) {
   });
 }
 
-export default function Profile() {
-  const { user, loaded, onLogout, setUser } = useAuth();
+/** Edit profile (opened from Settings): avatar, cover, bio, name, username, contact. */
+export default function EditProfile() {
+  const { user, loaded, setUser } = useAuth();
   const { showToast } = useToast();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -63,21 +61,6 @@ export default function Profile() {
     bio: "",
     contactNo: "",
   });
-
-  const handleLogout = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = async () => {
-    setShowLogoutConfirm(false);
-    try {
-      await onLogout();
-      showToast("Logged out successfully.", { type: "success" });
-      router.replace("/");
-    } catch {
-      showToast("Unable to log out right now. Please try again.", { type: "error" });
-    }
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -113,7 +96,7 @@ export default function Profile() {
   if (!loaded) {
     return (
       <View style={styles.container}>
-        <Header title="Profile" logo={false} titleFontSize={20} />
+        <Header title="Edit profile" logo={false} titleFontSize={20} showBackButton />
         <View style={styles.centerState}>
           <Text style={styles.stateTitle}>Loading profile...</Text>
           <Text style={styles.stateSubtext}>Fetching your account details.</Text>
@@ -125,7 +108,7 @@ export default function Profile() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Header title="Profile" logo={false} titleFontSize={20} />
+        <Header title="Edit profile" logo={false} titleFontSize={20} showBackButton />
         <SignInPrompt icon="person-outline" title="Your Aurora profile" text="Sign in to set your avatar, keep your likes and download history." />
       </View>
     );
@@ -349,7 +332,7 @@ export default function Profile() {
 
   return (
     <View style={styles.container}>
-      <Header title="Profile" logo={false} titleFontSize={20} />
+      <Header title="Edit profile" logo={false} titleFontSize={20} showBackButton />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -595,22 +578,7 @@ export default function Profile() {
           </View>
         </View>
 
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={18} color="#ffffff" />
-          <Text style={styles.logoutText}>Log out</Text>
-        </Pressable>
       </ScrollView>
-      <ConfirmModal
-        visible={showLogoutConfirm}
-        title="Confirm Logout"
-        message="Are you sure you want to log out from your account?"
-        confirmText="Yes, Logout"
-        confirmVariant="danger"
-        onCancel={() => setShowLogoutConfirm(false)}
-        onConfirm={() => {
-          void confirmLogout();
-        }}
-      />
       <Modal
         visible={Boolean(sourcePickerTarget)}
         transparent
@@ -961,21 +929,6 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: Colors.bgPrimary,
     fontSize: 14,
-    fontWeight: "700",
-  },
-  logoutButton: {
-    marginTop: 6,
-    backgroundColor: "#D64545",
-    borderRadius: 12,
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  logoutText: {
-    color: "#ffffff",
-    fontSize: 15,
     fontWeight: "700",
   },
   sourceBackdrop: {

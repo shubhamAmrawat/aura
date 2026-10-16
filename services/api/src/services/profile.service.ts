@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { env } from "../config/env";
 import { collections, collectionWallpapers, downloads, likes, otps, users, wallpapers } from "../models";
@@ -146,29 +146,47 @@ export async function confirmPasswordChange(userId: string, otp: unknown, newPas
 const r2KeyFromUrl = keyFromPublicUrl;
 
 /**
- * Delete the account after a password check, together with everything it owns:
+ * Delete the account after verification (emailed code always; password too when the
+ * account has one), together with everything it owns:
  * likes (like counts are decremented), collections, uploaded wallpapers (and every
  * like / collection entry / download row pointing at them), OTPs, then the user.
  * The user's own download history is kept anonymously (user_id → NULL).
  * DB work runs in one transaction; R2 files are removed afterwards (best effort).
  */
+const DELETE_CODE_COOLDOWN_SECONDS = 60;
+
+/** Every account confirms deletion with a code emailed to it (at most one email a minute). */
 export async function sendDeleteAccountOtp(userId: string) {
   const user = await getUserOrThrow(userId);
-  if (user.passwordHash) throw new ApiError(400, "Use your password to delete your account.");
+  const recent = await db
+    .select({ id: otps.id })
+    .from(otps)
+    .where(
+      and(
+        eq(otps.email, user.email),
+        eq(otps.type, "account_delete"),
+        gt(otps.createdAt, sql`NOW() - make_interval(secs => ${DELETE_CODE_COOLDOWN_SECONDS})`)
+      )
+    )
+    .limit(1);
+  if (recent.length > 0) throw new ApiError(429, "Please wait a minute before requesting another code.");
   await issueOtp(user.email, "account_delete");
 }
 
+/**
+ * Proof: { otp } from POST /api/profile/delete/otp, plus { password } when the account has one.
+ * The password is checked first so a wrong password never uses up code attempts.
+ */
 export async function deleteAccount(userId: string, proof: { password?: unknown; otp?: unknown }) {
   const user = await getUserOrThrow(userId);
 
   if (user.passwordHash) {
-    const valid = await bcrypt.compare(proof.password as string, user.passwordHash);
+    if (typeof proof.password !== "string" || !proof.password) throw new ApiError(400, "Password is required.");
+    const valid = await bcrypt.compare(proof.password, user.passwordHash);
     if (!valid) throw new ApiError(400, "Incorrect password.");
-  } else {
-    // Google-only account: confirm with the code from POST /api/profile/delete/otp
-    if (!proof.otp) throw new ApiError(400, "Verification code is required.");
-    await checkOtp(user.email, "account_delete", proof.otp, () => "Incorrect OTP.");
   }
+  if (!proof.otp) throw new ApiError(400, "Verification code is required.");
+  await checkOtp(user.email, "account_delete", proof.otp, () => "Incorrect OTP.");
 
   await purgeAccount(user);
 }

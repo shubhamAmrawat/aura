@@ -18,6 +18,9 @@ export type User = {
   usernameChangedAt?: string | null
   createdAt?: string
   role?: "user" | "admin"
+  /** From /me: false for Google-only accounts (they confirm sensitive actions with an emailed code). */
+  hasPassword?: boolean
+  googleLinked?: boolean
 }
 export type Wallpaper = {
   id: string

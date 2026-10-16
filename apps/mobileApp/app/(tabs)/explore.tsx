@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useInsets } from "../../hooks/useInsets";
 import SearchBar from "../../components/searchBar";
+import AvatarButton from "../../components/AvatarButton";
 import MasonryFeed from "../../components/MasonryFeed";
 import ExploreDiscover from "../../components/ExploreDiscover";
 import { Colors } from "../../constants";
@@ -80,7 +81,8 @@ const Explore = () => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.searchHeader, { paddingTop: topPadding + 10 }]}>
+      <View style={[styles.searchHeader, styles.searchRow, { paddingTop: topPadding + 10 }]}>
+        <View style={styles.searchFlex}>
         <SearchBar
           value={query}
           onChangeText={(v) => {
@@ -91,6 +93,8 @@ const Explore = () => {
           isActive={Boolean(activeQuery)}
           onClear={clear}
         />
+        </View>
+        <AvatarButton />
       </View>
 
       {showSuggestions ? (
@@ -139,6 +143,8 @@ const Explore = () => {
 };
 
 const styles = StyleSheet.create({
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  searchFlex: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: Colors.bgSecondary,

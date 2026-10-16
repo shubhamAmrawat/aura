@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
+import AvatarButton from "../../components/AvatarButton";
 import Header from "../../components/Header";
 import MasonryFeed from "../../components/MasonryFeed";
 import CollectionForm from "../../components/CollectionForm";
@@ -59,7 +60,7 @@ const Library = () => {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Header title="Library" logo={false} titleFontSize={20} />
+        <Header title="Library" logo={false} titleFontSize={20} rightElement={<AvatarButton />} />
         <SignInPrompt
           icon="albums-outline"
           title="Your wallpapers, in one place"
@@ -81,7 +82,7 @@ const Library = () => {
 
   return (
     <View style={styles.container}>
-      <Header title="Library" logo={false} titleFontSize={20} />
+      <Header title="Library" logo={false} titleFontSize={20} rightElement={<AvatarButton />} />
 
       <View style={styles.segment} accessibilityRole="tablist">
         {(["liked", "collections"] as const).map((s) => {

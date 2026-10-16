@@ -182,7 +182,7 @@ export async function uploadCoverDirect(file: File): Promise<string> {
 }
 
 /** Confirm with { password }, or { otp } for accounts without a password. */
-export async function deleteAccount(proof: { password: string } | { otp: string }): Promise<void> {
+export async function deleteAccount(proof: { otp: string; password?: string }): Promise<void> {
   const response = await fetch(`${getApiUrl()}/api/profile`, {
     method: "DELETE",
     headers: jsonHeaders(),

@@ -207,14 +207,50 @@ describe("uploads management", () => {
   });
 });
 
+/** Request the account-deletion code and read it back from the DB. */
+async function deleteCode(u: TestUser) {
+  const sent = await api("POST", "/api/profile/delete/otp", { token: u.token });
+  expect(sent.status).toBe(200);
+  expect(sent.body).toEqual({ message: "We've sent a code to your email." });
+  return readOtp(u.email, "account_delete");
+}
+
 describe("DELETE /api/profile (account)", () => {
-  it("wrong password → 400", async () => {
-    expectError(await api("DELETE", "/api/profile", { token: user.token, json: { password: "wrong-password" } }), 400, "Incorrect password.");
+  it("needs auth; wrong or missing password → 400 before any code is checked", async () => {
+    expectError(await api("POST", "/api/profile/delete/otp"), 401, "Unauthorized");
+    expectError(await api("DELETE", "/api/profile", { token: user.token, json: { password: "wrong-password", otp: "123456" } }), 400, "Incorrect password.");
+    expectError(await api("DELETE", "/api/profile", { token: user.token, json: { otp: "123456" } }), 400, "Password is required.");
   });
 
-  it("deletes a fresh account", async () => {
+  it("a password alone is not enough: the emailed code is required", async () => {
+    expectError(await api("DELETE", "/api/profile", { token: user.token, json: { password: user.password } }), 400, "Verification code is required.");
+  });
+
+  it("code requests are limited to one a minute", async () => {
+    const code = await deleteCode(user);
+    expect(code).toMatch(/^\d{6}$/);
+    expectError(await api("POST", "/api/profile/delete/otp", { token: user.token }), 429, "Please wait a minute before requesting another code.");
+  });
+
+  it("wrong code → 400 and the account stays", async () => {
+    expectError(await api("DELETE", "/api/profile", { token: user.token, json: { password: user.password, otp: "000000" } }), 400, "Incorrect OTP.");
+    expect((await sql`SELECT 1 FROM users WHERE id = ${user.id}`).length).toBe(1);
+  });
+
+  it("an account without a password (Google sign-up) deletes with the code alone", async () => {
+    const g = await createUser("prof-del-google");
+    await sql`UPDATE users SET password_hash = NULL WHERE id = ${g.id}`;
+    expectError(await api("DELETE", "/api/profile", { token: g.token, json: {} }), 400, "Verification code is required.");
+    const otp = await deleteCode(g);
+    const res = await api("DELETE", "/api/profile", { token: g.token, json: { otp } });
+    expect(res.status).toBe(200);
+    expect((await sql`SELECT 1 FROM users WHERE id = ${g.id}`).length).toBe(0);
+  });
+
+  it("deletes a fresh account (password + code)", async () => {
     const fresh = await createUser("prof-delete");
-    const res = await api("DELETE", "/api/profile", { token: fresh.token, json: { password: fresh.password } });
+    const otp = await deleteCode(fresh);
+    const res = await api("DELETE", "/api/profile", { token: fresh.token, json: { password: fresh.password, otp } });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: "Account deleted successfully." });
     expect((await sql`SELECT 1 FROM users WHERE id = ${fresh.id}`).length).toBe(0);
@@ -233,7 +269,8 @@ describe("DELETE /api/profile (account)", () => {
     await api("POST", `/api/collections/${otherCol.body.collection.id}/wallpapers`, { token: someoneElse.token, json: { wallpaperId: ownWp } });
     await api("POST", `/api/wallpapers/${othersWp}/download`, { token: owner.token });
 
-    const res = await api("DELETE", "/api/profile", { token: owner.token, json: { password: owner.password } });
+    const otp = await deleteCode(owner);
+    const res = await api("DELETE", "/api/profile", { token: owner.token, json: { password: owner.password, otp } });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ message: "Account deleted successfully." });
 

@@ -146,3 +146,43 @@ export async function uploadCoverDirect(fileUri: string, mimeType: string): Prom
   const data = await parseJson<{ coverUrl: string }>(response);
   return data.coverUrl;
 }
+
+// ─── Password & account ──────────────────────────────────────────
+
+/** Step 1 of changing the password: checks the current one, then emails a code. */
+export function startPasswordChange(currentPassword: string): Promise<{ message: string }> {
+  return request("/api/profile/change-password/verify", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword }),
+  });
+}
+
+/** Step 2: the emailed code + the new password (8+ characters). */
+export function confirmPasswordChange(otp: string, newPassword: string): Promise<{ message: string }> {
+  return request("/api/profile/change-password/confirm", {
+    method: "POST",
+    body: JSON.stringify({ otp, newPassword }),
+  });
+}
+
+/** Every account confirms deletion with a code sent to its email (at most one a minute). */
+export function sendDeleteAccountCode(): Promise<{ message: string }> {
+  return request("/api/profile/delete/otp", { method: "POST" });
+}
+
+/** Permanently deletes the account and everything it owns. Proof: the emailed code, plus the password if the account has one. */
+export function deleteAccount(proof: { otp: string; password?: string }): Promise<{ message: string }> {
+  return request("/api/profile", { method: "DELETE", body: JSON.stringify(proof) });
+}
+
+/**
+ * Accounts without a password (Google sign-up) add one through the reset flow:
+ * POST /api/auth/forgot-password emails a code (at most one a minute), then this sets the password.
+ */
+export function requestSetPasswordCode(email: string): Promise<{ message: string }> {
+  return request("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+}
+
+export function setPasswordWithCode(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
+  return request("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ email, otp, newPassword }) });
+}

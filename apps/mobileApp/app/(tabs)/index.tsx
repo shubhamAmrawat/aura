@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { StyleSheet, View } from "react-native";
+import AvatarButton from "../../components/AvatarButton";
 import Header from "../../components/Header";
 import HomeSections from "../../components/HomeSections";
 import MasonryFeed from "../../components/MasonryFeed";
@@ -23,11 +22,7 @@ const Home = () => {
     <View style={styles.container}>
       <Header
         logo
-        rightElement={
-          <Pressable onPress={() => router.navigate("/explore")} hitSlop={10} style={styles.searchBtn} accessibilityLabel="Search">
-            <Ionicons name="search" size={20} color={Colors.textPrimary} />
-          </Pressable>
-        }
+        rightElement={<AvatarButton />}
       />
       <MasonryFeed
         feed={feed}
@@ -42,14 +37,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.bgSecondary,
-  },
-  searchBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.bgElevated,
   },
 });
 

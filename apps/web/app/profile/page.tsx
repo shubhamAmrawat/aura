@@ -461,13 +461,11 @@ export default function ProfilePage() {
 
   async function handleDeleteAccount() {
     if (delConfirm !== "DELETE") { toast('Type "DELETE" to confirm.', "error"); return; }
-    if (noPassword ? delOtp.length !== 6 : !delPw) {
-      toast(noPassword ? "Enter the 6-digit code from your email." : "Password is required.", "error");
-      return;
-    }
+    if (!noPassword && !delPw) { toast("Password is required.", "error"); return; }
+    if (delOtp.length !== 6) { toast("Enter the 6-digit code from your email.", "error"); return; }
     setDeleting(true);
     try {
-      await deleteAccount(noPassword ? { otp: delOtp } : { password: delPw });
+      await deleteAccount(noPassword ? { otp: delOtp } : { password: delPw, otp: delOtp });
       setAuthUser(null);
       await refreshUser();
       router.push("/");
@@ -737,19 +735,18 @@ export default function ProfilePage() {
                       Permanently deletes your account, avatar, and all data. This cannot be undone.
                     </p>
                     <div className="space-y-3">
-                      {noPassword ? (
-                        delCodeSent ? (
-                          <input value={delOtp} onChange={(e) => setDelOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code from your email" className="tracking-widest text-center" style={inputStyleBase} />
-                        ) : (
-                          <button onClick={handleSendDeleteCode} className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                            Email me a confirmation code
-                          </button>
-                        )
-                      ) : (
+                      {!noPassword && (
                         <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
                       )}
+                      {delCodeSent ? (
+                        <input value={delOtp} onChange={(e) => setDelOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code from your email" className="tracking-widest text-center" style={inputStyleBase} />
+                      ) : (
+                        <button onClick={handleSendDeleteCode} className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+                          Email me a confirmation code
+                        </button>
+                      )}
                       <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder='Type "DELETE" to confirm' style={{ ...inputStyleBase, borderColor: delConfirm === "DELETE" ? "#ef4444" : "var(--border)" }} />
-                      <button onClick={handleDeleteAccount} disabled={deleting || (noPassword ? delOtp.length !== 6 : !delPw) || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
+                      <button onClick={handleDeleteAccount} disabled={deleting || (!noPassword && !delPw) || delOtp.length !== 6 || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
                         {deleting ? "Deleting account…" : "Delete my account"}
                       </button>
                     </div>

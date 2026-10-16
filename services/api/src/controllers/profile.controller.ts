@@ -115,13 +115,13 @@ export async function confirmPasswordChange(req: Request, res: Response) {
 
 // ─── Account ───────────────────────────────────────────────
 
-/** Accounts without a password (Google sign-up) confirm deletion with an emailed code. */
+/** Emails the code every account needs to confirm deletion (429 if asked again within a minute). */
 export async function sendDeleteAccountOtp(req: Request, res: Response) {
   await profileService.sendDeleteAccountOtp(authUserId(req));
   res.json({ message: "We've sent a code to your email." });
 }
 
-/** DELETE /api/profile — body { password } or, for accounts without a password, { otp } */
+/** DELETE /api/profile — body { otp } (from POST /delete/otp), plus { password } if the account has one */
 export async function deleteAccount(req: Request, res: Response) {
   await profileService.deleteAccount(authUserId(req), { password: req.body?.password, otp: req.body?.otp });
   res.json({ message: "Account deleted successfully." });
