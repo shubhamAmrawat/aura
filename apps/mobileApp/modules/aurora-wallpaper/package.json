@@ -1,0 +1,7 @@
+{
+  "name": "aurora-wallpaper",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "description": "Sets the wallpaper from a file without an Activity (used by the background wallpaper changer)."
+}

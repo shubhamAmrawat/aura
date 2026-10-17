@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import Constants from "expo-constants";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import ConfirmModal from "../../components/ConfirmModal";
 import Header from "../../components/Header";
 import { SettingsRow, SettingsSection } from "../../components/SettingsRow";
@@ -13,6 +13,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { PRIVACY_URL, TERMS_URL } from "../../lib/authConfig";
 import { useToast } from "../../lib/ToastContext";
 import { Sentry } from "../../lib/sentry";
+import { intervalLabel, loadState } from "../../lib/wallpaperChanger/state";
 
 const CONTACT_URL = "https://www.aurora-walls.com/contact";
 const APP_VERSION = Constants.expoConfig?.version ?? "";
@@ -26,6 +27,16 @@ const Settings = () => {
   const { showToast } = useToast();
   const { bottomPadding } = useInsets();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [changer, setChanger] = useState<string>("");
+
+  // Status for the Wallpaper changer row ("Every 6 h" / "Off"); refreshed when returning here.
+  useFocusEffect(
+    useCallback(() => {
+      loadState()
+        .then((s) => setChanger(s.enabled ? intervalLabel(s.intervalHours) : "Off"))
+        .catch(() => setChanger(""));
+    }, [])
+  );
 
   const open = (url: string) => {
     Linking.openURL(url).catch(() => showToast("Couldn't open the link.", { type: "error", position: "top" }));
@@ -85,6 +96,10 @@ const Settings = () => {
             </Pressable>
           </View>
         )}
+
+        <SettingsSection title="Wallpaper">
+          <SettingsRow icon="sync-outline" label="Wallpaper changer" value={changer} onPress={() => router.push("/settings/wallpaper-changer")} />
+        </SettingsSection>
 
         {user && user.hasPassword !== undefined ? (
           <SettingsSection title="Security">
