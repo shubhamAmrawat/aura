@@ -20,6 +20,15 @@ import { Modal, StatusBadge, Toggle, inputStyle } from "../_components/ui";
 const PAGE = 50;
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—");
+/** Exact time in the admin's own time zone, e.g. "Sat, 17 Oct 2026, 9:45 PM". */
+const exact = (iso: string | null) => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${day}, ${time}`;
+};
+
 const ago = (iso: string | null) => {
   if (!iso) return "—";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -213,7 +222,9 @@ function UsersManager() {
                 <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{fmt(u.downloads)}</td>
                 <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: "var(--text-secondary)" }}>{fmt(u.likes)}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{date(u.createdAt)}</td>
-                <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>{ago(u.lastActiveAt)}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: "var(--text-secondary)" }} title={u.lastActiveAt ? ago(u.lastActiveAt) : undefined}>
+                  {exact(u.lastActiveAt)}
+                </td>
               </tr>
             ))}
             {rows && rows.length === 0 && (

@@ -165,9 +165,11 @@ describe("POST /api/auth/google (real verification)", () => {
 });
 
 describe("account deletion without a password", () => {
-  it("password accounts can't request a delete code", async () => {
+  it("password accounts also get a delete code (the code is required for every account)", async () => {
     const u = await createUser("del-haspw");
-    expectError(await api("POST", "/api/profile/delete/otp", { token: u.token }), 400, "Use your password to delete your account.");
+    const sent = await api("POST", "/api/profile/delete/otp", { token: u.token });
+    expect(sent.status).toBe(200);
+    expect(sent.body).toEqual({ message: "We've sent a code to your email." });
   });
 
   it("passwordless accounts confirm with an emailed code", async () => {

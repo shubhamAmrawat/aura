@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { verifyToken } from "../utils/jwt";
 import { ApiError } from "../utils/ApiError";
 import { ACCOUNT_DISABLED_MESSAGE, accountStatus } from "../utils/accountStatus";
+import { touchLastActive } from "../utils/lastActive";
 
 /** JWT from the httpOnly `aura_token` cookie or `Authorization: Bearer` — cookie wins. */
 export function getAuthToken(req: Request): string | undefined {
@@ -28,6 +29,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
       if (status === "disabled") return next(new ApiError(403, ACCOUNT_DISABLED_MESSAGE));
       req.userId = payload.userId;
       req.userEmail = payload.email;
+      if (status === "active") touchLastActive(payload.userId);
       next();
     })
     .catch(next);
@@ -48,6 +50,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
       if (status !== "disabled") {
         req.userId = payload.userId;
         req.userEmail = payload.email;
+        if (status === "active") touchLastActive(payload.userId);
       }
       next();
     })

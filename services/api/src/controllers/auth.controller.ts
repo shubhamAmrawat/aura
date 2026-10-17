@@ -18,11 +18,14 @@ import {
 } from "../validators/auth.schema";
 import * as authService from "../services/auth.service";
 import { ACCOUNT_DISABLED_MESSAGE, accountStatus } from "../utils/accountStatus";
+import { touchLastActive } from "../utils/lastActive";
 
-/** Token's user id, refusing accounts an admin has disabled. */
+/** Token's user id, refusing accounts an admin has disabled. Counts as activity (Last active). */
 async function activeUserIdFromToken(req: Parameters<typeof userIdFromToken>[0]) {
   const id = userIdFromToken(req);
-  if ((await accountStatus(id)) === "disabled") throw new ApiError(403, ACCOUNT_DISABLED_MESSAGE);
+  const status = await accountStatus(id);
+  if (status === "disabled") throw new ApiError(403, ACCOUNT_DISABLED_MESSAGE);
+  if (status === "active") touchLastActive(id);
   return id;
 }
 
@@ -45,6 +48,7 @@ export const signup = route("Failed to create account", async (req, res) => {
 
   const { user, token } = await authService.signup(body);
   setAuthCookie(res, token);
+  touchLastActive(user.id);
   await authService.clearOtps(body.email, "signup");
 
   res.json({
@@ -58,6 +62,7 @@ export const login = route("Failed to login", async (req, res) => {
   const email = req.body?.email;
   const { user, token } = await authService.login(email);
   setAuthCookie(res, token);
+  touchLastActive(user.id);
   await authService.clearOtps(email, "login");
 
   res.json({
@@ -162,6 +167,7 @@ export const loginWithPassword = route("Failed to login", async (req, res) => {
   }
   const { user, token } = await authService.loginWithPassword(email, password);
   setAuthCookie(res, token);
+  touchLastActive(user.id);
   res.json(loginResponse(user, token));
 });
 
@@ -170,6 +176,7 @@ export const loginWithGoogle = route("Google sign-in failed.", async (req, res) 
   const { credential } = parseOrThrow(GoogleLoginBody, req.body);
   const { user, token, isNewUser } = await authService.loginWithGoogle(credential);
   setAuthCookie(res, token);
+  touchLastActive(user.id);
   res.json({ ...loginResponse(user, token), isNewUser });
 });
 

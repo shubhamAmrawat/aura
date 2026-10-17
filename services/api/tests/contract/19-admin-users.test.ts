@@ -54,6 +54,23 @@ describe("GET /api/admin/users", () => {
     expect((await call("GET", `?q=${alice.username}`)).body.data.map((u: any) => u.id)).toEqual([alice.id]);
   });
 
+  it("last active: signing in / signed-in requests update it, listed as ISO UTC", async () => {
+    // createUser signs up via the API, which counts as activity (later /me calls are throttled to 1 per 5 min)
+    const fresh = await createUser("adm-last-active");
+    expect((await api("GET", "/api/auth/me", { token: fresh.token })).status).toBe(200);
+    // the write is fire-and-forget; give it a moment
+    let t: Date | null = null;
+    for (let i = 0; i < 20 && !t; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      t = (await sql<{ t: Date | null }[]>`SELECT last_active_at AS t FROM users WHERE id = ${fresh.id}`)[0]!.t;
+    }
+    expect(t).not.toBeNull();
+    const listed = (await call("GET", `?q=${encodeURIComponent(fresh.email)}`)).body.data[0];
+    // explicit UTC ("…Z") so no server/browser timezone can shift it
+    expect(listed.lastActiveAt).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+    expect(Math.abs(Date.now() - new Date(listed.lastActiveAt).getTime())).toBeLessThan(5 * 60_000);
+  });
+
   it("filters + sort + validation", async () => {
     const ids = (r: any) => r.body.data.map((u: any) => u.id);
     const run = RUN(alice.email);

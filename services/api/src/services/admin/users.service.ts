@@ -23,10 +23,16 @@ export type UserListFilters = {
 const uploadsCount = sql<number>`(SELECT count(*)::int FROM wallpapers w WHERE w.uploader_id = ${sql.raw(`"users"."id"`)})`;
 const downloadsCount = sql<number>`(SELECT count(*)::int FROM downloads d WHERE d.user_id = ${sql.raw(`"users"."id"`)})`;
 const likesCount = sql<number>`(SELECT count(*)::int FROM likes l WHERE l.user_id = ${sql.raw(`"users"."id"`)})`;
+// Newest of: last signed-in request (users.last_active_at), download, like, upload.
 const lastActive = sql<Date | null>`GREATEST(
+  ${users.lastActiveAt},
   (SELECT max(d.created_at) FROM downloads d WHERE d.user_id = ${sql.raw(`"users"."id"`)}),
   (SELECT max(l.created_at) FROM likes l WHERE l.user_id = ${sql.raw(`"users"."id"`)}),
   (SELECT max(w.created_at) FROM wallpapers w WHERE w.uploader_id = ${sql.raw(`"users"."id"`)}))`;
+
+// Columns are `timestamp` (no zone) holding UTC. Emit an explicit ISO-UTC string so the
+// Node driver can't reinterpret it in the server's local zone (IST on dev machines).
+const lastActiveIso = sql<string | null>`to_char(${lastActive}, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`;
 
 const isLocked = sql<boolean>`(${users.lockedUntil} IS NOT NULL AND ${users.lockedUntil} > now())`;
 
@@ -50,7 +56,7 @@ const listSelect = {
   uploads: uploadsCount,
   downloads: downloadsCount,
   likes: likesCount,
-  lastActiveAt: lastActive,
+  lastActiveAt: lastActiveIso,
   createdAt: users.createdAt,
 };
 

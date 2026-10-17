@@ -40,6 +40,8 @@ export const users = pgTable("users", {
   disabledAt: timestamp("disabled_at"),
   disabledReason: text("disabled_reason"),
   disabledBy: uuid("disabled_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+  /** Last signed-in request from the website or app (updated at most every 5 min; see utils/lastActive) */
+  lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   
