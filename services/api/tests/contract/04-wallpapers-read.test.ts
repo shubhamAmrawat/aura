@@ -73,7 +73,9 @@ describe("GET /api/wallpapers", () => {
     const res = await api("GET", `/api/wallpapers?category=${cat!.slug}&limit=20`);
     expectFeedShape(res.body);
     expect(res.body.data.length).toBeGreaterThan(0);
-    for (const w of res.body.data) expect(w.categoryId).toBe(cat!.id);
+    // A wallpaper is in the category through its main category or an extra one (wallpaper_categories).
+    const extra = new Set((await sql<{ id: string }[]>`SELECT wallpaper_id AS id FROM wallpaper_categories WHERE category_id = ${cat!.id}`).map((r) => r.id));
+    for (const w of res.body.data) expect(w.categoryId === cat!.id || extra.has(w.id)).toBe(true);
     const none = await api("GET", "/api/wallpapers?category=__no_such_category__");
     expect(none.body).toEqual({ data: [], count: 0, hasMore: false });
   });
