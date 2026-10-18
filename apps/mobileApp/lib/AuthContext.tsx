@@ -41,20 +41,19 @@ export function AuthProvider({children}:{children:ReactNode}){
     }
     restoreSession();
   },[])
-  // Login responses only carry basic fields (no cover, bio, etc.), so load the
-  // full profile from /me right away; fall back to the basic user if that fails.
+  // Login responses only carry basic fields (no cover, bio, etc.), so the full profile
+  // is loaded from /me in the background — the app moves on right away with the basic user.
   const onLogin = async (token: string, user: User) => {
     if (user.role === "admin") {
       throw new Error(ADMIN_ONLY_WEB);
     }
     await saveToken(token);
     setUser(user);
-    try {
-      const { user: full } = await getMe();
-      setUser(full);
-    } catch {
-      // keep the basic user; the next app start will load the full profile
-    }
+    getMe()
+      .then(({ user: full }) => setUser(full))
+      .catch(() => {
+        // keep the basic user; the next app start will load the full profile
+      });
   };
   
   // Crash reports say which account hit them (id only, no email or name).

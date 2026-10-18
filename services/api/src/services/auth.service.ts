@@ -1,11 +1,12 @@
 import bcrypt from "bcryptjs";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { otps, users } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { generateOTP, getOTPExpiry, isOTPExpired } from "../utils/otp";
 import { generateToken } from "../utils/jwt";
 import { ACCOUNT_DISABLED_MESSAGE } from "../utils/accountStatus";
+import { timed } from "../utils/timing";
 
 /** Disabled accounts can't get a session by any route (password, code, Google, reset). */
 function assertNotDisabled(user: { disabledAt: Date | null }) {
@@ -16,8 +17,14 @@ import { googleAudiences, verifyGoogleIdToken } from "../integrations/google";
 import { importGoogleAvatar, isGoogleAvatarUrl } from "../integrations/avatarImport";
 import type { OtpType } from "../validators/auth.schema";
 
+/**
+ * bcrypt work factor for new password hashes. 10 is bcrypt's standard default (~4× faster than 12,
+ * which took seconds on a small server CPU). Existing hashes keep their own cost and still verify.
+ */
+export const BCRYPT_COST = 10;
+
 async function findUserByEmail(email: string) {
-  const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const rows = await timed("db: find user", () => db.select().from(users).where(eq(users.email, email)).limit(1));
   return rows[0];
 }
 
@@ -31,9 +38,11 @@ export async function issueOtp(email: string, type: string) {
   const otp = generateOTP();
   const expiresAt = getOTPExpiry();
 
-  await db.delete(otps).where(and(eq(otps.email, email), eq(otps.type, type)));
-  await db.insert(otps).values({ email, code: otp, type, expiresAt });
-  await sendOTPEmail(email, otp, type as OtpType);
+  await timed("db: save code", async () => {
+    await db.delete(otps).where(and(eq(otps.email, email), eq(otps.type, type)));
+    await db.insert(otps).values({ email, code: otp, type, expiresAt });
+  });
+  await timed("email: send", () => sendOTPEmail(email, otp, type as OtpType));
 }
 
 export async function sendOtp(email: string, type: string) {
@@ -57,11 +66,13 @@ export async function checkOtp(
   code: unknown,
   wrongCodeMessage: (attemptsSoFar: number) => string
 ) {
-  const [otp] = await db
-    .select()
-    .from(otps)
-    .where(and(eq(otps.email, email), eq(otps.type, type), eq(otps.verified, false)))
-    .limit(1);
+  const [otp] = await timed("db: find code", () =>
+    db
+      .select()
+      .from(otps)
+      .where(and(eq(otps.email, email), eq(otps.type, type), eq(otps.verified, false)))
+      .limit(1)
+  );
 
   if (!otp) throw new ApiError(400, "Invalid OTP. Please request a new one.");
   if (otp.attempts >= 3) throw new ApiError(429, "Too many attempts. Please request a new OTP.");
@@ -72,7 +83,7 @@ export async function checkOtp(
     throw new ApiError(400, wrongCodeMessage(otp.attempts));
   }
 
-  await db.update(otps).set({ verified: true }).where(eq(otps.id, otp.id));
+  await timed("db: mark code used", () => db.update(otps).set({ verified: true }).where(eq(otps.id, otp.id)));
 }
 
 export async function verifyOtp(email: string, code: unknown, type: string) {
@@ -83,33 +94,38 @@ export async function verifyOtp(email: string, code: unknown, type: string) {
 }
 
 async function hasVerifiedOtp(email: string, type: string) {
-  const rows = await db
-    .select()
-    .from(otps)
-    .where(and(eq(otps.email, email), eq(otps.type, type), eq(otps.verified, true)))
-    .limit(1);
+  const rows = await timed("db: verified code", () =>
+    db
+      .select()
+      .from(otps)
+      .where(and(eq(otps.email, email), eq(otps.type, type), eq(otps.verified, true)))
+      .limit(1)
+  );
   return rows.length > 0;
 }
 
 export async function signup(input: { email: string; username: string; displayName: string; password: string }) {
-  if (!(await hasVerifiedOtp(input.email, "signup"))) {
-    throw new ApiError(400, "Email not verified. Please complete OTP first.");
-  }
-
-  const taken = await db.select().from(users).where(eq(users.username, input.username)).limit(1);
+  // Independent checks, run together (each is a round trip to the database).
+  const [verified, taken] = await Promise.all([
+    hasVerifiedOtp(input.email, "signup"),
+    timed("db: username taken", () => db.select({ id: users.id }).from(users).where(eq(users.username, input.username)).limit(1)),
+  ]);
+  if (!verified) throw new ApiError(400, "Email not verified. Please complete OTP first.");
   if (taken.length > 0) throw new ApiError(409, "Username already taken.");
 
-  const passwordHash = await bcrypt.hash(input.password, 12);
-  const [created] = await db
-    .insert(users)
-    .values({
-      email: input.email,
-      username: input.username,
-      displayName: input.displayName,
-      passwordHash,
-      isEmailVerified: true,
-    })
-    .returning();
+  const passwordHash = await timed("password hash", () => bcrypt.hash(input.password, BCRYPT_COST));
+  const [created] = await timed("db: create user", () =>
+    db
+      .insert(users)
+      .values({
+        email: input.email,
+        username: input.username,
+        displayName: input.displayName,
+        passwordHash,
+        isEmailVerified: true,
+      })
+      .returning()
+  );
   if (!created) throw new ApiError(500, "Failed to create user");
 
   const token = generateToken({ userId: created.id, email: created.email, role: created.role });
@@ -118,7 +134,7 @@ export async function signup(input: { email: string; username: string; displayNa
 
 /** Delete OTPs once they've been consumed. */
 export async function clearOtps(email: string, type: string) {
-  await db.delete(otps).where(and(eq(otps.email, email), eq(otps.type, type)));
+  await timed("db: clear codes", () => db.delete(otps).where(and(eq(otps.email, email), eq(otps.type, type))));
 }
 
 export async function login(email: string) {
@@ -146,15 +162,17 @@ const INVALID_LOGIN = "Invalid email or password.";
 // Real bcrypt hash (cost 12) of a random string, created once: compared against when the
 // account doesn't exist, so "unknown email" and "wrong password" take the same time.
 let dummyHash: Promise<string> | null = null;
-const getDummyHash = () => (dummyHash ??= bcrypt.hash(crypto.randomUUID(), 12));
+const getDummyHash = () => (dummyHash ??= bcrypt.hash(crypto.randomUUID(), BCRYPT_COST));
 
 /** Case-insensitive email lookup (emails are stored as typed at signup). */
 export async function findUserByEmailCI(email: string) {
-  const rows = await db
-    .select()
-    .from(users)
-    .where(sql`lower(${users.email}) = lower(${email.trim()})`)
-    .limit(1);
+  const rows = await timed("db: find user", () =>
+    db
+      .select()
+      .from(users)
+      .where(sql`lower(${users.email}) = lower(${email.trim()})`)
+      .limit(1)
+  );
   return rows[0];
 }
 
@@ -167,14 +185,14 @@ export async function loginWithPassword(email: string, password: string) {
   const user = await findUserByEmailCI(email);
 
   if (!user || !user.passwordHash) {
-    await bcrypt.compare(password, await getDummyHash());
+    await timed("password check", async () => bcrypt.compare(password, await getDummyHash()));
     throw new ApiError(401, INVALID_LOGIN);
   }
   if (user.lockedUntil && user.lockedUntil > new Date()) {
     throw new ApiError(429, lockedMessage(user.lockedUntil));
   }
 
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await timed("password check", () => bcrypt.compare(password, user.passwordHash!));
   if (!valid) {
     const attempts = user.failedLoginAttempts + 1;
     if (attempts >= MAX_FAILED_LOGINS) {
@@ -202,11 +220,11 @@ async function uniqueUsernameFrom(email: string): Promise<string> {
   let base = email.split("@")[0]!.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
   if (base.length < 3) base = `user${base}`;
   const candidates = [base, ...Array.from({ length: 6 }, () => `${base.slice(0, 15)}_${Math.floor(1000 + Math.random() * 9000)}`)];
-  for (const candidate of candidates) {
-    const taken = await db.select({ id: users.id }).from(users).where(eq(users.username, candidate)).limit(1);
-    if (taken.length === 0) return candidate;
-  }
-  return `user_${crypto.randomUUID().slice(0, 8)}`;
+  // One query for all candidates instead of one per candidate.
+  const taken = new Set(
+    (await db.select({ username: users.username }).from(users).where(inArray(users.username, candidates))).map((r) => r.username)
+  );
+  return candidates.find((c) => !taken.has(c)) ?? `user_${crypto.randomUUID().slice(0, 8)}`;
 }
 
 /**
@@ -218,7 +236,7 @@ export async function loginWithGoogle(credential: string) {
 
   let profile;
   try {
-    profile = await verifyGoogleIdToken(credential);
+    profile = await timed("google: verify token", () => verifyGoogleIdToken(credential));
   } catch {
     throw new ApiError(401, "Google sign-in failed.");
   }
@@ -226,36 +244,41 @@ export async function loginWithGoogle(credential: string) {
 
   type User = typeof users.$inferSelect;
 
-  // Store our own copy of the Google photo (also migrates old hot-linked ones).
-  const withOwnAvatar = async (user: User): Promise<User> => {
-    if (!isGoogleAvatarUrl(user.avatarUrl)) return user;
-    try {
-      const ownUrl = await importGoogleAvatar(user.avatarUrl, user.id);
-      if (!ownUrl) return user;
-      const [updated] = await db
-        .update(users)
-        .set({ avatarUrl: ownUrl, updatedAt: new Date() })
-        .where(eq(users.id, user.id))
-        .returning();
-      return updated ?? user;
-    } catch (err) {
-      console.error("[avatar] Saving imported avatar failed:", err);
-      return user;
-    }
+  // Store our own copy of the Google photo (also migrates old hot-linked ones). Runs after the
+  // response is sent — downloading and re-uploading the photo used to hold up sign-in by a second or more.
+  // Until it finishes, the user's avatar is the Google URL, which works fine.
+  const importAvatarLater = (user: User) => {
+    if (!isGoogleAvatarUrl(user.avatarUrl)) return;
+    const googleUrl = user.avatarUrl;
+    void (async () => {
+      try {
+        const ownUrl = await importGoogleAvatar(googleUrl, user.id);
+        if (!ownUrl) return;
+        // Only replace it if the user hasn't changed their photo in the meantime.
+        await db
+          .update(users)
+          .set({ avatarUrl: ownUrl, updatedAt: new Date() })
+          .where(and(eq(users.id, user.id), eq(users.avatarUrl, googleUrl)));
+      } catch (err) {
+        console.error("[avatar] Saving imported avatar failed:", err);
+      }
+    })();
   };
 
   const issue = async (user: User, isNewUser: boolean) => {
     assertNotDisabled(user);
-    const finalUser = await withOwnAvatar(user);
+    importAvatarLater(user);
     return {
-      user: finalUser,
+      user,
       isNewUser,
-      token: generateToken({ userId: finalUser.id, email: finalUser.email, role: finalUser.role }),
+      token: generateToken({ userId: user.id, email: user.email, role: user.role }),
     };
   };
 
   // 1. Already linked
-  const [linked] = await db.select().from(users).where(eq(users.googleId, profile.sub)).limit(1);
+  const [linked] = await timed("db: find google user", () =>
+    db.select().from(users).where(eq(users.googleId, profile.sub)).limit(1)
+  );
   if (linked) return issue(linked, false);
 
   // 2. Existing account with the same email → link it
@@ -278,9 +301,9 @@ export async function loginWithGoogle(credential: string) {
   }
 
   // 3. New account
-  const username = await uniqueUsernameFrom(profile.email);
+  const username = await timed("db: pick username", () => uniqueUsernameFrom(profile.email));
   try {
-    const [created] = await db
+    const [created] = await timed("db: create user", () => db
       .insert(users)
       .values({
         email: profile.email,
@@ -291,7 +314,7 @@ export async function loginWithGoogle(credential: string) {
         isEmailVerified: true,
         passwordHash: null,
       })
-      .returning();
+      .returning());
     return issue(created!, true);
   } catch (err) {
     // Lost a race with a parallel request for the same Google account → just log in.
@@ -366,7 +389,7 @@ export async function resetPassword(email: string, otp: unknown, newPassword: st
     if (!verified) throw new ApiError(400, "Your code has expired. Please request a new one.");
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
   await db
     .update(users)
     .set({ passwordHash, failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() })

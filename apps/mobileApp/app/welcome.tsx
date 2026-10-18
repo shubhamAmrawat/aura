@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Animated, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Animated, BackHandler, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Image } from 'expo-image'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
@@ -35,6 +35,9 @@ export default function Welcome() {
   const { topPadding, bottomPadding } = useInsets()
   const { screen } = useScreenFilter()
   const { showToast } = useToast()
+  const { width } = useWindowDimensions()
+  // The fan is 372 dp wide at full size; shrink it on narrow phones so no card touches the edge.
+  const fanScale = Math.min(1, (width - 24) / 372)
 
   const [categories, setCategories] = useState<Category[] | null>(null)
   const [failed, setFailed] = useState(false)
@@ -118,11 +121,11 @@ export default function Welcome() {
         )}
       </View>
 
-      <View style={styles.fan} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={[styles.fan, { height: (CARD_H + 40) * fanScale }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         {FAN.map((f, i) => {
           const c = picked[i] ? byId.get(picked[i]!) : undefined
           return (
-            <FanCard key={i} n={i + 1} image={c ? imageOf(c) : null} x={f.x} y={f.y} r={f.r} />
+            <FanCard key={i} n={i + 1} image={c ? imageOf(c) : null} x={f.x * fanScale} y={f.y * fanScale} r={f.r} s={fanScale} />
           )
         })}
       </View>
@@ -192,7 +195,9 @@ export default function Welcome() {
 }
 
 /** One card of the fan: the picked category's image, or a dashed numbered placeholder. Pops in when filled. */
-function FanCard({ n, image, x, y, r }: { n: number; image: string | null; x: number; y: number; r: string }) {
+function FanCard({ n, image, x, y, r, s }: { n: number; image: string | null; x: number; y: number; r: string; s: number }) {
+  const w = CARD_W * s
+  const h = CARD_H * s
   const pop = useRef(new Animated.Value(image ? 1 : 0)).current
   useEffect(() => {
     if (!image) {
@@ -200,7 +205,7 @@ function FanCard({ n, image, x, y, r }: { n: number; image: string | null; x: nu
       return
     }
     pop.setValue(0.6)
-    Animated.spring(pop, { toValue: 1, friction: 6, tension: 120, useNativeDriver: true }).start()
+    Animated.spring(pop, { toValue: 1, friction: 6, tension: 120, useNativeDriver: false }).start()
   }, [image, pop])
   const scale = pop.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 0.9, 1] })
 
@@ -209,11 +214,12 @@ function FanCard({ n, image, x, y, r }: { n: number; image: string | null; x: nu
       style={[
         styles.card,
         image ? styles.cardFilled : styles.cardEmpty,
-        { zIndex: n, transform: [{ translateX: x }, { translateY: y }, { rotate: r }, { scale }] },
+        { width: w, height: h, zIndex: n, transform: [{ translateX: x }, { translateY: y }, { rotate: r }, { scale }] },
       ]}
     >
       {image ? (
-        <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
+        // Explicit size: on Android an absolutely-filled expo-image inside a rotated card can render nothing.
+        <Image source={{ uri: image }} style={{ position: 'absolute', top: 0, left: 0, width: w, height: h }} contentFit="cover" />
       ) : (
         <Text style={styles.cardNum}>{n}</Text>
       )}
@@ -234,14 +240,12 @@ const styles = StyleSheet.create({
   card: {
     position: 'absolute',
     top: 4,
-    width: CARD_W,
-    height: CARD_H,
     borderRadius: 16,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardFilled: { backgroundColor: '#161616', elevation: 10 },
+  cardFilled: { backgroundColor: '#161616', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   cardEmpty: { backgroundColor: '#141414', borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.14)' },
   cardNum: { color: '#3a3a3a', fontSize: 22, fontWeight: '700' },
   heading: { paddingHorizontal: 20, paddingTop: 8, alignItems: 'center', gap: 6 },

@@ -281,9 +281,10 @@ function LoginContent() {
 
   /** After login: admins always land on /admin; new accounts on /welcome; everyone else on ?next= or /. */
   const finishLogin = async (message: string, role?: string, isNewUser = false) => {
+    // Show "Entering Aurora" straight away; loading the session happens behind it.
+    setNavigating(true);
     await refreshUser();
     queueToast(message, "success");
-    setNavigating(true);
     router.push(role === "admin" ? "/admin" : isNewUser ? welcomeUrl() : destination());
   };
 
@@ -406,9 +407,9 @@ function LoginContent() {
     }
     try {
       await signup({ email, username, displayName, password });
+      setNavigating(true);
       await refreshUser();
       queueToast("Account created! Welcome to Aurora", "success");
-      setNavigating(true);
       router.push(welcomeUrl());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

@@ -6,7 +6,7 @@ import { collections, collectionWallpapers, downloads, likes, otps, users, wallp
 import { ApiError } from "../utils/ApiError";
 import { buildObjectKey, deleteFile, generateUploadUrl, keyFromPublicUrl, uploadFileToKey } from "../integrations/r2";
 import { generateWallpaperTextEmbedding } from "../integrations/openai";
-import { checkOtp, findUserById, issueOtp } from "./auth.service";
+import { BCRYPT_COST, checkOtp, findUserById, issueOtp } from "./auth.service";
 import { removeWallpaper } from "./wallpaperRemoval.service";
 import { deleteThumbFor, thumbUrlSql } from "./wallpaperThumb.service";
 
@@ -136,7 +136,7 @@ export async function confirmPasswordChange(userId: string, otp: unknown, newPas
   const user = await getUserOrThrow(userId);
   await checkOtp(user.email, "password_reset", otp, () => "Incorrect OTP.");
 
-  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
   await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, user.id));
   await db.delete(otps).where(and(eq(otps.email, user.email), eq(otps.type, "password_reset")));
 }

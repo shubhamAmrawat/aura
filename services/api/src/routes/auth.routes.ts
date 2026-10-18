@@ -1,7 +1,11 @@
 import { Router } from "express";
 import * as auth from "../controllers/auth.controller";
+import { timingLog } from "../utils/timing";
 
 export const authRoutes = Router();
+
+// One "[timing]" log line per sign-in / sign-up request (POSTs only, so /me on every page load stays quiet).
+authRoutes.use((req, res, next) => (req.method === "POST" ? timingLog(req, res, next) : next()));
 
 authRoutes.post("/send-otp", auth.sendOtp);
 authRoutes.post("/verify-otp", auth.verifyOtp);

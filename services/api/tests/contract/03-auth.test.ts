@@ -153,7 +153,7 @@ describe("POST /api/auth/signup", () => {
     const [u] = await sql<{ is_email_verified: boolean; password_hash: string }[]>`
       SELECT is_email_verified, password_hash FROM users WHERE id = ${res.body.user.id}`;
     expect(u!.is_email_verified).toBe(true);
-    expect(u!.password_hash).toMatch(/^\$2[aby]\$12\$/);
+    expect(u!.password_hash).toMatch(/^\$2[aby]\$10\$/);
     const otps = await sql`SELECT 1 FROM otps WHERE email = ${email}`;
     expect(otps.length).toBe(0);
   });
