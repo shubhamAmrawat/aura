@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/sessionToken";
 
 // Routes that require an authenticated session cookie to access
-const PROTECTED_ROUTES = ["/upload", "/profile"];
+const PROTECTED_ROUTES = ["/upload", "/profile", "/settings"];
 
 const isAdminPath = (pathname: string) => pathname === "/admin" || pathname.startsWith("/admin/");
 

@@ -1,353 +1,208 @@
 "use client";
 
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
-import { getUserCollections, type Collection } from "@/lib/collectionsApi";
-import { useRouter } from "next/navigation";
+import { ChangeEvent, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import type { Wallpaper } from "@aura/types";
 import AvatarCropper from "@/app/components/AvatarCropper";
 import AvatarImage from "@/app/components/AvatarImage";
+import WallpaperCard from "@/app/components/WallpaperCard";
+import UserUploadsSection from "@/app/components/UserUploadsSection";
+import EditProfileDrawer from "./EditProfileDrawer";
 import {
   confirmAvatarUpload,
-  confirmPasswordChange,
-  deleteAccount,
   getAvatarUploadUrl,
-  sendDeleteAccountCode,
   getProfile,
   type ProfileUser,
-  updateProfile,
   uploadAvatarDirect,
   uploadAvatarToSignedUrl,
   uploadCoverDirect,
-  verifyCurrentPassword,
 } from "@/lib/profileApi";
-import { useToast } from "@/lib/toast";
-import { useAuth } from "@/lib/authContext";
+import { getUserCollections, type Collection } from "@/lib/collectionsApi";
 import { getLikedWallpapers } from "@/lib/likesApi";
 import { becomeCreator } from "@/lib/api";
-import { forgotPassword, resetPassword } from "@/lib/authApi";
-import UserUploadsSection from "@/app/components/UserUploadsSection";
+import { useToast } from "@/lib/toast";
+import { useAuth } from "@/lib/authContext";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
 
-// ─── Icons ──────────────────────────────────────────────────
-function IcUser() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-function IcAt() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <circle cx="12" cy="12" r="4" /><path d="M16 8v5a2 2 0 1 0 4 0v-1a8 8 0 1 0-4 6.93" />
-    </svg>
-  );
-}
-function IcPhone() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.99a16 16 0 0 0 6 6l1.53-1.23a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92z" />
-    </svg>
-  );
-}
-function IcMail() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
-    </svg>
-  );
-}
-function IcCamera() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" />
-    </svg>
-  );
-}
-function IcDownload() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  );
-}
-function IcUpload() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-    </svg>
-  );
-}
-function IcCalendar() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
-function IcLock() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-function IcImage() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-    </svg>
-  );
-}
-function IcShield() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-muted)", flexShrink: 0 }}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
-}
-function IcChevronDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
+type Tab = "uploads" | "liked" | "collections";
+const TABS: Tab[] = ["uploads", "liked", "collections"];
 
-// ─── Helpers ─────────────────────────────────────────────────
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-}
+/** Row shape returned by GET /api/likes. */
+type LikedRow = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  thumbUrl?: string | null;
+  blurhash: string;
+  dominantColor: string;
+  width: number;
+  height: number;
+  likeCount: number;
+  downloadCount: number;
+  likedAt?: string;
+};
 
-function FieldRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[10px] tracking-widest uppercase mb-1.5" style={{ color: "var(--text-muted)" }}>{label}</p>
-      <div className="flex items-center gap-2.5">
-        {icon}
-        {children}
-      </div>
-      <div className="mt-3" style={{ borderBottom: "1px solid var(--border)" }} />
-    </div>
-  );
-}
-
-function inputBase(active: boolean): React.CSSProperties {
+function toCard(w: LikedRow): Wallpaper {
   return {
-    background: "transparent",
-    color: active ? "var(--text-primary)" : "var(--text-secondary)",
-    outline: "none",
-    width: "100%",
-    fontSize: "0.875rem",
-    padding: 0,
-    border: "none",
+    ...w,
+    description: null,
+    palette: [],
+    tags: [],
+    fileSizeBytes: 0,
+    format: "jpeg",
+    createdAt: w.likedAt ?? new Date().toISOString(),
+    isPremium: false,
+    isFeatured: false,
+    isMobile: w.height >= w.width,
   };
 }
 
-type PwStep = "idle" | "verify" | "confirm";
+const formatJoined = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-function AvatarHoverButton({ avatarUrl, initials, uploading, onClick }: {
-  avatarUrl: string | null;
-  initials: string;
-  uploading: boolean;
-  onClick: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
+// ─── small pieces ─────────────────────────────────────────────
+function Stat({ icon, value, label, hint }: { icon: React.ReactNode; value: React.ReactNode; label: string; hint?: string }) {
   return (
-    <div
-      className="relative"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ cursor: "pointer" }}
-      onClick={onClick}
-    >
-      <AvatarImage
-        src={avatarUrl}
-        alt="Avatar"
-        className="w-24 h-24 rounded-full object-cover"
-        style={{ border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
-        fallback={
-          <div
-            className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold"
-            style={{ background: "var(--accent)", color: "var(--bg-primary)", border: "3px solid var(--bg-primary)", boxShadow: "0 0 0 1px var(--border)" }}
-          >
-            {initials}
-          </div>
-        }
-      />
-      <div
-        className="absolute inset-0 rounded-full flex items-center justify-center transition-opacity duration-200"
-        style={{ background: "rgba(0,0,0,0.55)", opacity: hovered || uploading ? 1 : 0 }}
+    <div className="flex items-center gap-3">
+      <span
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)", color: "var(--accent)" }}
+        aria-hidden="true"
       >
-        {uploading ? (
-          <div className="w-5 h-5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
-        ) : (
-          <IcCamera />
-        )}
+        {icon}
+      </span>
+      <div className="flex flex-col">
+        <span className="text-xl font-semibold leading-tight tracking-[-0.02em] tabular-nums" style={{ color: "var(--text-primary)" }}>{value}</span>
+        <span className="flex items-center gap-1 text-[13px]" style={{ color: "var(--text-muted)" }}>
+          {label}
+          {hint && (
+            <span className="relative group/tip inline-flex">
+              <button
+                type="button"
+                aria-label={hint}
+                className="w-5 h-5 -my-1 rounded-full flex items-center justify-center transition-colors hover:text-[color:var(--text-primary)] focus-visible:text-[color:var(--text-primary)] outline-none"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg>
+              </button>
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute left-1/2 bottom-full mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs opacity-0 translate-y-1 transition-all duration-150 group-hover/tip:opacity-100 group-hover/tip:translate-y-0 group-focus-within/tip:opacity-100 group-focus-within/tip:translate-y-0 z-10"
+                style={{ background: "#1f1f1f", color: "var(--text-primary)", border: "1px solid var(--border-hover)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+              >
+                {hint}
+              </span>
+            </span>
+          )}
+        </span>
       </div>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────
-export default function ProfilePage() {
+/* 18px stroke icons shared by the stats row and the tabs */
+const ic = (d: React.ReactNode, size = 18) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
+);
+const ICONS = {
+  uploads: (size?: number) => ic(<><path d="M12 15V4" /><path d="M7 8.5l5-5 5 5" /><path d="M5 20h14" /></>, size),
+  downloads: (size?: number) => ic(<><path d="M12 4v11" /><path d="M7 10.5l5 5 5-5" /><path d="M5 20h14" /></>, size),
+  liked: (size?: number) => ic(<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z" />, size),
+  collections: (size?: number) => ic(<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />, size),
+};
+
+function EmptyState({ icon, title, body, action }: { icon: React.ReactNode; title: string; body: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-20 px-6 rounded-3xl" style={{ border: "1px dashed var(--border-hover)" }}>
+      <div className="mb-4" style={{ color: "var(--text-muted)" }}>{icon}</div>
+      <p className="text-base font-medium mb-1" style={{ color: "var(--text-primary)" }}>{title}</p>
+      <p className="text-sm mb-5 max-w-sm" style={{ color: "var(--text-muted)" }}>{body}</p>
+      {action}
+    </div>
+  );
+}
+
+const GridSkeleton = () => (
+  <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+    {Array.from({ length: 10 }).map((_, i) => (
+      <div key={i} className="break-inside-avoid mb-4 rounded-2xl animate-pulse" style={{ background: "var(--bg-elevated)", aspectRatio: i % 3 === 0 ? "16 / 10" : "3 / 4" }} />
+    ))}
+  </div>
+);
+
+const HeartIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+);
+const BookmarkIcon = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
+// ─── page ─────────────────────────────────────────────────────
+function ProfileContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { user: authUser, setUser: setAuthUser, loaded: authLoaded, refreshUser } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user: authUser, setUser: setAuthUser, loaded: authLoaded } = useAuth();
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileUser | null>(null);
+  const [liked, setLiked] = useState<LikedRow[]>([]);
+  const [likedLoading, setLikedLoading] = useState(true);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [draftName, setDraftName] = useState("");
-  const [draftUsername, setDraftUsername] = useState("");
-  const [draftBio, setDraftBio] = useState("");
-  const [draftContact, setDraftContact] = useState("");
-  const [saving, setSaving] = useState(false);
-
+  const [editOpen, setEditOpen] = useState(searchParams.get("edit") === "1");
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropMode, setCropMode] = useState<"avatar" | "cover">("avatar");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [bannerHovered, setBannerHovered] = useState(false);
-
-  const [pwStep, setPwStep] = useState<PwStep>("idle");
-  const [currentPw, setCurrentPw] = useState("");
-  const [otp, setOtp] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-  const [pwLoading, setPwLoading] = useState(false);
-
-  const [delPw, setDelPw] = useState("");
-  const [delOtp, setDelOtp] = useState("");
-  const [delCodeSent, setDelCodeSent] = useState(false);
-  const [delConfirm, setDelConfirm] = useState("");
-  const [deleting, setDeleting] = useState(false);
   const [becomingCreator, setBecomingCreator] = useState(false);
 
-  // liked wallpapers
-  const [likedWallpapers, setLikedWallpapers] = useState<any[]>([]);
-  const [likedLoading, setLikedLoading] = useState(false);
-  const [visibleRows, setVisibleRows] = useState(2);
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [collectionsLoading, setCollectionsLoading] = useState(false);
-  const inputStyleBase: React.CSSProperties = {
-    background: "var(--bg-elevated)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border)",
-    outline: "none",
-    width: "100%",
-    padding: "0.75rem 1rem",
-    borderRadius: "0.5rem",
-    fontSize: "0.875rem",
-  };
+  const tabParam = searchParams.get("tab");
+  const requestedTab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : null;
+  // Default: creators (or anyone with uploads) land on Uploads, everyone else on Liked.
+  const tab: Tab = requestedTab ?? (profile && (profile.isCreator || profile.totalUploads > 0) ? "uploads" : "liked");
+
+  const selectTab = (t: Tab) => router.replace(`/profile?tab=${t}`, { scroll: false });
 
   useEffect(() => {
     if (!authLoaded) return;
     if (!authUser) {
-      router.push("/login");
+      router.push("/login?next=%2Fprofile");
       return;
     }
-
     getProfile()
-      .then((p) => {
-        setProfile(p);
-        setDraftName(p.displayName ?? "");
-        setDraftUsername(p.username ?? "");
-        setDraftBio(p.bio ?? "");
-        setDraftContact(p.contactNo ?? "");
-      })
-      .catch((err: unknown) => {
-        toast(err instanceof Error ? err.message : "Failed to load profile", "error");
-      })
+      .then(setProfile)
+      .catch((err: unknown) => toast(err instanceof Error ? err.message : "Failed to load profile", "error"))
       .finally(() => setLoading(false));
-
-    // fetch liked wallpapers + collections in parallel
-    setLikedLoading(true);
     getLikedWallpapers()
-      .then(setLikedWallpapers)
-      .catch(() => setLikedWallpapers([]))
+      .then((rows: LikedRow[]) => setLiked(rows ?? []))
+      .catch(() => setLiked([]))
       .finally(() => setLikedLoading(false));
-
-    setCollectionsLoading(true);
     getUserCollections()
       .then(setCollections)
       .catch(() => setCollections([]))
       .finally(() => setCollectionsLoading(false));
-
   }, [authLoaded, authUser, router, toast]);
 
-  const LIKED_COLS = 3;
-  const visibleCount = visibleRows * LIKED_COLS;
-
-  function openEdit() {
-    if (!profile) return;
-    setDraftName(profile.displayName ?? "");
-    setDraftUsername(profile.username ?? "");
-    setDraftBio(profile.bio ?? "");
-    setDraftContact(profile.contactNo ?? "");
-    setIsEditing(true);
-  }
-
-  function cancelEdit() {
-    if (!profile) return;
-    setDraftName(profile.displayName ?? "");
-    setDraftUsername(profile.username ?? "");
-    setDraftBio(profile.bio ?? "");
-    setDraftContact(profile.contactNo ?? "");
-    setIsEditing(false);
-  }
-
-  async function handleSave() {
-    if (!profile || !authUser) return;
-    if (!draftName.trim()) { toast("Display name is required.", "error"); return; }
-    if (draftUsername.trim().length < 3) { toast("Username must be at least 3 characters.", "error"); return; }
-    setSaving(true);
-    try {
-      const updated = await updateProfile({
-        displayName: draftName.trim(),
-        username: draftUsername.trim().toLowerCase(),
-        bio: draftBio.trim(),
-        contactNo: draftContact.trim(),
-      });
-      setProfile((prev) => prev ? { ...prev, ...updated } : updated);
-      setDraftName(updated.displayName ?? "");
-      setDraftUsername(updated.username ?? "");
-      setDraftBio(updated.bio ?? "");
-      setDraftContact(updated.contactNo ?? "");
-      setAuthUser({ ...authUser, displayName: updated.displayName, username: updated.username });
-      setIsEditing(false);
-      toast("Profile saved.");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to save profile.", "error");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleAvatarFileSelect(e: ChangeEvent<HTMLInputElement>) {
+  function pickImage(e: ChangeEvent<HTMLInputElement>, mode: "avatar" | "cover") {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) { toast("Only JPEG, PNG, or WebP files are supported.", "error"); return; }
-    if (file.size > MAX_AVATAR_BYTES) { toast("Avatar must be smaller than 5 MB.", "error"); return; }
-    setCropMode("avatar");
-    setCropSrc(URL.createObjectURL(file));
-  }
-
-  function handleCoverFileSelect(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) { toast("Only JPEG, PNG, or WebP files are supported.", "error"); return; }
-    if (file.size > MAX_COVER_BYTES) { toast("Cover must be smaller than 10 MB.", "error"); return; }
-    setCropMode("cover");
+    if (mode === "avatar" && file.size > MAX_AVATAR_BYTES) { toast("Photo must be smaller than 5 MB.", "error"); return; }
+    if (mode === "cover" && file.size > MAX_COVER_BYTES) { toast("Cover must be smaller than 10 MB.", "error"); return; }
+    setCropMode(mode);
     setCropSrc(URL.createObjectURL(file));
   }
 
@@ -355,7 +210,6 @@ export default function ProfilePage() {
     async (croppedFile: File) => {
       setCropSrc(null);
       if (!authUser) return;
-
       if (cropMode === "avatar") {
         setUploadingAvatar(true);
         try {
@@ -365,14 +219,14 @@ export default function ProfilePage() {
             await uploadAvatarToSignedUrl(uploadUrl, croppedFile);
             newUrl = await confirmAvatarUpload(fileUrl, key);
           } catch (e) {
-            if (e instanceof TypeError) { newUrl = await uploadAvatarDirect(croppedFile); }
+            if (e instanceof TypeError) newUrl = await uploadAvatarDirect(croppedFile);
             else throw e;
           }
           setProfile((p) => (p ? { ...p, avatarUrl: newUrl } : p));
           setAuthUser({ ...authUser, avatarUrl: newUrl });
-          toast("Avatar updated.");
+          toast("Photo updated.");
         } catch (err: unknown) {
-          toast(err instanceof Error ? err.message : "Avatar upload failed.", "error");
+          toast(err instanceof Error ? err.message : "Photo upload failed.", "error");
         } finally {
           setUploadingAvatar(false);
         }
@@ -392,58 +246,6 @@ export default function ProfilePage() {
     [authUser, setAuthUser, cropMode, toast]
   );
 
-  // Accounts created with Google have no password: they set one via an emailed code.
-  const noPassword = profile?.hasPassword === false;
-
-  async function handleSendSetPasswordCode() {
-    if (!profile) return;
-    setPwLoading(true);
-    try {
-      await forgotPassword(profile.email);
-      setPwStep("confirm");
-      toast("Code sent to your email.");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to send code.", "error");
-    } finally {
-      setPwLoading(false);
-    }
-  }
-
-  async function handleVerifyPassword() {
-    if (!currentPw) return;
-    setPwLoading(true);
-    try {
-      await verifyCurrentPassword(currentPw);
-      setPwStep("confirm");
-      toast("OTP sent to your email.");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to verify password.", "error");
-    } finally {
-      setPwLoading(false);
-    }
-  }
-
-  async function handleChangePassword() {
-    if (newPw.length < 8) { toast("New password must be at least 8 characters.", "error"); return; }
-    if (newPw !== confirmPw) { toast("Passwords do not match.", "error"); return; }
-    setPwLoading(true);
-    try {
-      if (noPassword && profile) {
-        await resetPassword({ email: profile.email, otp, newPassword: newPw });
-        setProfile((p) => (p ? { ...p, hasPassword: true } : p));
-      } else {
-        await confirmPasswordChange(otp, newPw);
-      }
-      setCurrentPw(""); setOtp(""); setNewPw(""); setConfirmPw("");
-      setPwStep("idle");
-      toast(noPassword ? "Password set. You can now also sign in with email + password." : "Password changed.");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to change password.", "error");
-    } finally {
-      setPwLoading(false);
-    }
-  }
-
   const handleBecomeCreator = async () => {
     if (!authUser) return;
     setBecomingCreator(true);
@@ -451,7 +253,7 @@ export default function ProfilePage() {
       await becomeCreator();
       setAuthUser({ ...authUser, isCreator: true });
       setProfile((prev) => (prev ? { ...prev, isCreator: true } : prev));
-      toast("You are now a creator! Upload button is now visible in the navbar.");
+      toast("You’re a creator now. Upload your first wallpaper!");
     } catch (err) {
       toast(err instanceof Error ? err.message : "Failed to become creator", "error");
     } finally {
@@ -459,58 +261,46 @@ export default function ProfilePage() {
     }
   };
 
-  async function handleDeleteAccount() {
-    if (delConfirm !== "DELETE") { toast('Type "DELETE" to confirm.', "error"); return; }
-    if (!noPassword && !delPw) { toast("Password is required.", "error"); return; }
-    if (delOtp.length !== 6) { toast("Enter the 6-digit code from your email.", "error"); return; }
-    setDeleting(true);
-    try {
-      await deleteAccount(noPassword ? { otp: delOtp } : { password: delPw, otp: delOtp });
-      setAuthUser(null);
-      await refreshUser();
-      router.push("/");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to delete account.", "error");
-    } finally {
-      setDeleting(false);
-    }
-  }
+  const handleProfileSaved = (updated: ProfileUser) => {
+    setProfile(updated);
+    if (authUser) setAuthUser({ ...authUser, displayName: updated.displayName, username: updated.username });
+  };
 
-  async function handleSendDeleteCode() {
-    try {
-      await sendDeleteAccountCode();
-      setDelCodeSent(true);
-      toast("Code sent to your email.");
-    } catch (err: unknown) {
-      toast(err instanceof Error ? err.message : "Failed to send code.", "error");
-    }
-  }
+  const closeEdit = () => {
+    setEditOpen(false);
+    if (searchParams.get("edit")) router.replace(`/profile${requestedTab ? `?tab=${requestedTab}` : ""}`, { scroll: false });
+  };
 
   if (!authLoaded || loading) {
     return (
-      <div style={{ background: "var(--bg-primary)", minHeight: "100vh" }}>
-        <div className="w-full animate-pulse" style={{ height: 200, background: "var(--bg-elevated)" }} />
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="animate-pulse" style={{ marginTop: -48, marginBottom: 32 }}>
-            <div className="w-24 h-24 rounded-full mx-auto mb-4" style={{ background: "var(--bg-elevated)" }} />
-            <div className="h-6 w-40 rounded mx-auto mb-2" style={{ background: "var(--bg-elevated)" }} />
-            <div className="h-4 w-24 rounded mx-auto" style={{ background: "var(--bg-elevated)" }} />
+      <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
+        <div className="h-[260px] sm:h-[320px] animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+        <div className="max-w-[1344px] mx-auto px-6 sm:px-12 flex items-end gap-7 -mt-[68px]">
+          <div className="w-[136px] h-[136px] rounded-full animate-pulse" style={{ background: "#1c1c1c", border: "5px solid var(--bg-primary)" }} />
+          <div className="flex-1 pb-3 space-y-3">
+            <div className="h-9 w-72 rounded-lg animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+            <div className="h-4 w-48 rounded animate-pulse" style={{ background: "var(--bg-elevated)" }} />
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
-        <p className="text-sm" style={{ color: "#ef4444" }}>Could not load profile. Please refresh.</p>
-      </div>
+      <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-primary)" }}>
+        <p className="text-sm" style={{ color: "#ef4444" }}>Could not load your profile. Please refresh.</p>
+      </main>
     );
   }
 
-  const avatarUrl = profile.avatarUrl;
   const initials = (profile.displayName?.[0] ?? "U").toUpperCase();
+  const counts: Record<Tab, number | null> = {
+    uploads: profile.totalUploads,
+    liked: likedLoading ? null : liked.length,
+    collections: collectionsLoading ? null : collections.length,
+  };
+  const tabLabel: Record<Tab, string> = { uploads: "Uploads", liked: "Liked", collections: "Collections" };
 
   return (
     <>
@@ -522,481 +312,291 @@ export default function ProfilePage() {
           onCancel={() => { URL.revokeObjectURL(cropSrc); setCropSrc(null); }}
         />
       )}
+      <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose profile photo" onChange={(e) => pickImage(e, "avatar")} />
+      <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose cover image" onChange={(e) => pickImage(e, "cover")} />
 
-      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Select avatar image" onChange={handleAvatarFileSelect} />
-      <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Select cover image" onChange={handleCoverFileSelect} />
+      {editOpen && (
+        <EditProfileDrawer
+          profile={profile}
+          uploadingAvatar={uploadingAvatar}
+          uploadingCover={uploadingCover}
+          onPickAvatar={() => avatarInputRef.current?.click()}
+          onPickCover={() => coverInputRef.current?.click()}
+          onSaved={handleProfileSaved}
+          onClose={closeEdit}
+        />
+      )}
 
-      <main style={{ background: "var(--bg-primary)", minHeight: "100vh" }}>
-
-        {/* ── Banner ────────────────────────────────────────── */}
-        <div
-          className="relative w-full"
-          style={{ height: 220, borderBottom: "1px solid var(--border)", cursor: "pointer" }}
-          onMouseEnter={() => setBannerHovered(true)}
-          onMouseLeave={() => setBannerHovered(false)}
-          onClick={() => !uploadingCover && coverInputRef.current?.click()}
-        >
+      <main className="min-h-screen pb-20" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+        {/* ── cover ── */}
+        <div className="relative h-[260px] sm:h-[320px] overflow-hidden">
           {profile.coverUrl ? (
-            <img src={profile.coverUrl} alt="Cover" className="absolute inset-0 w-full h-full object-cover" />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
-            <>
-              <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(64,192,87,0.10) 0%, rgba(26,26,26,0) 55%), var(--bg-elevated)" }} />
-              <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,1) 39px,rgba(255,255,255,1) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,1) 39px,rgba(255,255,255,1) 40px)" }} />
-            </>
+            <div
+              className="absolute inset-0"
+              style={{ background: "radial-gradient(ellipse 80% 120% at 20% 0%, rgba(129,238,78,0.16), transparent 60%), radial-gradient(ellipse 70% 120% at 85% 10%, rgba(139,124,246,0.16), transparent 60%), var(--bg-elevated)" }}
+            />
           )}
-          <div className="absolute inset-0 transition-opacity duration-200" style={{ background: "rgba(0,0,0,0.35)", opacity: bannerHovered ? 1 : 0, pointerEvents: "none" }} />
-          <div
-            className="absolute bottom-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-            style={{ background: "rgba(10,10,10,0.82)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", opacity: bannerHovered || uploadingCover ? 1 : 0, transform: bannerHovered || uploadingCover ? "translateY(0)" : "translateY(6px)", pointerEvents: bannerHovered ? "auto" : "none" }}
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0) 30%, rgba(10,10,10,0.2) 60%, var(--bg-primary) 100%)" }} />
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            disabled={uploadingCover}
+            className="absolute right-6 sm:right-12 bottom-24 sm:bottom-7 h-9 px-3.5 rounded-full text-[13px] font-medium flex items-center gap-2 transition-colors hover:bg-black/70 disabled:opacity-70"
+            style={{ background: "rgba(10,10,10,0.55)", border: "1px solid rgba(255,255,255,0.14)", color: "#f0f0f0", backdropFilter: "blur(10px)" }}
           >
-            {uploadingCover ? <div className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> : <IcImage />}
-            {uploadingCover ? "Uploading…" : "Change cover"}
-          </div>
-          <div className="absolute left-1/2 -translate-x-1/2" style={{ bottom: -48 }} onClick={(e) => e.stopPropagation()}>
-            <AvatarHoverButton avatarUrl={avatarUrl} initials={initials} uploading={uploadingAvatar} onClick={() => fileInputRef.current?.click()} />
-          </div>
+            {uploadingCover ? (
+              <span className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 17l-5-5-9 7" /></svg>
+            )}
+            {uploadingCover ? "Uploading…" : profile.coverUrl ? "Change cover" : "Add a cover"}
+          </button>
         </div>
 
-        {/* ── Profile header ─────────────────────────────────── */}
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center pt-16 pb-6">
-            <h1 className="text-2xl font-semibold mb-0.5" style={{ color: "var(--text-primary)" }}>
-              {profile.displayName}
-            </h1>
-            <p className="text-sm mb-3" style={{ color: "var(--accent)" }}>
-              @{profile.username}
-            </p>
-            <div className="flex items-center justify-center gap-2 mb-4">
-              {profile.isPro && (
-                <span className="text-[10px] font-semibold tracking-widest uppercase px-2.5 py-1 rounded-full" style={{ background: "rgba(64,192,87,0.15)", color: "var(--accent)", border: "1px solid rgba(64,192,87,0.3)" }}>Pro</span>
-              )}
-              {profile.isCreator && (
-                <span className="text-[10px] font-semibold tracking-widest uppercase px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}>Creator</span>
-              )}
-            </div>
-            {profile.bio && (
-              <p className="text-sm max-w-md mx-auto mb-5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                {profile.bio}
-              </p>
-            )}
-            <div className="inline-flex items-center gap-0 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-              {[
-                { icon: <IcDownload />, value: profile.totalDownloads.toLocaleString(), label: "Downloads" },
-                { icon: <IcUpload />, value: profile.totalUploads.toLocaleString(), label: "Uploads" },
-                { icon: <IcCalendar />, value: formatDate(profile.createdAt), label: "Member since" },
-              ].map((stat, i) => (
-                <div key={stat.label} className="flex flex-col items-center px-5 py-3" style={{ borderLeft: i > 0 ? "1px solid var(--border)" : undefined }}>
-                  <div className="flex items-center gap-1.5 mb-0.5" style={{ color: "var(--text-muted)" }}>
-                    {stat.icon}
-                    <span className="text-[10px] tracking-wider uppercase">{stat.label}</span>
-                  </div>
-                  <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{stat.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Personal Information & Settings ──────────────── */}
-          <div className="pt-6" style={{ borderTop: "1px solid var(--border)" }}>
-
-            {/* section header */}
-            <div className="flex items-center justify-between mb-5">
-              <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                {isEditing ? "Editing profile" : "Personal information & settings"}
-              </p>
-              {isEditing ? (
-                <div className="flex gap-2">
-                  <button onClick={cancelEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-70" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                    Cancel
-                  </button>
-                  <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
-                    {saving ? "Saving…" : "Save changes"}
-                  </button>
-                </div>
-              ) : (
-                <button onClick={openEdit} className="px-4 py-1.5 rounded-lg text-xs font-medium transition-opacity hover:opacity-80" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
-                  Edit profile
-                </button>
-              )}
-            </div>
-
-            {/* unified card */}
-            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-              <div className="grid grid-cols-1 lg:grid-cols-2">
-
-                {/* ── Left: profile fields ──────────────────────── */}
-                <div className="p-6 space-y-4">
-                  <FieldRow icon={<IcUser />} label="Display name">
-                    {isEditing ? (
-                      <input value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="Your name" style={inputBase(true)} />
-                    ) : (
-                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{profile.displayName || "—"}</span>
-                    )}
-                  </FieldRow>
-                  <FieldRow icon={<IcAt />} label="Username">
-                    {isEditing ? (
-                      <input value={draftUsername} onChange={(e) => setDraftUsername(e.target.value.replace(/\s/g, "").toLowerCase())} placeholder="your_handle" style={inputBase(true)} />
-                    ) : (
-                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{profile.username || "—"}</span>
-                    )}
-                  </FieldRow>
-                  <FieldRow icon={<IcPhone />} label="Contact number">
-                    {isEditing ? (
-                      <input value={draftContact} onChange={(e) => setDraftContact(e.target.value)} placeholder="+91 98765 43210" style={inputBase(true)} />
-                    ) : (
-                      <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{profile.contactNo || "—"}</span>
-                    )}
-                  </FieldRow>
-                  <FieldRow icon={<IcMail />} label="Email address">
-                    <span className="text-sm" style={{ color: "var(--text-secondary)", opacity: 0.7 }}>{profile.email}</span>
-                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.05)", color: "var(--text-muted)" }}>Locked</span>
-                  </FieldRow>
-                  <div>
-                    <p className="text-[10px] tracking-widest uppercase mb-1.5" style={{ color: "var(--text-muted)" }}>Bio</p>
-                    {isEditing ? (
-                      <textarea value={draftBio} onChange={(e) => setDraftBio(e.target.value)} placeholder="Tell people what you create on Aurora…" rows={3} style={{ ...inputStyleBase, resize: "vertical" }} />
-                    ) : (
-                      <p className="text-sm leading-relaxed" style={{ color: profile.bio ? "var(--text-secondary)" : "var(--text-muted)" }}>
-                        {profile.bio || "No bio yet."}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* ── Right: security ──────────────────────────── */}
-                {/* border-t on mobile, border-l on desktop */}
-                <div
-                  className="flex flex-col border-t lg:border-t-0 lg:border-l"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  {/* 2FA — coming soon */}
-                  <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <div className="flex items-center gap-3">
-                      <IcShield />
-                      <div>
-                        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Two-factor authentication</p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Coming soon — extra security for your account</p>
-                      </div>
+        <div className="max-w-[1344px] mx-auto px-6 sm:px-12">
+          {/* ── identity ── */}
+          <div className="relative flex flex-wrap items-end gap-x-7 gap-y-5 -mt-[72px]">
+            <div className="relative shrink-0">
+              <div className="w-[136px] h-[136px] rounded-full p-[5px]" style={{ background: "var(--bg-primary)" }}>
+                <AvatarImage
+                  src={profile.avatarUrl}
+                  alt={profile.displayName || "Profile photo"}
+                  className="w-full h-full rounded-full object-cover"
+                  fallback={
+                    <div className="w-full h-full rounded-full flex items-center justify-center text-5xl font-semibold" style={{ background: "linear-gradient(135deg, var(--accent), #2dd4bf)", color: "var(--bg-primary)" }}>
+                      {initials}
                     </div>
-                    <span
-                      className="text-[10px] tracking-widest uppercase px-2.5 py-1 rounded-full"
-                      style={{ background: "var(--bg-primary)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
-                    >
-                      Soon
-                    </span>
+                  }
+                />
+                {uploadingAvatar && (
+                  <div className="absolute inset-[5px] rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+                    <span className="w-6 h-6 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
                   </div>
-
-                  {/* Password */}
-                  <div className="px-6 py-5 flex-1" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <div className="flex items-center gap-3">
-                      <IcLock />
-                      <div>
-                        <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Password</p>
-                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                          {noPassword
-                            ? "You sign in with Google. Set a password to also sign in with email."
-                            : "Change via email OTP verification"}
-                        </p>
-                      </div>
-                    </div>
-                    {pwStep === "idle" && (
-                      <button onClick={() => (noPassword ? handleSendSetPasswordCode() : setPwStep("verify"))} disabled={pwLoading} className="mt-4 w-full py-2.5 rounded-lg text-sm font-medium px-4 flex items-center justify-center gap-2 transition-colors hover:bg-white/5 disabled:opacity-40" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                        {noPassword ? (pwLoading ? "Sending code…" : "Set a password") : "Change password"}
-                      </button>
-                    )}
-                    {pwStep === "verify" && (
-                      <div className="space-y-3 mt-4">
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Enter your current password to receive an OTP.</p>
-                        <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Current password" style={inputStyleBase} />
-                        <div className="flex gap-2">
-                          <button onClick={() => { setPwStep("idle"); setCurrentPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
-                          <button onClick={handleVerifyPassword} disabled={pwLoading || !currentPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Verifying…" : "Send OTP"}</button>
-                        </div>
-                      </div>
-                    )}
-                    {pwStep === "confirm" && (
-                      <div className="space-y-3 mt-4">
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Check your email for the 6-digit OTP.</p>
-                        <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit OTP" className="tracking-widest text-center" style={inputStyleBase} />
-                        <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" style={inputStyleBase} />
-                        <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Confirm new password" style={{ ...inputStyleBase, borderColor: confirmPw && newPw && confirmPw === newPw ? "#40C057" : confirmPw && newPw && confirmPw.length >= newPw.length && confirmPw !== newPw ? "#ef4444" : "var(--border)" }} />
-                        <div className="flex gap-2">
-                          <button onClick={() => { setPwStep("idle"); setOtp(""); setNewPw(""); setConfirmPw(""); }} className="flex-1 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Cancel</button>
-                          <button onClick={handleChangePassword} disabled={pwLoading || otp.length !== 6 || !newPw || !confirmPw} className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{pwLoading ? "Saving…" : noPassword ? "Set password" : "Update password"}</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Delete account */}
-                  <div className="px-6 py-5" style={{ background: "rgba(239,68,68,0.04)" }}>
-                    <h3 className="text-sm font-semibold mb-1" style={{ color: "#ef4444" }}>Delete account</h3>
-                    <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-                      Permanently deletes your account, avatar, and all data. This cannot be undone.
-                    </p>
-                    <div className="space-y-3">
-                      {!noPassword && (
-                        <input type="password" value={delPw} onChange={(e) => setDelPw(e.target.value)} placeholder="Your password" style={inputStyleBase} />
-                      )}
-                      {delCodeSent ? (
-                        <input value={delOtp} onChange={(e) => setDelOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit code from your email" className="tracking-widest text-center" style={inputStyleBase} />
-                      ) : (
-                        <button onClick={handleSendDeleteCode} className="w-full py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
-                          Email me a confirmation code
-                        </button>
-                      )}
-                      <input value={delConfirm} onChange={(e) => setDelConfirm(e.target.value)} placeholder='Type "DELETE" to confirm' style={{ ...inputStyleBase, borderColor: delConfirm === "DELETE" ? "#ef4444" : "var(--border)" }} />
-                      <button onClick={handleDeleteAccount} disabled={deleting || (!noPassword && !delPw) || delOtp.length !== 6 || delConfirm !== "DELETE"} className="w-full py-2.5 rounded-lg text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "#ef4444", color: "#fff" }}>
-                        {deleting ? "Deleting account…" : "Delete my account"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {!profile.isCreator && (
-            <div
-              className="rounded-2xl p-6 mb-6 mt-3"
-              style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}
-            >
-              <div className="flex items-start justify-between gap-6">
-                <div className="flex-1">
-                  <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-                    Become a Creator
-                  </h2>
-                  <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--text-muted)" }}>
-                    Share your wallpapers with the Aurora community. Upload your best work and grow your audience.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-4">
-                    {["Upload wallpapers", "Creator badge", "Download analytics"].map((benefit) => (
-                      <div key={benefit} className="flex items-center gap-1.5">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                          stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                          {benefit}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleBecomeCreator}
-                  disabled={becomingCreator}
-                  className="flex-shrink-0 px-5 py-2.5 rounded-full text-xs font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40"
-                  style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-                >
-                  {becomingCreator ? "Activating…" : "Get started →"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── My Uploads ───────────────────────────────────────── */}
-          <div style={{ marginTop: 24, marginBottom: 8 }}>
-            <UserUploadsSection
-              isCreator={profile.isCreator}
-              onUploadCountChange={(delta) =>
-                setProfile((p) => p ? { ...p, totalUploads: Math.max(0, p.totalUploads + delta) } : p)
-              }
-            />
-          </div>
-
-          {/* ── Liked Wallpapers + Collections ──────────────────── */}
-          <div
-            className="grid grid-cols-1 xl:grid-cols-2 gap-10 pt-8 pb-16"
-            style={{ borderTop: "1px solid var(--border)", marginTop: 24 }}
-          >
-
-            {/* ── Liked Wallpapers (left) ─────────────────────── */}
-            <div>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
-                    Liked Wallpapers
-                  </h2>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {likedWallpapers.length} wallpaper{likedWallpapers.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-                {likedWallpapers.length > 0 && (
-                  <Link href="/" className="text-xs tracking-widest uppercase transition-opacity hover:opacity-70" style={{ color: "var(--accent)" }}>
-                    Discover more →
-                  </Link>
                 )}
               </div>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                aria-label="Change profile photo"
+                className="absolute right-1.5 bottom-2 w-[34px] h-[34px] rounded-full flex items-center justify-center transition-transform hover:scale-105"
+                style={{ border: "3px solid var(--bg-primary)", background: "var(--text-primary)", color: "var(--bg-primary)" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+              </button>
+            </div>
 
-              {likedLoading ? (
-                <div className="grid grid-cols-3 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="aspect-[3/4] rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
-                  ))}
-                </div>
-              ) : likedWallpapers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3" style={{ color: "var(--text-muted)" }}>
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No liked wallpapers yet</p>
-                  <p className="text-xs mb-3" style={{ color: "var(--text-muted)", opacity: 0.7 }}>Wallpapers you heart will appear here</p>
-                  <Link href="/" className="text-xs px-4 py-2 rounded-lg transition-opacity hover:opacity-70" style={{ color: "var(--accent)", border: "1px solid rgba(64,192,87,0.3)" }}>
-                    Browse wallpapers →
-                  </Link>
-                </div>
+            <div className="flex-[1_1_380px] min-w-0 pb-1.5">
+              <h1 className="text-[40px] sm:text-[48px] leading-[1.02] tracking-[-0.01em] break-words" style={{ fontFamily: "var(--font-serif), serif" }}>
+                {profile.displayName}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2.5 mt-2.5 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <span style={{ color: "#e5e5e5" }}>@{profile.username}</span>
+                {profile.isCreator && (
+                  <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.6 6.7 19.5l1.1-6L3.4 9.3l6-.8z" /></svg>
+                    Creator
+                  </span>
+                )}
+                {profile.isPro && (
+                  <span className="inline-flex items-center h-6 px-2.5 rounded-full text-xs font-medium" style={{ background: "rgba(255,255,255,0.08)", color: "#e5e5e5" }}>Pro</span>
+                )}
+                <span aria-hidden="true">·</span>
+                <span>Joined {formatJoined(profile.createdAt)}</span>
+              </div>
+              {profile.bio ? (
+                <p className="mt-3 text-[15px] leading-relaxed max-w-[560px] whitespace-pre-line" style={{ color: "#c4c4c4" }}>{profile.bio}</p>
               ) : (
-                <>
-                  <div className="grid grid-cols-3 gap-3">
-                    {likedWallpapers.slice(0, visibleCount).map((w) => (
-                      <Link key={w.id} href={`/wallpaper/${w.id}`}>
-                        <div
-                          className="relative aspect-[3/4] rounded-xl overflow-hidden group"
-                          style={{ backgroundColor: w.dominantColor }}
-                          onContextMenu={(e) => e.preventDefault()}
-                        >
-                          <Image
-                            src={w.thumbUrl || w.fileUrl}
-                            alt={w.title}
-                            fill
-                            sizes="(max-width: 640px) 50vw, 33vw"
-                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                          <div
-                            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-2"
-                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%)" }}
-                          >
-                            <p className="text-xs font-medium line-clamp-2 leading-tight" style={{ color: "var(--text-primary)" }}>
-                              {w.title}
-                            </p>
-                          </div>
-                          <div className="absolute top-2 right-2 flex items-center justify-center w-6 h-6 rounded-full" style={{ background: "rgba(239,68,68,0.85)" }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-                              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                            </svg>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                  {visibleCount < likedWallpapers.length && (
-                    <div className="flex justify-center mt-5">
-                      <button
-                        onClick={() => setVisibleRows((r) => r + 1)}
-                        className="flex items-center gap-2.5 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110"
-                        style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
-                      >
-                        Show more
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "var(--text-muted)" }}>
-                          {likedWallpapers.length - visibleCount} remaining
-                        </span>
-                        <IcChevronDown />
-                      </button>
-                    </div>
-                  )}
-                </>
+                <button type="button" onClick={() => setEditOpen(true)} className="mt-3 text-[15px] underline underline-offset-4 decoration-white/20 hover:decoration-white/60" style={{ color: "var(--text-muted)" }}>
+                  Add a bio
+                </button>
               )}
             </div>
 
-            {/* ── Collections (right) ─────────────────────────── */}
-            <div>
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
-                    My Collections
-                  </h2>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {collections.length} collection{collections.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center gap-2.5 pb-2">
+              {profile.isCreator && (
+                <Link
+                  href="/upload"
+                  className="h-11 px-5 rounded-full text-sm font-semibold inline-flex items-center gap-2 transition-opacity hover:opacity-90"
+                  style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  Upload
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="h-11 px-5 rounded-full text-sm font-medium border border-white/[0.16] transition-colors hover:bg-white/[0.05]"
+              >
+                Edit profile
+              </button>
+              <Link
+                href="/settings"
+                aria-label="Account settings"
+                title="Account settings"
+                className="w-11 h-11 rounded-full flex items-center justify-center border border-white/[0.12] transition-colors hover:bg-white/[0.06]"
+                style={{ background: "rgba(255,255,255,0.04)", color: "#e8e8e8" }}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+              </Link>
+            </div>
+          </div>
 
-              {collectionsLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="aspect-[3/4] rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+          {/* ── stats ── */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:flex sm:flex-wrap sm:gap-x-10 mt-7 py-5" style={{ borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+            {(profile.isCreator || profile.totalUploads > 0) && (
+              <>
+                <Stat icon={ICONS.uploads()} value={profile.totalUploads.toLocaleString()} label="Uploads" />
+                <Stat icon={ICONS.downloads()} value={profile.totalDownloads.toLocaleString()} label="Downloads" hint="Total downloads of your uploads" />
+              </>
+            )}
+            <Stat icon={ICONS.liked()} value={likedLoading ? "–" : liked.length.toLocaleString()} label="Liked" />
+            <Stat icon={ICONS.collections()} value={collectionsLoading ? "–" : collections.length.toLocaleString()} label="Collections" />
+          </div>
+
+          {/* ── tabs ── */}
+          <div role="tablist" aria-label="Profile sections" className="flex gap-5 sm:gap-7 mt-2" style={{ borderBottom: "1px solid var(--border)" }}>
+            {TABS.map((t) => {
+              const active = t === tab;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  id={`tab-${t}`}
+                  aria-selected={active}
+                  aria-controls={`panel-${t}`}
+                  onClick={() => selectTab(t)}
+                  className="pt-[18px] pb-4 text-[15px] whitespace-nowrap transition-colors flex items-center gap-2"
+                  style={{
+                    color: active ? "var(--text-primary)" : "#9a9a9a",
+                    fontWeight: active ? 500 : 400,
+                    borderBottom: `2px solid ${active ? "var(--accent)" : "transparent"}`,
+                    marginBottom: -1,
+                  }}
+                >
+                  <span style={{ color: active ? "var(--accent)" : "inherit" }}>{ICONS[t](16)}</span>
+                  {tabLabel[t]}
+                  {counts[t] !== null && (
+                    <span style={{ color: active ? "var(--text-muted)" : "#6f6f6f" }}>{counts[t]}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── panels ── */}
+          <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="mt-6">
+            {tab === "uploads" &&
+              (profile.isCreator || profile.totalUploads > 0 ? (
+                <UserUploadsSection
+                  isCreator={profile.isCreator}
+                  onUploadCountChange={(delta) => setProfile((p) => (p ? { ...p, totalUploads: Math.max(0, p.totalUploads + delta) } : p))}
+                />
+              ) : (
+                <div className="rounded-3xl p-8 sm:p-10 flex flex-wrap items-center justify-between gap-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
+                  <div className="max-w-xl">
+                    <h2 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-serif), serif" }}>Share your own wallpapers</h2>
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                      Become a creator to upload your work to Aurora. You’ll get a creator badge and see how your uploads are doing.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleBecomeCreator}
+                    disabled={becomingCreator}
+                    className="h-11 px-6 rounded-full text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                  >
+                    {becomingCreator ? "Activating…" : "Become a creator"}
+                  </button>
+                </div>
+              ))}
+
+            {tab === "liked" &&
+              (likedLoading ? (
+                <GridSkeleton />
+              ) : liked.length === 0 ? (
+                <EmptyState
+                  icon={<HeartIcon />}
+                  title="No liked wallpapers yet"
+                  body="Tap the heart on any wallpaper and it will show up here."
+                  action={<Link href="/" className="h-11 px-5 rounded-full text-sm font-semibold flex items-center" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>Browse wallpapers</Link>}
+                />
+              ) : (
+                <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+                  {liked.map((w) => (
+                    <div key={w.id} className="break-inside-avoid mb-4">
+                      <WallpaperCard wallpaper={toCard(w)} />
+                    </div>
+                  ))}
+                </div>
+              ))}
+
+            {tab === "collections" &&
+              (collectionsLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="aspect-[4/5] rounded-2xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
                   ))}
                 </div>
               ) : collections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3" style={{ color: "var(--text-muted)" }}>
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No collections yet</p>
-                  <p className="text-xs text-center px-6" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-                    Save wallpapers to collections and they&apos;ll appear here
-                  </p>
-                </div>
+                <EmptyState
+                  icon={<BookmarkIcon />}
+                  title="No collections yet"
+                  body="Use the bookmark on any wallpaper to save it into a collection."
+                  action={<Link href="/" className="h-11 px-5 rounded-full text-sm font-semibold flex items-center" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>Browse wallpapers</Link>}
+                />
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
                   {collections.map((col) => (
-                    <Link key={col.id} href={`/collection/${col.id}`}>
-                      <div className="group cursor-pointer">
-                        <div
-                          className="relative aspect-[3/4] rounded-xl overflow-hidden"
-                          style={{ backgroundColor: "var(--bg-elevated)" }}
-                        >
-                          {col.coverUrl ? (
-                            <Image
-                              src={col.coverUrl}
-                              alt={col.title}
-                              fill
-                              sizes="(max-width: 640px) 50vw, 33vw"
-                              className="object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ color: "var(--text-muted)" }}>
-                              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                              </svg>
-                              <span className="text-[11px]">Empty</span>
-                            </div>
-                          )}
-
-                          {/* bottom gradient always visible */}
-                          <div
-                            className="absolute inset-0"
-                            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78) 0%, transparent 52%)" }}
+                    <Link key={col.id} href={`/collection/${col.id}`} className="group flex flex-col gap-3">
+                      <div className="relative aspect-[4/5] rounded-2xl overflow-hidden" style={{ background: "var(--bg-elevated)" }}>
+                        {col.coverUrl ? (
+                          <Image
+                            src={col.coverUrl}
+                            alt=""
+                            fill
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                            className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                           />
-
-                          {/* title + count */}
-                          <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                            <p className="text-xs font-semibold line-clamp-1 leading-snug" style={{ color: "#fff" }}>
-                              {col.title}
-                            </p>
-                            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>
-                              {col.wallpaperCount} {col.wallpaperCount === 1 ? "wallpaper" : "wallpapers"}
-                            </p>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center" style={{ color: "var(--text-muted)" }}>
+                            <BookmarkIcon size={28} />
                           </div>
-
-                          {/* visibility badge */}
-                          <div className="absolute top-2 right-2">
-                            <span
-                              className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-full font-medium"
-                              style={{
-                                background: col.isPublic ? "rgba(64,192,87,0.88)" : "rgba(0,0,0,0.52)",
-                                color: "#fff",
-                                backdropFilter: "blur(4px)",
-                                border: col.isPublic ? "none" : "1px solid rgba(255,255,255,0.14)",
-                              }}
-                            >
-                              {col.isPublic ? "Public" : "Private"}
-                            </span>
-                          </div>
-                        </div>
+                        )}
+                        {!col.isPublic && (
+                          <span className="absolute top-3 right-3 h-[26px] px-2.5 rounded-full text-xs flex items-center gap-1.5" style={{ background: "rgba(10,10,10,0.6)", color: "#e5e5e5", backdropFilter: "blur(6px)" }}>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                            Private
+                          </span>
+                        )}
+                      </div>
+                      <div className="px-1">
+                        <p className="text-base font-semibold truncate">{col.title}</p>
+                        <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
+                          {col.wallpaperCount} {col.wallpaperCount === 1 ? "wallpaper" : "wallpapers"}
+                        </p>
                       </div>
                     </Link>
                   ))}
                 </div>
-              )}
-            </div>
-
+              ))}
           </div>
         </div>
       </main>
     </>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense>
+      <ProfileContent />
+    </Suspense>
   );
 }

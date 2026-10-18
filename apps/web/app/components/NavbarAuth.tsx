@@ -158,6 +158,18 @@ const NavbarAuth = () => {
                 </svg>
                 Profile
               </Link>
+              <Link
+                href="/settings"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+                Account settings
+              </Link>
               {/* <Link
                 href="/collection"
                 onClick={() => setOpen(false)}

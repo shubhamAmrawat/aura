@@ -73,15 +73,15 @@ function IcX() {
 
 const STATUS_CONFIG: Record<UploadStatus, { label: string; bg: string; color: string }> = {
   approved: { label: "Live", bg: "rgba(64,192,87,0.88)", color: "#fff" },
-  pending: { label: "Reviewing", bg: "rgba(251,191,36,0.88)", color: "#000" },
-  rejected: { label: "Rejected", bg: "rgba(239,68,68,0.88)", color: "#fff" },
+  pending: { label: "In review", bg: "rgba(234,179,8,0.92)", color: "#1a1400" },
+  rejected: { label: "Rejected", bg: "rgba(239,68,68,0.9)", color: "#fff" },
 };
 
 function StatusBadge({ status }: { status: UploadStatus }) {
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   return (
     <span
-      className="text-[9px] tracking-wider uppercase px-1.5 py-0.5 rounded-full font-semibold"
+      className="text-[11px] px-2.5 py-1 rounded-full font-semibold"
       style={{ background: cfg.bg, color: cfg.color, backdropFilter: "blur(4px)" }}
     >
       {cfg.label}
@@ -309,8 +309,8 @@ function UploadCard({ upload, onEdit, onDeleted }: UploadCardProps) {
   return (
     <Link
       href={`/wallpaper/${upload.id}`}
-      className="relative group rounded-xl overflow-hidden aspect-3/4 block"
-      style={{ backgroundColor: upload.dominantColor }}
+      className="relative group rounded-2xl overflow-hidden block"
+      style={{ backgroundColor: upload.dominantColor, aspectRatio: upload.width && upload.height ? `${upload.width} / ${upload.height}` : "3 / 4" }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
     >
@@ -319,15 +319,17 @@ function UploadCard({ upload, onEdit, onDeleted }: UploadCardProps) {
         src={upload.thumbUrl || upload.fileUrl}
         alt={upload.title}
         fill
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         className="object-cover transition-transform duration-500 group-hover:scale-105"
         onContextMenu={(e) => e.preventDefault()}
       />
 
-      {/* Status badge — always visible top-left */}
-      <div className="absolute top-2 left-2">
-        <StatusBadge status={upload.status} />
-      </div>
+      {/* Status badge — only for uploads that aren't live yet */}
+      {upload.status !== "approved" && (
+        <div className="absolute top-2.5 left-2.5">
+          <StatusBadge status={upload.status} />
+        </div>
+      )}
 
       {/* Hover overlay */}
       <div
@@ -338,20 +340,22 @@ function UploadCard({ upload, onEdit, onDeleted }: UploadCardProps) {
         }}
       >
         {/* Top-right actions — stopPropagation keeps the card Link from firing */}
-        <div className="flex justify-end gap-1.5 mt-5">
+        <div className="flex justify-end gap-1.5">
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); onEdit(upload); }}
-            className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
-            style={{ background: "rgba(255,255,255,0.12)", color: "#fff", backdropFilter: "blur(4px)" }}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors"
+            style={{ background: "rgba(10,10,10,0.55)", color: "#fff", backdropFilter: "blur(6px)" }}
             title="Edit"
+            aria-label="Edit details"
           >
             <IcEdit />
           </button>
           <button
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete(true); }}
-            className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
-            style={{ background: "rgba(239,68,68,0.2)", color: "#ef4444", backdropFilter: "blur(4px)" }}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors"
+            style={{ background: "rgba(10,10,10,0.55)", color: "#f87171", backdropFilter: "blur(6px)" }}
             title="Delete"
+            aria-label="Delete wallpaper"
           >
             <IcTrash />
           </button>
@@ -359,14 +363,14 @@ function UploadCard({ upload, onEdit, onDeleted }: UploadCardProps) {
 
         {/* Bottom: title */}
         <div>
-          <p className="text-xs font-medium line-clamp-2 leading-snug" style={{ color: "#fff" }}>
+          <p className="text-[13px] font-medium line-clamp-2 leading-snug" style={{ color: "#fff" }}>
             {upload.title}
           </p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
               ♥ {upload.likeCount}
             </span>
-            <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+            <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>
               ↓ {upload.downloadCount}
             </span>
           </div>
@@ -486,77 +490,49 @@ export default function UserUploadsSection({ isCreator, onUploadCountChange }: P
         />
       )}
 
-      <div className="pt-8" style={{ borderTop: "1px solid var(--border)" }}>
-        {/* Section header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-sm font-semibold tracking-wide" style={{ color: "var(--text-primary)" }}>
-              My Uploads
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-              {loading ? "Loading…" : `${uploads.length}${hasMore ? "+" : ""} wallpaper${uploads.length !== 1 ? "s" : ""}`}
-            </p>
-          </div>
-          {isCreator && (
-            <Link
-              href="/upload"
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium tracking-wide transition-opacity hover:opacity-80"
-              style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              New upload
-            </Link>
-          )}
-        </div>
-
-        {/* Grid */}
+      <div>
         {loading ? (
-          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-            {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="aspect-3/4 rounded-xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
+          <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="break-inside-avoid mb-4 rounded-2xl animate-pulse" style={{ background: "var(--bg-elevated)", aspectRatio: i % 3 === 0 ? "16 / 10" : "3 / 4" }} />
             ))}
           </div>
         ) : uploads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 rounded-2xl" style={{ border: "1px dashed var(--border)" }}>
-            <div className="mb-3" style={{ color: "var(--text-muted)" }}>
+          <div className="flex flex-col items-center justify-center py-20 rounded-3xl" style={{ border: "1px dashed var(--border-hover)" }}>
+            <div className="mb-4" style={{ color: "var(--text-muted)" }}>
               <IcUploadCloud />
             </div>
-            <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>No uploads yet</p>
-            <p className="text-xs mb-4" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
-              Share your wallpapers with the Aurora community
+            <p className="text-base font-medium mb-1" style={{ color: "var(--text-primary)" }}>No uploads yet</p>
+            <p className="text-sm mb-5" style={{ color: "var(--text-muted)" }}>
+              Share your wallpapers with the Aurora community.
             </p>
             {isCreator && (
               <Link
                 href="/upload"
-                className="text-xs px-4 py-2 rounded-lg transition-opacity hover:opacity-80"
+                className="h-11 px-5 rounded-full text-sm font-semibold flex items-center transition-opacity hover:opacity-90"
                 style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
               >
-                Upload your first wallpaper →
+                Upload your first wallpaper
               </Link>
             )}
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="columns-2 sm:columns-3 md:columns-4 xl:columns-5 gap-4">
               {uploads.map((upload) => (
-                <UploadCard
-                  key={upload.id}
-                  upload={upload}
-                  onEdit={setEditTarget}
-                  onDeleted={handleDeleted}
-                />
+                <div key={upload.id} className="break-inside-avoid mb-4">
+                  <UploadCard upload={upload} onEdit={setEditTarget} onDeleted={handleDeleted} />
+                </div>
               ))}
             </div>
 
             {hasMore && (
-              <div className="flex justify-center mt-5">
+              <div className="flex justify-center mt-6">
                 <button
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="flex items-center gap-2.5 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:brightness-110 disabled:opacity-40"
-                  style={{ border: "1px solid var(--border)", color: "var(--text-secondary)", background: "var(--bg-elevated)" }}
+                  className="flex items-center gap-2.5 h-11 px-5 rounded-full text-sm font-medium transition-colors hover:bg-white/[0.04] disabled:opacity-40"
+                  style={{ border: "1px solid var(--border-hover)", color: "var(--text-secondary)" }}
                 >
                   {loadingMore ? (
                     <div className="w-4 h-4 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.2)", borderTopColor: "var(--text-secondary)" }} />

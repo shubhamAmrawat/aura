@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Geist } from "next/font/google";
+import { Geist, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
@@ -13,6 +13,17 @@ import { getCategories } from "@/lib/api";
 const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
+});
+
+// Display serif for headlines (sign-in, profile, settings). Not preloaded, so the font
+// file only downloads on pages that actually use var(--font-serif).
+const serif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -66,7 +77,7 @@ export default async function RootLayout({
   const categories = await getCategories().catch(() => []);
 
   return (
-    <html lang="en" className={geist.variable}>
+    <html lang="en" className={`${geist.variable} ${serif.variable}`}>
       <head>
         <script
           async
