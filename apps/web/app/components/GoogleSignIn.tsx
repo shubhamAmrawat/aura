@@ -53,13 +53,15 @@ type Props = {
   context?: "signin" | "signup";
   /** Show the One Tap account suggestion when the page opens. */
   oneTap?: boolean;
+  /** Google's button theme: dark (default) or white (`outline`). */
+  theme?: "filled_black" | "outline";
 };
 
 /**
  * "Continue with Google" button + optional One Tap prompt (Google suggests the account
  * already signed in to the browser). Renders nothing if NEXT_PUBLIC_GOOGLE_CLIENT_ID is unset.
  */
-export default function GoogleSignIn({ onCredential, context = "signin", oneTap = true }: Props) {
+export default function GoogleSignIn({ onCredential, context = "signin", oneTap = true, theme = "filled_black" }: Props) {
   const buttonRef = useRef<HTMLDivElement>(null);
   const callbackRef = useRef(onCredential);
   const [failed, setFailed] = useState(false);
@@ -89,7 +91,7 @@ export default function GoogleSignIn({ onCredential, context = "signin", oneTap 
         const width = Math.min(400, Math.max(200, Math.round(buttonRef.current.offsetWidth || 340)));
         gsi.renderButton(buttonRef.current, {
           type: "standard",
-          theme: "filled_black",
+          theme,
           size: "large",
           shape: "pill",
           text: context === "signup" ? "signup_with" : "continue_with",
@@ -104,7 +106,7 @@ export default function GoogleSignIn({ onCredential, context = "signin", oneTap 
       cancelled = true;
       window.google?.accounts.id.cancel();
     };
-  }, [context, oneTap]);
+  }, [context, oneTap, theme]);
 
   if (!CLIENT_ID) return null;
   if (failed) {

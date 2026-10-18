@@ -37,6 +37,11 @@ html {
   scroll-behavior: smooth;
 }
 
+
+iframe[src*="accounts.google.com"] {
+  color-scheme: light;
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -79,6 +84,24 @@ body {
   100% {
     transform: scale(2.5);
     opacity: 0;
+  }
+}
+
+/* Sign-in page: heading fades up when the step changes */
+@keyframes auth-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="auth-in"] {
+    animation: none !important;
   }
 }
 

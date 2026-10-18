@@ -82,7 +82,7 @@ export default async function RootLayout({
               <Navbar initialCategories={categories} />
             </ConditionalNavbar>
             {children}
-            <ConditionalNavbar adminOnly>
+            <ConditionalNavbar>
               <Footer />
             </ConditionalNavbar>
           </ToastProvider>

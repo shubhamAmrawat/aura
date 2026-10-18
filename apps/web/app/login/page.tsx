@@ -4,7 +4,7 @@ import { forgotPassword, login, loginWithGoogle, loginWithPassword, resetPasswor
 import GoogleSignIn from "@/app/components/GoogleSignIn";
 import { queueToast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Logo from "@/app/components/Logo";
 import Link from "next/link";
 import Image from "next/image";
@@ -24,13 +24,205 @@ const EyeOffIcon = () => (
   </svg>
 );
 
+/* ── Hero: featured wallpapers that cross-fade (bundled in /public/auth, ~1920px webp) ── */
+const HEROES = [
+  { src: "/auth/snow.webp", title: "Majestic Snow-Capped Mountain at Sunrise", category: "Mountains", id: "d76729fb-edc4-4d0b-a994-936478528e0c", position: "50% 50%" },
+  { src: "/auth/dusk.webp", title: "Contemplation at Dusk", category: "Sunset", id: "3501f5f8-0e3d-4ffb-b4b7-27f9b2ff57f7", position: "86% 50%" },
+  { src: "/auth/ocean.webp", title: "An aerial view of the ocean and the beach", category: "Ocean", id: "49f68ff9-d8a2-4030-883d-8d605f870ce5", position: "50% 50%" },
+  { src: "/auth/peaks.webp", title: "Crimson Peaks: A Surreal Mountain Landscape", category: "Mountains", id: "5975806b-cf18-4aa3-bed7-0e6cafae30b5", position: "50% 50%" },
+];
+const HERO_INTERVAL_MS = 7000;
+// Width of the soft edge where the wallpaper fades into the page, as % of the image panel.
+// Bigger = wider, softer fade; smaller = shorter, crisper edge. (Try 20–45.)
+const HERO_FADE_PERCENT = 5;
+// Smoothstep-eased mask: fully visible until the fade starts, then eases out to transparent.
+const HERO_MASK = (() => {
+  const start = 100 - HERO_FADE_PERCENT;
+  const stops = Array.from({ length: 11 }, (_, k) => {
+    const t = k / 10;
+    const alpha = 1 - t * t * (3 - 2 * t);
+    return `rgba(0,0,0,${alpha.toFixed(3)}) ${(start + t * HERO_FADE_PERCENT).toFixed(2)}%`;
+  });
+  return `linear-gradient(90deg, #000 0%, ${stops.join(", ")})`;
+})();
+
+const CheckIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12l5 5L20 7" />
+  </svg>
+);
+
+const ArrowIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+function AuthHero({ mode }: { mode: "login" | "signup" }) {
+  const [index, setIndex] = useState(0);
+
+  // Restart the timer whenever the slide changes (also after a dot click).
+  useEffect(() => {
+    const id = setTimeout(() => setIndex((i) => (i + 1) % HEROES.length), HERO_INTERVAL_MS);
+    return () => clearTimeout(id);
+  }, [index]);
+
+  const current = HEROES[index] ?? HEROES[0]!;
+
+  return (
+    <div className="hidden lg:flex relative w-[55%] flex-shrink-0 flex-col justify-between p-12 overflow-hidden">
+      {/* Image layer fades into the page with an eased mask (no hard band at the edge). */}
+      <div className="absolute inset-0" style={{ WebkitMaskImage: HERO_MASK, maskImage: HERO_MASK }}>
+        {HEROES.map((h, i) => (
+          <Image
+            key={h.src}
+            src={h.src}
+            alt=""
+            fill
+            priority={i === 0}
+            sizes="55vw"
+            className="object-cover ease-out motion-reduce:!transition-none"
+            style={{
+              objectPosition: h.position,
+              opacity: i === index ? 1 : 0,
+              transform: i === index ? "scale(1)" : "scale(1.06)",
+              transitionProperty: "opacity, transform",
+              transitionDuration: "1400ms, 9000ms",
+            }}
+          />
+        ))}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(8,8,8,0.4) 0%, rgba(8,8,8,0) 28%, rgba(8,8,8,0) 50%, rgba(8,8,8,0.88) 100%)" }}
+        />
+      </div>
+
+      <div className="relative z-10">
+        <Logo href="/" />
+      </div>
+
+      <div className="relative z-10 flex flex-col gap-6 max-w-[540px]">
+        <p className="text-[44px] leading-[1.08] tracking-[-0.01em]" style={{ fontFamily: "var(--font-serif), serif", color: "var(--text-primary)" }}>
+          {mode === "login" ? "Wallpapers worth" : "Start a collection"}
+          <br />
+          <span className="italic" style={{ color: "#cfe9c0" }}>
+            {mode === "login" ? "looking at twice." : "that’s all yours."}
+          </span>
+        </p>
+
+        {mode === "signup" && (
+          <ul className="flex flex-col gap-3 text-sm" style={{ color: "#d6d6d6" }}>
+            {["Like and save wallpapers into collections", "One account for the website and the Android app", "Free, in full quality"].map((t) => (
+              <li key={t} className="flex items-center gap-2.5">
+                <CheckIcon color="var(--accent)" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <Link
+          href={`/wallpaper/${current.id}`}
+          className="self-start flex items-center gap-3.5 rounded-2xl py-2.5 pl-2.5 pr-4 transition-colors hover:bg-black/60"
+          style={{ background: "rgba(12,12,12,0.55)", border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)" }}
+        >
+          <span className="relative w-11 h-11 rounded-[9px] overflow-hidden flex-shrink-0">
+            <Image src={current.src} alt="" fill sizes="44px" className="object-cover" style={{ objectPosition: current.position }} />
+          </span>
+          <span key={current.id} className="flex flex-col gap-0.5 min-w-0" style={{ animation: "auth-in 0.6s ease-out" }}>
+            <span className="text-[11px] tracking-[0.14em] uppercase" style={{ color: "#a3a3a3" }}>On this screen</span>
+            <span className="text-sm font-medium truncate max-w-[300px]" style={{ color: "var(--text-primary)" }}>{current.title}</span>
+          </span>
+          <span className="ml-2 text-xs px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)", color: "#d8d8d8" }}>
+            {current.category}
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-1.5">
+          {HEROES.map((h, i) => (
+            <button
+              key={h.src}
+              type="button"
+              onClick={() => setIndex(i)}
+              aria-label={`Show wallpaper ${i + 1} of ${HEROES.length}`}
+              aria-current={i === index}
+              className="h-6 flex items-center"
+            >
+              <span
+                className="block h-[3px] rounded-full transition-all duration-500"
+                style={{ width: i === index ? 28 : 12, background: i === index ? "var(--text-primary)" : "rgba(255,255,255,0.3)" }}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Six boxes over one real input: paste, SMS/email autofill and backspace all work natively. */
+function CodeInput({ value, onChange, onComplete }: { value: string; onChange: (v: string) => void; onComplete?: (v: string) => void }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div className="relative">
+      <div className="grid grid-cols-6 gap-2.5" aria-hidden="true">
+        {Array.from({ length: 6 }, (_, i) => {
+          const active = focused && (i === value.length || (value.length === 6 && i === 5));
+          return (
+            <div
+              key={i}
+              className="h-[60px] rounded-xl flex items-center justify-center text-2xl font-medium tabular-nums transition-[border-color,box-shadow] duration-150"
+              style={{
+                background: "#141414",
+                color: "var(--text-primary)",
+                border: `1px solid ${active ? "var(--accent)" : value[i] ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.08)"}`,
+                boxShadow: active ? "0 0 0 4px var(--accent-muted)" : "none",
+              }}
+            >
+              {value[i] ?? ""}
+            </div>
+          );
+        })}
+      </div>
+      <input
+        type="text"
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        aria-label="6-digit code"
+        maxLength={6}
+        value={value}
+        autoFocus
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => {
+          const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+          onChange(v);
+          if (v.length === 6 && value.length !== 6) onComplete?.(v);
+        }}
+        onKeyDown={(e) => e.key === "Enter" && value.length === 6 && onComplete?.(value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-text"
+        style={{ caretColor: "transparent" }}
+      />
+    </div>
+  );
+}
+
+/** 0–4: length 8+, length 12+, mixed case, a digit or symbol. */
+function passwordScore(p: string) {
+  if (p.length < 8) return 0;
+  return [true, p.length >= 12, /[a-z]/.test(p) && /[A-Z]/.test(p), /[\d\W_]/.test(p)].filter(Boolean).length;
+}
+const SCORE_LABEL = ["Too short", "Weak", "Okay", "Good", "Strong"];
+
+const RESEND_COOLDOWN_S = 30;
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [email, setEmail] = useState("");
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [otp, setOtp] = useState("");
@@ -41,7 +233,6 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmTouched, setConfirmTouched] = useState(false);
-  const [confirmFocused, setConfirmFocused] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const passwordsMatch = password.length >= 8 && password === confirmPassword;
   const showMismatch =
@@ -68,9 +259,15 @@ function LoginContent() {
     !newPasswordsMatch &&
     (confirmNewTouched || confirmNewPassword.length >= newPassword.length);
   const [info, setInfo] = useState("");
+  // Seconds until "Resend code" is available again.
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
   // Live email validation (same rule as the API)
   const [emailTouched, setEmailTouched] = useState(false);
-  const [emailFocused, setEmailFocused] = useState(false);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const showEmailError = email.length > 0 && !emailValid && emailTouched;
   const resetFlow = mode === "login" && (view === "forgot" || view === "code" || view === "reset");
@@ -117,6 +314,7 @@ function LoginContent() {
       setInfo("If an account exists for this email, we've sent a 6-digit code.");
       setResetCode("");
       setView("code");
+      setCooldown(RESEND_COOLDOWN_S);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -124,11 +322,11 @@ function LoginContent() {
     }
   };
 
-  const handleVerifyResetCode = async () => {
+  const handleVerifyResetCode = async (code: string = resetCode) => {
     setLoading(true);
     setError("");
     try {
-      await verifyResetCode({ email, otp: resetCode });
+      await verifyResetCode({ email, otp: code });
       setInfo("");
       setNewPassword("");
       setConfirmNewPassword("");
@@ -161,7 +359,9 @@ function LoginContent() {
     setError("");
     try {
       await sendOtp({ email, type: mode });
+      setOtp("");
       setStep(2);
+      setCooldown(RESEND_COOLDOWN_S);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -169,11 +369,11 @@ function LoginContent() {
     }
   };
 
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (code: string = otp) => {
     setLoading(true);
     setError("");
     try {
-      await verifyOtp({ email, code: otp, type: mode });
+      await verifyOtp({ email, code, type: mode });
       if (mode === "signup") {
         setStep(3);
       } else {
@@ -224,143 +424,150 @@ function LoginContent() {
     }
   };
 
-  const inputStyle = {
-    background: "var(--bg-elevated)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border)",
-    outline: "none",
+  const INPUT =
+    "w-full h-[52px] px-4 rounded-xl text-[15px] bg-[#141414] border border-white/[0.08] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#7a7a7a] focus:border-[color:var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-muted)]";
+  const PRIMARY =
+    "w-full h-[52px] rounded-full text-[15px] font-semibold flex items-center justify-center gap-2.5 transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100";
+  const SECONDARY =
+    "w-full h-12 rounded-full text-sm font-medium border border-white/10 transition-colors hover:bg-white/[0.04] disabled:opacity-40";
+  const LABEL = "text-[13px]";
+  const primaryStyle = { background: "var(--accent)", color: "var(--bg-primary)" };
+  const textStyle = { color: "var(--text-primary)" };
+  const labelStyle = { color: "#c9c9c9" };
+  const mutedStyle = { color: "var(--text-secondary)" };
+
+  const codeStep = step === 2 || (mode === "login" && view === "code");
+  const showGoogle = step === 1 && (mode === "signup" || view === "password" || view === "otp");
+  const showSwitch = step === 1 && !resetFlow;
+  const score = passwordScore(password);
+
+  const switchMode = (m: "login" | "signup") => {
+    setMode(m);
+    setStep(1);
+    setError("");
+    setInfo("");
+    setOtp("");
+    if (m === "login") setView("password");
   };
 
-  return (
-    <main
-      className="min-h-screen flex"
-      style={{ background: "var(--bg-primary)" }}
+  const heading = resetFlow
+    ? view === "forgot" ? "Reset your password" : view === "code" ? "Check your inbox" : "Choose a new password"
+    : step === 2 ? "Check your inbox"
+    : step === 3 ? "Make it yours"
+    : mode === "signup" ? "Create your account"
+    : view === "otp" ? "Sign in with a code"
+    : "Sign in to your collection";
+
+  const passwordToggle = (shown: boolean, toggle: () => void) => (
+    <button
+      type="button"
+      onClick={toggle}
+      className="absolute right-1 top-1 w-11 h-11 flex items-center justify-center transition-opacity hover:opacity-60"
+      style={{ color: "var(--text-muted)" }}
+      tabIndex={-1}
+      aria-label={shown ? "Hide password" : "Show password"}
     >
-      {/* ── LEFT — visual panel ── */}
-      <div className="hidden lg:block relative w-[55%] flex-shrink-0">
-        <Image
-          src="/wallhaven-zpoxyj.png"
-          alt="Aurora wallpaper"
-          fill
-          className="object-cover"
-          priority
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, rgba(10,10,10,0.2) 0%, rgba(10,10,10,0.65) 100%)",
-          }}
-        />
-        <div className="absolute inset-0 flex flex-col justify-between p-12 z-10">
-          <Logo href="/" />
-          <div className="max-w-xs">
-            <p
-              className="text-xl font-light leading-relaxed mb-3"
-              style={{
-                color: "rgba(245,240,235,0.88)",
-                fontStyle: "italic",
-              }}
-            >
-              &quot;The world is full of magic things, patiently waiting for our senses to grow sharper.&quot;
-            </p>
-            <p
-              className="text-xs tracking-[0.25em] uppercase"
-              style={{ color: "var(--accent)" }}
-            >
-              — W.B. Yeats
-            </p>
-          </div>
-        </div>
-      </div>
+      {shown ? <EyeOffIcon /> : <EyeIcon />}
+    </button>
+  );
 
-      {/* ── RIGHT — form panel ── */}
-      <div className="flex-1 flex flex-col min-h-screen">
+  const resendButton = (onResend: () => void) => (
+    <button
+      type="button"
+      onClick={onResend}
+      disabled={loading || cooldown > 0}
+      className="text-sm font-medium px-1 min-h-11 transition-opacity hover:opacity-70 disabled:hover:opacity-100"
+      style={{ color: cooldown > 0 ? "var(--text-muted)" : "var(--accent)" }}
+    >
+      {cooldown > 0 ? `Resend in 0:${String(cooldown).padStart(2, "0")}` : "Resend code"}
+    </button>
+  );
 
-        {/* top bar — back link */}
-        <div className="flex items-center justify-between px-10 py-5">
+  return (
+    <main className="min-h-screen flex" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      <AuthHero mode={mode} />
+
+      {/* ── form panel ── */}
+      <div className="flex-1 flex flex-col min-h-screen px-6 sm:px-12 py-6">
+        <div className="flex items-center justify-between min-h-11">
           <div className="lg:hidden">
             <Logo href="/" />
           </div>
-          <div className="lg:ml-auto">
-            <Link
-              href="/"
-              className="text-xs tracking-widest uppercase transition-opacity hover:opacity-60"
-              style={{ color: "var(--text-muted)" }}
-            >
-              ← Back to Aurora
-            </Link>
-          </div>
+          <Link
+            href="/"
+            className="ml-auto inline-flex items-center gap-2 min-h-11 text-[13px] transition-opacity hover:opacity-70"
+            style={mutedStyle}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M19 12H5M11 6l-6 6 6 6" />
+            </svg>
+            Back to Aurora
+          </Link>
         </div>
 
-        {/* centered form */}
-        <div className="flex-1 flex items-center justify-center px-8 py-8">
-          <div className="w-full max-w-[340px]">
-
-            {/* step progress — signup only */}
+        <div className="flex-1 flex items-center justify-center py-10">
+          <div className="w-full max-w-[384px]">
+            {/* sign-up progress */}
             {mode === "signup" && (
-              <div className="flex gap-1.5 mb-10">
-                {[1, 2, 3].map((s) => (
-                  <div
-                    key={s}
-                    className="h-[2px] flex-1 rounded-full transition-all duration-500"
-                    style={{
-                      background: s <= step ? "var(--accent)" : "var(--bg-elevated)",
-                    }}
-                  />
-                ))}
+              <div className="flex items-center gap-3 mb-8">
+                <div className="flex-1 grid grid-cols-3 gap-1.5" aria-hidden="true">
+                  {[1, 2, 3].map((s) => (
+                    <span
+                      key={s}
+                      className="h-[3px] rounded-full transition-colors duration-500"
+                      style={{ background: s <= step ? "var(--accent)" : "#262626" }}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Step {step} of 3</span>
               </div>
             )}
 
             {/* heading */}
-            <div className="mb-7">
-              <h2
-                className="text-[28px] font-bold leading-tight mb-1.5"
-                style={{ color: "var(--text-primary)" }}
-              >
-                {mode === "login" && view === "forgot" && "Reset your password"}
-                {mode === "login" && view === "code" && "Check your inbox"}
-                {mode === "login" && view === "reset" && "Choose a new password"}
-                {!resetFlow && (
-                  <>
-                    {step === 1 && (mode === "login" ? "Welcome back" : "Join Aurora")}
-                    {step === 2 && "Check your inbox"}
-                    {step === 3 && "Almost there"}
-                  </>
+            <div key={`${mode}-${step}-${view}`} className="mb-8" style={{ animation: "auth-in 0.35s ease-out" }}>
+              {codeStep && (
+                <div
+                  className="w-[52px] h-[52px] rounded-[14px] flex items-center justify-center mb-6"
+                  style={{ background: "var(--accent-muted)", border: "1px solid rgba(129,238,78,0.25)" }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="M3 7l9 6 9-6" />
+                  </svg>
+                </div>
+              )}
+              {mode === "login" && step === 1 && (view === "password" || view === "otp") && (
+                <p className="text-xs tracking-[0.18em] uppercase mb-3.5" style={{ color: "var(--accent)" }}>Welcome back</p>
+              )}
+              <h1 className="text-[44px] leading-[1.04] tracking-[-0.01em] mb-2.5" style={{ fontFamily: "var(--font-serif), serif" }}>
+                {heading}
+              </h1>
+              <p className="text-[15px] leading-relaxed" style={mutedStyle}>
+                {resetFlow && view === "forgot" && "Enter your email and we’ll send you a code."}
+                {resetFlow && view === "code" && (
+                  <>Enter the 6-digit code sent to <span style={textStyle}>{email}</span>.</>
                 )}
-              </h2>
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: "var(--text-secondary)" }}
-              >
-                {step === 1 && mode === "login" && view === "password" && "Sign in to continue"}
-                {step === 1 && mode === "login" && view === "otp" && "We'll email you a sign-in code"}
-                {mode === "login" && view === "forgot" && "Enter your email and we'll send you a code"}
-                {mode === "login" && view === "code" && (
-                  <>Enter the code sent to <span style={{ color: "var(--text-primary)" }}>{email}</span></>
+                {resetFlow && view === "reset" && (
+                  <>Set a new password for <span style={textStyle}>{email}</span>.</>
                 )}
-                {mode === "login" && view === "reset" && (
-                  <>Set a new password for <span style={{ color: "var(--text-primary)" }}>{email}</span></>
+                {!resetFlow && step === 1 && mode === "login" && view === "password" && "Your likes and collections, on the web and in the Android app."}
+                {!resetFlow && step === 1 && mode === "login" && view === "otp" && "We’ll email you a 6-digit code. No password needed."}
+                {!resetFlow && step === 1 && mode === "signup" && "It takes under a minute. We’ll send a code to confirm your email."}
+                {!resetFlow && step === 2 && (
+                  <>Enter the 6-digit code we sent to <span style={textStyle}>{email}</span>.</>
                 )}
-                {step === 1 && mode === "signup" && "Create your account to get started"}
-                {step === 2 && !resetFlow && (
-                  <>We sent a code to <span style={{ color: "var(--text-primary)" }}>{email}</span></>
-                )}
-                {step === 3 && "Set up your profile to finish"}
+                {!resetFlow && step === 3 && "Choose how you appear on Aurora. You can change this later."}
               </p>
             </div>
 
             {info && !error && (
-              <p className="text-xs mb-5 px-1" style={{ color: "var(--text-secondary)" }}>
-                {info}
-              </p>
+              <p className="text-sm mb-5" style={mutedStyle}>{info}</p>
             )}
-
-            {/* error */}
             {error && (
               <p
-                className="text-xs mb-5 px-1"
-                style={{ color: "#ef4444" }}
+                role="alert"
+                className="text-sm mb-5 px-3.5 py-2.5 rounded-xl"
+                style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)" }}
               >
                 {error}
               </p>
@@ -368,120 +575,84 @@ function LoginContent() {
 
             {/* ── STEP 1 ── */}
             {step === 1 && (
-              <div className="flex flex-col gap-3">
-                {(mode === "signup" || view === "password" || view === "otp") && (
-                  <div
-                    className="flex rounded-lg p-0.5"
-                    style={{ background: "var(--bg-elevated)" }}
-                  >
-                    {(["login", "signup"] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => { setMode(m); setError(""); setInfo(""); if (m === "login") setView("password"); }}
-                        className="flex-1 py-2 text-xs font-medium tracking-wider uppercase rounded-md transition-all duration-200"
-                        style={{
-                          background: mode === m ? "var(--accent)" : "transparent",
-                          color: mode === m ? "var(--bg-primary)" : "var(--text-secondary)",
-                        }}
-                      >
-                        {m === "login" ? "Sign in" : "Sign up"}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Google (One Tap suggests the signed-in account) */}
-                {(mode === "signup" || view === "password" || view === "otp") && (
+              <div className="flex flex-col">
+                {showGoogle && (
                   <>
-                    <div className="mt-2">
-                      <GoogleSignIn
-                        key={mode}
-                        context={mode === "signup" ? "signup" : "signin"}
-                        onCredential={handleGoogle}
-                      />
-                    </div>
-                    <div className="flex items-center gap-3 my-1">
-                      <div className="h-px flex-1" style={{ background: "var(--border)" }} />
-                      <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--text-muted)" }}>or</span>
-                      <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+                    <GoogleSignIn
+                      key={mode}
+                      theme="outline"
+                      context={mode === "signup" ? "signup" : "signin"}
+                      onCredential={handleGoogle}
+                    />
+                    <div className="flex items-center gap-3.5 my-6">
+                      <span className="h-px flex-1 bg-white/[0.08]" />
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>or with email</span>
+                      <span className="h-px flex-1 bg-white/[0.08]" />
                     </div>
                   </>
                 )}
 
                 {!(mode === "login" && (view === "code" || view === "reset")) && (
-                <div>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => { setEmail(e.target.value.trim()); setError(""); }}
-                    placeholder="your@email.com"
-                    autoComplete="email"
-                    className="w-full px-4 py-3 rounded-lg text-sm transition-all"
-                    style={{
-                      ...inputStyle,
-                      borderColor: showEmailError ? "#ef4444" : emailFocused ? "var(--accent)" : "var(--border)",
-                    }}
-                    onFocus={() => setEmailFocused(true)}
-                    onBlur={() => { setEmailFocused(false); setEmailTouched(true); }}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter") return;
-                      setEmailTouched(true);
-                      if (!emailValid) return;
-                      if (mode === "signup" || view === "otp") handleSendOTP();
-                      else if (view === "forgot") handleForgot();
-                    }}
-                  />
-                  {showEmailError && (
-                    <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
-                      Enter a valid email address
-                    </p>
-                  )}
-                </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="auth-email" className={LABEL} style={labelStyle}>Email</label>
+                    <input
+                      id="auth-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value.trim()); setError(""); }}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      className={INPUT}
+                      style={showEmailError ? { borderColor: "#ef4444" } : undefined}
+                      onBlur={() => setEmailTouched(true)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        setEmailTouched(true);
+                        if (!emailValid) return;
+                        if (mode === "signup" || view === "otp") handleSendOTP();
+                        else if (view === "forgot") handleForgot();
+                      }}
+                    />
+                    {showEmailError && (
+                      <p className="text-xs" style={{ color: "#f87171" }}>Enter a valid email address</p>
+                    )}
+                  </div>
                 )}
 
                 {/* Sign in with password (default) */}
                 {mode === "login" && view === "password" && (
                   <>
-                    <div className="relative">
-                      <input
-                        type={showLoginPassword ? "text" : "password"}
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        placeholder="Password"
-                        autoComplete="current-password"
-                        className="w-full px-4 py-3 pr-11 rounded-lg text-sm transition-all"
-                        style={inputStyle}
-                        onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                        onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                        onKeyDown={(e) => e.key === "Enter" && emailValid && loginPassword && handlePasswordLogin()}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowLoginPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-opacity hover:opacity-60"
-                        style={{ color: "var(--text-muted)" }}
-                        tabIndex={-1}
-                        aria-label={showLoginPassword ? "Hide password" : "Show password"}
-                      >
-                        {showLoginPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
+                    <div className="flex flex-col gap-2 mt-[18px]">
+                      <div className="flex items-baseline justify-between">
+                        <label htmlFor="auth-password" className={LABEL} style={labelStyle}>Password</label>
+                        <button type="button" onClick={() => goTo("forgot")} className="text-[13px] transition-opacity hover:opacity-70" style={mutedStyle}>
+                          Forgot?
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          id="auth-password"
+                          type={showLoginPassword ? "text" : "password"}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          autoComplete="current-password"
+                          className={`${INPUT} pr-[52px]`}
+                          onKeyDown={(e) => e.key === "Enter" && emailValid && loginPassword && handlePasswordLogin()}
+                        />
+                        {passwordToggle(showLoginPassword, () => setShowLoginPassword((v) => !v))}
+                      </div>
                     </div>
                     <button
                       onClick={handlePasswordLogin}
                       disabled={loading || !emailValid || !loginPassword}
-                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                      className={`${PRIMARY} mt-[26px] cursor-pointer`}
+                      style={primaryStyle}
                     >
-                      {loading ? "Signing in..." : "Sign in"}
+                      {loading ? "Signing in…" : <>Sign in <ArrowIcon /></>}
                     </button>
-                    <div className="flex items-center justify-between mt-1">
-                      <button onClick={() => goTo("forgot")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
-                        Forgot password?
-                      </button>
-                      <button onClick={() => goTo("otp")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
-                        Sign in with a code instead
-                      </button>
-                    </div>
+                    <button onClick={() => goTo("otp")} className={`${SECONDARY} mt-2.5 cursor-pointer`} style={{ color: "#d8d8d8" }}>
+                      Email me a sign-in code instead
+                    </button>
                   </>
                 )}
 
@@ -491,14 +662,14 @@ function LoginContent() {
                     <button
                       onClick={handleSendOTP}
                       disabled={loading || !emailValid}
-                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                      className={`${PRIMARY} mt-[26px] cursor-pointer`}
+                      style={primaryStyle}
                     >
-                      {loading ? "Sending..." : mode === "login" ? "Email me a code" : "Continue"}
+                      {loading ? "Sending…" : <>{mode === "login" ? "Email me a code" : "Continue"} <ArrowIcon /></>}
                     </button>
                     {mode === "login" && (
-                      <button onClick={() => goTo("password")} className="text-xs self-end mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
-                        Use password instead
+                      <button onClick={() => goTo("password")} className={`${SECONDARY} mt-2.5`} style={{ color: "#d8d8d8" }}>
+                        Use my password instead
                       </button>
                     )}
                   </>
@@ -510,13 +681,13 @@ function LoginContent() {
                     <button
                       onClick={handleForgot}
                       disabled={loading || !emailValid}
-                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                      className={`${PRIMARY} mt-[26px]`}
+                      style={primaryStyle}
                     >
-                      {loading ? "Sending..." : "Send reset code"}
+                      {loading ? "Sending…" : "Send reset code"}
                     </button>
-                    <button onClick={() => goTo("password")} className="text-xs self-start mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
-                      ← Back to sign in
+                    <button onClick={() => goTo("password")} className={`${SECONDARY} mt-2.5`} style={{ color: "#d8d8d8" }}>
+                      Back to sign in
                     </button>
                   </>
                 )}
@@ -524,33 +695,24 @@ function LoginContent() {
                 {/* Forgot step 2: enter the emailed code */}
                 {mode === "login" && view === "code" && (
                   <>
-                    <input
-                      type="text"
+                    <CodeInput
                       value={resetCode}
-                      onChange={(e) => setResetCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="Enter 6-digit code"
-                      maxLength={6}
-                      autoComplete="one-time-code"
-                      className="w-full px-4 py-3 rounded-lg text-sm tracking-widest text-center transition-all"
-                      style={inputStyle}
-                      onKeyDown={(e) => e.key === "Enter" && resetCode.length === 6 && handleVerifyResetCode()}
-                      autoFocus
+                      onChange={setResetCode}
+                      onComplete={(c) => !loading && handleVerifyResetCode(c)}
                     />
                     <button
-                      onClick={handleVerifyResetCode}
+                      onClick={() => handleVerifyResetCode()}
                       disabled={loading || resetCode.length !== 6}
-                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                      className={`${PRIMARY} mt-[26px]`}
+                      style={primaryStyle}
                     >
-                      {loading ? "Verifying..." : "Verify code"}
+                      {loading ? "Verifying…" : "Verify code"}
                     </button>
-                    <div className="flex items-center justify-between mt-1">
-                      <button onClick={() => goTo("forgot")} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
-                        ← Change email
+                    <div className="flex items-center justify-between mt-3">
+                      <button onClick={() => goTo("forgot")} className="text-sm min-h-11 transition-opacity hover:opacity-70" style={mutedStyle}>
+                        Change email
                       </button>
-                      <button onClick={handleForgot} disabled={loading} className="text-xs transition-opacity hover:opacity-60" style={{ color: "var(--accent)" }}>
-                        Resend code
-                      </button>
+                      {resendButton(handleForgot)}
                     </div>
                   </>
                 )}
@@ -558,304 +720,237 @@ function LoginContent() {
                 {/* Forgot step 3: new password (code already verified) */}
                 {mode === "login" && view === "reset" && (
                   <>
-                    {/* New password: eye toggle + live length hint */}
-                    <div>
+                    <div className="flex flex-col gap-2">
+                      <label htmlFor="auth-new-password" className={LABEL} style={labelStyle}>New password</label>
                       <div className="relative">
                         <input
+                          id="auth-new-password"
                           type={showNewPassword ? "text" : "password"}
                           value={newPassword}
                           onChange={(e) => { setNewPassword(e.target.value); setError(""); }}
-                          placeholder="New password (min 8 characters)"
+                          placeholder="At least 8 characters"
                           autoComplete="new-password"
-                          className="w-full px-4 py-3 pr-11 rounded-lg text-sm transition-all"
-                          style={{ ...inputStyle, borderColor: newPasswordTooShort ? "#ef4444" : "var(--border)" }}
+                          className={`${INPUT} pr-[52px]`}
+                          style={newPasswordTooShort ? { borderColor: "#ef4444" } : undefined}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-opacity hover:opacity-60"
-                          style={{ color: "var(--text-muted)" }}
-                          tabIndex={-1}
-                          aria-label={showNewPassword ? "Hide password" : "Show password"}
-                        >
-                          {showNewPassword ? <EyeOffIcon /> : <EyeIcon />}
-                        </button>
+                        {passwordToggle(showNewPassword, () => setShowNewPassword((v) => !v))}
                       </div>
                       {newPasswordTooShort && (
-                        <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
-                          At least 8 characters ({8 - newPassword.length} more)
-                        </p>
+                        <p className="text-xs" style={{ color: "#f87171" }}>At least 8 characters ({8 - newPassword.length} more)</p>
                       )}
                     </div>
-
-                    {/* Confirm: eye toggle + live match / mismatch */}
-                    <div>
+                    <div className="flex flex-col gap-2 mt-[18px]">
+                      <label htmlFor="auth-new-confirm" className={LABEL} style={labelStyle}>Confirm new password</label>
                       <div className="relative">
                         <input
+                          id="auth-new-confirm"
                           type={showConfirmNewPassword ? "text" : "password"}
                           value={confirmNewPassword}
                           onChange={(e) => { setConfirmNewPassword(e.target.value); setError(""); }}
                           onBlur={() => setConfirmNewTouched(true)}
-                          placeholder="Repeat new password"
                           autoComplete="new-password"
-                          className="w-full px-4 py-3 pr-[4.5rem] rounded-lg text-sm transition-all"
-                          style={{
-                            ...inputStyle,
-                            borderColor: !confirmNewPassword
-                              ? "var(--border)"
-                              : newPasswordsMatch
-                                ? "#40C057"
-                                : showNewMismatch
-                                  ? "#ef4444"
-                                  : "var(--border)",
-                          }}
+                          className={`${INPUT} pr-[84px]`}
+                          style={
+                            confirmNewPassword && newPasswordsMatch ? { borderColor: "#40C057" }
+                            : showNewMismatch ? { borderColor: "#ef4444" }
+                            : undefined
+                          }
                           onKeyDown={(e) => e.key === "Enter" && newPasswordsMatch && handleReset()}
                         />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                          {confirmNewPassword && newPasswordsMatch && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#40C057" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                          {confirmNewPassword && showNewMismatch && (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <line x1="18" y1="6" x2="6" y2="18" />
-                              <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmNewPassword((v) => !v)}
-                            className="p-0.5 transition-opacity hover:opacity-60"
-                            style={{ color: "var(--text-muted)" }}
-                            tabIndex={-1}
-                            aria-label={showConfirmNewPassword ? "Hide password" : "Show password"}
-                          >
-                            {showConfirmNewPassword ? <EyeOffIcon /> : <EyeIcon />}
-                          </button>
-                        </div>
+                        {confirmNewPassword && newPasswordsMatch && (
+                          <span className="absolute right-12 top-1/2 -translate-y-1/2"><CheckIcon color="#40C057" /></span>
+                        )}
+                        {passwordToggle(showConfirmNewPassword, () => setShowConfirmNewPassword((v) => !v))}
                       </div>
                       {showNewMismatch && (
-                        <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
-                          Passwords do not match
-                        </p>
+                        <p className="text-xs" style={{ color: "#f87171" }}>Passwords do not match</p>
                       )}
                     </div>
                     <button
                       onClick={handleReset}
                       disabled={loading || !newPasswordsMatch}
-                      className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                      style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+                      className={`${PRIMARY} mt-[26px]`}
+                      style={primaryStyle}
                     >
-                      {loading ? "Saving..." : "Set new password"}
+                      {loading ? "Saving…" : "Set new password"}
                     </button>
-                    <button onClick={() => goTo("forgot")} className="text-xs self-start mt-1 transition-opacity hover:opacity-60" style={{ color: "var(--text-muted)" }}>
-                      ← Start over
+                    <button onClick={() => goTo("forgot")} className={`${SECONDARY} mt-2.5`} style={{ color: "#d8d8d8" }}>
+                      Start over
                     </button>
                   </>
                 )}
               </div>
             )}
 
-            {/* ── STEP 2 ── */}
+            {/* ── STEP 2: emailed code (sign-up, or sign-in with a code) ── */}
             {step === 2 && (
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="Enter 6-digit code"
-                  maxLength={6}
-                  className="w-full px-4 py-3 rounded-lg text-sm tracking-widest text-center transition-all"
-                  style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                  onKeyDown={(e) => e.key === "Enter" && otp.length === 6 && handleVerifyOtp()}
-                  autoFocus
-                />
-
+              <div className="flex flex-col">
+                <CodeInput value={otp} onChange={setOtp} onComplete={(c) => !loading && handleVerifyOtp(c)} />
                 <button
-                  onClick={handleVerifyOtp}
+                  onClick={() => handleVerifyOtp()}
                   disabled={loading || otp.length !== 6}
-                  className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40"
-                  style={{
-                    background: "var(--accent)",
-                    color: "var(--bg-primary)",
-                  }}
+                  className={`${PRIMARY} mt-[26px] cursor-pointer`}
+                  style={primaryStyle}
                 >
-                  {loading ? "Verifying..." : "Verify code"}
+                  {loading ? "Verifying…" : mode === "signup" ? "Verify email" : "Sign in"}
                 </button>
-
-                <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center justify-between mt-3">
                   <button
                     onClick={() => { setStep(1); setOtp(""); setError(""); }}
-                    className="text-xs transition-opacity hover:opacity-60"
-                    style={{ color: "var(--text-muted)" }}
+                    className="text-sm min-h-11 transition-opacity hover:opacity-70"
+                    style={mutedStyle}
                   >
-                    ← Change email
+                    Change email
                   </button>
-                  <button
-                    onClick={handleSendOTP}
-                    disabled={loading}
-                    className="text-xs transition-opacity hover:opacity-60"
-                    style={{ color: "var(--accent)" }}
-                  >
-                    Resend code
-                  </button>
+                  {resendButton(handleSendOTP)}
                 </div>
+                <p className="text-xs mt-2 text-center" style={{ color: "var(--text-muted)" }}>
+                  Check spam if it’s not in your inbox. The code expires in 15 minutes.
+                </p>
               </div>
             )}
 
-            {/* ── STEP 3 ── */}
+            {/* ── STEP 3: profile ── */}
             {step === 3 && (
-              <div className="flex flex-col gap-3">
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full px-4 py-3 rounded-lg text-sm transition-all"
-                  style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
-                  placeholder="username"
-                  className="w-full px-4 py-3 rounded-lg text-sm transition-all"
-                  style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-                />
-
-                {/* Password with visibility toggle */}
-                <div className="relative">
+              <div className="flex flex-col gap-[18px]">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="auth-name" className={LABEL} style={labelStyle}>Display name</label>
                   <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Min 8 characters"
-                    className="w-full px-4 py-3 pr-11 rounded-lg text-sm transition-all"
-                    style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--accent)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
+                    id="auth-name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your name"
+                    autoComplete="name"
+                    className={INPUT}
+                    autoFocus
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 transition-opacity hover:opacity-60"
-                    style={{ color: "var(--text-muted)" }}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
                 </div>
 
-                {/* Confirm password with visibility toggle + inline validation */}
-                <div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="auth-username" className={LABEL} style={labelStyle}>Username</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px]" style={{ color: "var(--text-muted)" }} aria-hidden="true">@</span>
+                    <input
+                      id="auth-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                      placeholder="username"
+                      autoComplete="username"
+                      className={`${INPUT} pl-[34px]`}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="auth-new-pass" className={LABEL} style={labelStyle}>Password</label>
                   <div className="relative">
                     <input
+                      id="auth-new-pass"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      autoComplete="new-password"
+                      className={`${INPUT} pr-[52px]`}
+                    />
+                    {passwordToggle(showPassword, () => setShowPassword((v) => !v))}
+                  </div>
+                  {password.length > 0 && (
+                    <>
+                      <div className="grid grid-cols-4 gap-1.5 mt-1" aria-hidden="true">
+                        {[1, 2, 3, 4].map((n) => (
+                          <span
+                            key={n}
+                            className="h-[3px] rounded-full transition-colors duration-300"
+                            style={{ background: n <= score ? (score <= 1 ? "#f59e0b" : "var(--accent)") : "#262626" }}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        {SCORE_LABEL[score]}{password.length < 8 ? ` · ${8 - password.length} more characters` : ""}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="auth-confirm" className={LABEL} style={labelStyle}>Confirm password</label>
+                  <div className="relative">
+                    <input
+                      id="auth-confirm"
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Repeat password"
-                      className="w-full px-4 py-3 pr-[4.5rem] rounded-lg text-sm transition-all"
-                      style={{
-                        ...inputStyle,
-                        borderColor: !confirmPassword
-                          ? confirmFocused ? "var(--accent)" : "var(--border)"
-                          : passwordsMatch
-                            ? "#40C057"
-                            : showMismatch
-                              ? "#ef4444"
-                              : confirmFocused ? "var(--accent)" : "var(--border)",
-                      }}
-                      onFocus={() => setConfirmFocused(true)}
-                      onBlur={() => {
-                        setConfirmFocused(false);
-                        setConfirmTouched(true);
-                      }}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        displayName && username && passwordsMatch &&
-                        handleSignup()
+                      autoComplete="new-password"
+                      className={`${INPUT} pr-[84px]`}
+                      style={
+                        confirmPassword && passwordsMatch ? { borderColor: "#40C057" }
+                        : showMismatch ? { borderColor: "#ef4444" }
+                        : undefined
                       }
+                      onBlur={() => setConfirmTouched(true)}
+                      onKeyDown={(e) => e.key === "Enter" && displayName && username && passwordsMatch && handleSignup()}
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                      {confirmPassword && passwordsMatch && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#40C057" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                      {confirmPassword && showMismatch && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword((v) => !v)}
-                        className="p-0.5 transition-opacity hover:opacity-60"
-                        style={{ color: "var(--text-muted)" }}
-                        tabIndex={-1}
-                      >
-                        {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
+                    {confirmPassword && passwordsMatch && (
+                      <span className="absolute right-12 top-1/2 -translate-y-1/2"><CheckIcon color="#40C057" /></span>
+                    )}
+                    {passwordToggle(showConfirmPassword, () => setShowConfirmPassword((v) => !v))}
                   </div>
                   {showMismatch && (
-                    <p className="text-xs mt-1.5 ml-1" style={{ color: "#ef4444" }}>
-                      Passwords do not match
-                    </p>
+                    <p className="text-xs" style={{ color: "#f87171" }}>Passwords do not match</p>
                   )}
                 </div>
 
                 <button
                   onClick={handleSignup}
                   disabled={loading || !displayName || !username || !password || !confirmPassword}
-                  className="w-full py-3 rounded-lg text-sm font-medium tracking-wide transition-opacity hover:opacity-80 disabled:opacity-40 mt-1"
-                  style={{
-                    background: "var(--accent)",
-                    color: "var(--bg-primary)",
-                  }}
+                  className={`${PRIMARY} mt-2`}
+                  style={primaryStyle}
                 >
-                  {loading ? "Creating account..." : "Create account"}
+                  {loading ? "Creating account…" : "Create account"}
                 </button>
               </div>
             )}
+
+            {showSwitch && (
+              <p className="mt-8 text-sm text-center" style={mutedStyle}>
+                {mode === "login" ? "New to Aurora? " : "Already have an account? "}
+                <button
+                  type="button"
+                  onClick={() => switchMode(mode === "login" ? "signup" : "login")}
+                  className="font-medium underline underline-offset-4 decoration-white/30 hover:decoration-white/70 transition-colors cursor-pointer"
+                  style={textStyle}
+                >
+                  {mode === "login" ? "Create an account" : "Sign in"}
+                </button>
+              </p>
+            )}
           </div>
         </div>
+
+        <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+          By continuing you agree to Aurora’s{" "}
+          <Link href="/terms-of-service" className="underline underline-offset-2 hover:opacity-80" style={{ color: "#a8a8a8" }}>Terms</Link>
+          {" "}and{" "}
+          <Link href="/privacy-policy" className="underline underline-offset-2 hover:opacity-80" style={{ color: "#a8a8a8" }}>Privacy Policy</Link>.
+        </p>
       </div>
+
       {navigating && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center flex-col gap-6"
           style={{ background: "var(--bg-primary)" }}
         >
           <Logo href="/" />
-
-          {/* sliding accent bar */}
-          <div
-            className="relative h-[2px] rounded-full overflow-hidden"
-            style={{ width: 120, background: "var(--border)" }}
-          >
+          <div className="relative h-[2px] rounded-full overflow-hidden" style={{ width: 120, background: "var(--border)" }}>
             <div
               className="absolute top-0 left-0 h-full rounded-full"
-              style={{
-                width: "40%",
-                background: "var(--accent)",
-                animation: "aurora-slide 1.2s ease-in-out infinite",
-              }}
+              style={{ width: "40%", background: "var(--accent)", animation: "aurora-slide 1.2s ease-in-out infinite" }}
             />
           </div>
-
-          <p
-            className="text-xs tracking-[0.3em] uppercase"
-            style={{ color: "var(--text-muted)" }}
-          >
+          <p className="text-xs tracking-[0.3em] uppercase" style={{ color: "var(--text-muted)" }}>
             Entering Aurora
           </p>
         </div>
