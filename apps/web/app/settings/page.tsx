@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import {
   confirmPasswordChange,
   deleteAccount,
+  getInterests,
   getProfile,
   sendDeleteAccountCode,
   verifyCurrentPassword,
+  type Interest,
   type ProfileUser,
 } from "@/lib/profileApi";
 import { forgotPassword, resetPassword } from "@/lib/authApi";
@@ -59,6 +61,7 @@ export default function SettingsPage() {
   const { user: authUser, setUser: setAuthUser, loaded: authLoaded, refreshUser } = useAuth();
   const [profile, setProfile] = useState<ProfileUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [interests, setInterests] = useState<Interest[] | null>(null);
 
   // password
   const [pwStep, setPwStep] = useState<PwStep>("idle");
@@ -86,6 +89,7 @@ export default function SettingsPage() {
       .then(setProfile)
       .catch((err: unknown) => toast(err instanceof Error ? err.message : "Failed to load settings", "error"))
       .finally(() => setLoading(false));
+    getInterests().then(setInterests).catch(() => setInterests([]));
   }, [authLoaded, authUser, router, toast]);
 
   const noPassword = profile?.hasPassword === false;
@@ -187,6 +191,39 @@ export default function SettingsPage() {
         ) : (
           <div>
             <div className="flex flex-col gap-7">
+              {/* ── interests ── */}
+              <section id="interests" aria-labelledby="h-interests" className="flex flex-col gap-3 scroll-mt-24">
+                <h2 id="h-interests" className="text-[13px] font-medium tracking-[0.14em] uppercase" style={{ color: "var(--text-muted)" }}>Your feed</h2>
+                <div className="rounded-[20px] overflow-hidden" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <Row
+                    icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" /></svg>}
+                    title="Interests"
+                    sub={interests && interests.length ? "Categories you love — used to shape your home feed" : "Pick up to 4 categories to shape your home feed"}
+                    right={
+                      <Link href="/welcome?mode=edit&next=%2Fsettings" className={`${BTN} flex items-center`}>
+                        {interests && interests.length ? "Edit" : "Pick interests"}
+                      </Link>
+                    }
+                  >
+                    {interests && interests.length > 0 && (
+                      <div className="mt-4 sm:pl-14 flex flex-wrap gap-2">
+                        {interests.map((i) => (
+                          <span key={i.id} className="h-9 pl-1 pr-3 rounded-full flex items-center gap-2 text-[13px] font-medium" style={{ background: "#161616", border: "1px solid rgba(255,255,255,0.1)" }}>
+                            {i.coverThumbUrl || i.coverImageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={(i.coverThumbUrl || i.coverImageUrl)!} alt="" className="w-7 h-7 rounded-full object-cover" />
+                            ) : (
+                              <span className="w-7 h-7 rounded-full" style={{ background: "#222" }} />
+                            )}
+                            {i.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </Row>
+                </div>
+              </section>
+
               {/* ── sign-in methods ── */}
               <section id="sign-in" aria-labelledby="h-sign-in" className="flex flex-col gap-3 scroll-mt-24">
                 <h2 id="h-sign-in" className="text-[13px] font-medium tracking-[0.14em] uppercase" style={{ color: "var(--text-muted)" }}>Sign-in methods</h2>

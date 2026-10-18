@@ -9,10 +9,12 @@ import {
   ConfirmPasswordChangeBody,
   ImageUploadUrlBody,
   NewPasswordLength,
+  SetInterestsBody,
   UpdateProfileBody,
   UpdateUploadBody,
 } from "../validators/profile.schema";
 import * as profileService from "../services/profile.service";
+import * as interestsService from "../services/interests.service";
 import type { ImageKind } from "../services/profile.service";
 
 // Handlers without route(): unexpected errors go to the central errorHandler (500),
@@ -145,3 +147,16 @@ export const deleteUpload = route("Failed to delete wallpaper", async (req, res)
   await profileService.deleteUpload(authUserId(req), param(req, "id"));
   res.json({ message: "Wallpaper deleted" });
 });
+
+// ─── Interests (categories picked after sign-up) ───────────
+
+export async function getInterests(req: Request, res: Response) {
+  const interests = await interestsService.getInterests(authUserId(req));
+  res.json({ interests, max: interestsService.MAX_INTERESTS });
+}
+
+export async function setInterests(req: Request, res: Response) {
+  const { categoryIds } = parseOrThrow(SetInterestsBody, req.body);
+  const interests = await interestsService.setInterests(authUserId(req), categoryIds);
+  res.json({ message: "Interests saved", interests, max: interestsService.MAX_INTERESTS });
+}

@@ -26,6 +26,9 @@ profileRoutes.post("/cover/direct", singleImage("cover", HARD_CAP, "Cover must b
 profileRoutes.post("/change-password/verify", profile.startPasswordChange);
 profileRoutes.post("/change-password/confirm", profile.confirmPasswordChange);
 
+profileRoutes.get("/interests", profile.getInterests);
+profileRoutes.put("/interests", profile.setInterests);
+
 profileRoutes.get("/uploads", profile.listUploads);
 profileRoutes.put("/uploads/:id", profile.updateUpload);
 profileRoutes.delete("/uploads/:id", profile.deleteUpload);

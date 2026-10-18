@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const HIDDEN_NAVBAR_ROUTES = ["/login", "/signup"];
+const HIDDEN_NAVBAR_ROUTES = ["/login", "/signup", "/welcome"];
 
 /**
  * Hides site chrome: the navbar on auth pages, and everything on the admin area

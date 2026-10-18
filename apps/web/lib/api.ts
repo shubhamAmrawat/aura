@@ -13,6 +13,8 @@ export interface Category {
   description?: string | null;
   /** Small webp for menus (null until one is made, or when the category is empty). */
   coverThumbUrl?: string | null;
+  /** Full-size cover image (absent on older API versions). */
+  coverImageUrl?: string | null;
   /** Live wallpapers in the category (absent on older API versions). */
   wallpaperCount?: number;
 }

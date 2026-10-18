@@ -9,7 +9,7 @@ import {
   date,
 } from "drizzle-orm/pg-core";
 import { users } from "./user.model";
-import { wallpapers } from "./wallpaper.model";
+import { categories, wallpapers } from "./wallpaper.model";
 
 export const likes = pgTable("likes", {
   userId: uuid("user_id").notNull().references(() => users.id),
@@ -39,3 +39,11 @@ export const wallpaperViewsDaily = pgTable("wallpaper_views_daily", {
   primaryKey({ name: "wallpaper_views_daily_pk", columns: [t.wallpaperId, t.day, t.source] }),
   index("wallpaper_views_daily_day_idx").on(t.day),
 ]);
+
+/** Categories a user picked after sign-up (max 4, enforced by the API); position 1 = first pick. */
+export const userInterests = pgTable("user_interests", {
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  categoryId: uuid("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  position: integer("position").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.userId, t.categoryId] }), index("user_interests_category_idx").on(t.categoryId)]);

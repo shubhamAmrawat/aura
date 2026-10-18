@@ -266,3 +266,36 @@ export async function deleteUpload(id: string): Promise<void> {
   });
   await parseJson(response);
 }
+
+// ─── Interests (categories picked after sign-up) ───────────
+
+export interface Interest {
+  id: string;
+  slug: string;
+  name: string;
+  coverThumbUrl: string | null;
+  coverImageUrl: string | null;
+}
+
+/** The signed-in user's picked categories, first pick first. */
+export async function getInterests(): Promise<Interest[]> {
+  const response = await fetch(`${getApiUrl()}/api/profile/interests`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
+  const data = await parseJson<{ interests: Interest[] }>(response);
+  return data.interests;
+}
+
+/** Replaces the user's picks (in order, max 4). An empty list clears them. */
+export async function saveInterests(categoryIds: string[]): Promise<Interest[]> {
+  const response = await fetch(`${getApiUrl()}/api/profile/interests`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ categoryIds }),
+  });
+  const data = await parseJson<{ interests: Interest[] }>(response);
+  return data.interests;
+}

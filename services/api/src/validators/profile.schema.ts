@@ -8,6 +8,12 @@ export const UpdateProfileBody = z.object({
   username: z.any().optional(),
 });
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const SetInterestsBody = z.object({
+  categoryIds: z.array(z.string().regex(UUID, "Invalid category id."), { message: "categoryIds must be a list." }),
+});
+
 export const ImageUploadUrlBody = z.object({
   fileType: z.custom<(typeof ALLOWED_IMAGE_TYPES)[number]>(
     (v) => (ALLOWED_IMAGE_TYPES as readonly unknown[]).includes(v),

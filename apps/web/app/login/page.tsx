@@ -274,12 +274,17 @@ function LoginContent() {
 
   const goTo = (v: typeof view) => { setView(v); setStep(1); setError(""); setInfo(""); setOtp(""); };
 
-  /** After login: admins always land on /admin; everyone else on ?next= or /. */
-  const finishLogin = async (message: string, role?: string) => {
+  /** Where to go after signing in: ?next= or the home page. */
+  const destination = () => (next ? decodeURIComponent(next) : "/");
+  /** New accounts first pick their interests (/welcome), then continue to the destination. */
+  const welcomeUrl = () => `/welcome?next=${encodeURIComponent(destination())}`;
+
+  /** After login: admins always land on /admin; new accounts on /welcome; everyone else on ?next= or /. */
+  const finishLogin = async (message: string, role?: string, isNewUser = false) => {
     await refreshUser();
     queueToast(message, "success");
     setNavigating(true);
-    router.push(role === "admin" ? "/admin" : next ? decodeURIComponent(next) : "/");
+    router.push(role === "admin" ? "/admin" : isNewUser ? welcomeUrl() : destination());
   };
 
   const handleGoogle = async (credential: string) => {
@@ -287,7 +292,7 @@ function LoginContent() {
     setError("");
     try {
       const { isNewUser, user } = await loginWithGoogle(credential);
-      await finishLogin(isNewUser ? "Account created! Welcome to Aurora" : "Welcome back!", user?.role);
+      await finishLogin(isNewUser ? "Account created! Welcome to Aurora" : "Welcome back!", user?.role, isNewUser);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed.");
       setLoading(false);
@@ -404,7 +409,7 @@ function LoginContent() {
       await refreshUser();
       queueToast("Account created! Welcome to Aurora", "success");
       setNavigating(true);
-      router.push(next ? decodeURIComponent(next) : "/");
+      router.push(welcomeUrl());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
