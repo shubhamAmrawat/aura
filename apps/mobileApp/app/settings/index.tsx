@@ -12,6 +12,7 @@ import { useInsets } from "../../hooks/useInsets";
 import { useAuth } from "../../lib/AuthContext";
 import { PRIVACY_URL, TERMS_URL } from "../../lib/authConfig";
 import { useToast } from "../../lib/ToastContext";
+import { getInterests } from "../../lib/profileApi";
 import { Sentry } from "../../lib/sentry";
 import { intervalLabel, loadState } from "../../lib/wallpaperChanger/state";
 
@@ -28,6 +29,7 @@ const Settings = () => {
   const { bottomPadding } = useInsets();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [changer, setChanger] = useState<string>("");
+  const [interests, setInterests] = useState<string>("");
 
   // Status for the Wallpaper changer row ("Every 6 h" / "Off"); refreshed when returning here.
   useFocusEffect(
@@ -36,6 +38,18 @@ const Settings = () => {
         .then((s) => setChanger(s.enabled ? intervalLabel(s.intervalHours) : "Off"))
         .catch(() => setChanger(""));
     }, [])
+  );
+
+  // Status for the Interests row ("Space, Ocean +1" / "None yet"); refreshed when returning here.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      getInterests()
+        .then((list) =>
+          setInterests(list.length ? list.slice(0, 2).map((i) => i.name).join(", ") + (list.length > 2 ? ` +${list.length - 2}` : "") : "None yet")
+        )
+        .catch(() => setInterests(""));
+    }, [user])
   );
 
   const open = (url: string) => {
@@ -96,6 +110,12 @@ const Settings = () => {
             </Pressable>
           </View>
         )}
+
+        {user ? (
+          <SettingsSection title="Your feed">
+            <SettingsRow icon="sparkles-outline" label="Interests" value={interests} onPress={() => router.push("/welcome?mode=edit")} />
+          </SettingsSection>
+        ) : null}
 
         <SettingsSection title="Wallpaper">
           <SettingsRow icon="sync-outline" label="Wallpaper changer" value={changer} onPress={() => router.push("/settings/wallpaper-changer")} />

@@ -96,7 +96,8 @@ export default function AuthIndex() {
       await onLogin(res.token, res.user)
       buzz(Haptics.NotificationFeedbackType.Success)
       showToast(res.isNewUser ? 'Welcome to Aurora!' : 'Welcome back!', { type: 'success' })
-      router.replace('/(tabs)')
+      // New accounts pick their interests first.
+      router.replace(res.isNewUser && res.user.role !== 'admin' ? '/welcome' : '/(tabs)')
     } catch (e: any) {
       showToast(e?.message || 'Google sign-in failed. Please try again.', { type: 'error', position: 'top' })
       buzz(Haptics.NotificationFeedbackType.Error)

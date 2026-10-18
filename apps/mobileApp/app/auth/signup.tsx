@@ -50,7 +50,7 @@ export default function SignupScreen() {
       })
       await onLogin(res.token, res.user)
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => undefined)
-      router.replace('/(tabs)')
+      router.replace('/welcome')
     } catch (e: any) {
       setError(e.message || 'Signup failed')
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => undefined)

@@ -186,3 +186,28 @@ export function requestSetPasswordCode(email: string): Promise<{ message: string
 export function setPasswordWithCode(email: string, otp: string, newPassword: string): Promise<{ message: string }> {
   return request("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ email, otp, newPassword }) });
 }
+
+// ─── Interests (categories picked after sign-up) ───────────
+
+export type Interest = {
+  id: string;
+  slug: string;
+  name: string;
+  coverThumbUrl: string | null;
+  coverImageUrl: string | null;
+};
+
+/** The signed-in user's picked categories, first pick first. */
+export async function getInterests(): Promise<Interest[]> {
+  const res = await request<{ interests: Interest[] }>("/api/profile/interests");
+  return res.interests;
+}
+
+/** Replaces the user's picks (in order, max 4). An empty list clears them. */
+export async function saveInterests(categoryIds: string[]): Promise<Interest[]> {
+  const res = await request<{ interests: Interest[] }>("/api/profile/interests", {
+    method: "PUT",
+    body: JSON.stringify({ categoryIds }),
+  });
+  return res.interests;
+}
