@@ -2,19 +2,23 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import AvatarImage from "@/app/components/AvatarImage";
+import { ConfirmDialog } from "@/app/admin/_components/ui";
 
 const NavbarAuth = () => {
   const router = useRouter();
   const { user, logout, loaded } = useAuth();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
     await logout();
+    setConfirmLogout(false);
     router.push("/login");
     router.refresh();
     setLoggingOut(false);
@@ -170,7 +174,7 @@ const NavbarAuth = () => {
 
             <div className="py-1" style={{ borderTop: "1px solid var(--border)" }}>
               <button
-                onClick={handleLogout}
+                onClick={() => { setOpen(false); setConfirmLogout(true); }}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm w-full text-left transition-colors hover:bg-white/5"
                 style={{ color: "#ef4444" }}
               >
@@ -179,13 +183,27 @@ const NavbarAuth = () => {
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
-                {loggingOut ? "Signing out..." : "Sign out"}
+                Sign out
               </button>
             </div>
           </div>
         </>
       )}
       </div>
+
+      {/* Portal: the navbar uses backdrop-blur, which would trap a fixed overlay inside it. */}
+      {confirmLogout && createPortal(
+        <ConfirmDialog
+          title="Sign out?"
+          body="You’ll need to sign in again to see your likes and collections."
+          confirmLabel="Sign out"
+          danger
+          busy={loggingOut}
+          onCancel={() => setConfirmLogout(false)}
+          onConfirm={() => void handleLogout()}
+        />,
+        document.body,
+      )}
     </div>
   );
 };

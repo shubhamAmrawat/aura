@@ -23,7 +23,10 @@ export function createApp() {
 
   // Order matches the previous API: rate limit → logging → CORS → parsing → routes
   app.use(globalRateLimit);
-  app.use(morgan("dev"));
+  // Debugger tools on this machine (VS Code / Chrome DevTools) probe local ports for a
+  // Chrome debugging endpoint (/json, /json/version, /json/list). They aren't our traffic,
+  // so keep their 404s out of the request log.
+  app.use(morgan("dev", { skip: (req) => /^\/json(\/|$)/.test(req.path) }));
   app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
   app.use(cookieParser());
   // Parse JSON for every non-multipart body (the old API ignored Content-Type)
