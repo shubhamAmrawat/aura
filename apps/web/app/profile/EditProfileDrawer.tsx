@@ -5,6 +5,7 @@ import Link from "next/link";
 import AvatarImage from "@/app/components/AvatarImage";
 import { updateProfile, type ProfileUser } from "@/lib/profileApi";
 import { useToast } from "@/lib/toast";
+import { CameraIcon, MailIcon, XIcon } from "lucide-react";
 
 const INPUT =
   "w-full h-12 px-3.5 rounded-xl text-[15px] bg-[#151515] border border-white/[0.08] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6f6f6f] focus:border-[color:var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-muted)]";
@@ -123,7 +124,7 @@ export default function EditProfileDrawer({ profile, uploadingAvatar, uploadingC
             className="w-11 h-11 rounded-full flex items-center justify-center transition-colors hover:bg-white/[0.08]"
             style={{ background: "rgba(255,255,255,0.04)", color: "#bdbdbd" }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <XIcon size={16} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
 
@@ -171,7 +172,7 @@ export default function EditProfileDrawer({ profile, uploadingAvatar, uploadingC
                 className="absolute right-0 bottom-0.5 w-[30px] h-[30px] rounded-full flex items-center justify-center"
                 style={{ border: "3px solid #0f0f0f", background: "var(--text-primary)", color: "var(--bg-primary)" }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                <CameraIcon size={12} strokeWidth={2.4} aria-hidden="true" />
               </button>
             </div>
             <p className="absolute right-0 -bottom-7 text-xs" style={{ color: "var(--text-muted)" }}>JPG, PNG or WebP · photo up to 5 MB, cover up to 10 MB</p>
@@ -224,7 +225,7 @@ export default function EditProfileDrawer({ profile, uploadingAvatar, uploadingC
           </div>
 
           <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl" style={{ background: "#141414", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9a9a9a" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>
+            <MailIcon size={16} strokeWidth={2} stroke="#9a9a9a" aria-hidden="true" />
             <div className="flex flex-col gap-0.5 min-w-0">
               <span className="text-sm truncate">{profile.email}</span>
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>Email can’t be changed</span>

@@ -12,6 +12,7 @@ import {
   type CollectionCheck,
 } from "@/lib/collectionsApi";
 import { useToast } from "@/lib/toast";
+import { BookmarkIcon, CheckIcon, PlusIcon } from "lucide-react";
 
 interface BookmarkButtonProps {
   wallpaperId: string;
@@ -298,18 +299,7 @@ const BookmarkButton = ({
                           }}
                         >
                           {col.hasWallpaper && (
-                            <svg
-                              width="10"
-                              height="10"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="var(--bg-primary)"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
+                            <CheckIcon size={10} strokeWidth={3} stroke="var(--bg-primary)" aria-hidden="true" />
                           )}
                         </div>
                         <span style={{ color: "var(--text-primary)" }}>
@@ -375,18 +365,7 @@ const BookmarkButton = ({
                       }}
                     >
                       {newIsPublic && (
-                        <svg
-                          width="10"
-                          height="10"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="var(--bg-primary)"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
+                        <CheckIcon size={10} strokeWidth={3} stroke="var(--bg-primary)" aria-hidden="true" />
                       )}
                     </div>
                     Make public
@@ -428,19 +407,7 @@ const BookmarkButton = ({
                     color: "var(--text-muted)",
                   }}
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
+                  <PlusIcon size={14} strokeWidth={2} aria-hidden="true" />
                   New collection
                 </button>
               )}
@@ -469,18 +436,7 @@ const BookmarkButton = ({
           }}
           title="Save to collection"
         >
-          <svg
-            width={iconSize}
-            height={iconSize}
-            viewBox="0 0 24 24"
-            fill={isSaved ? "currentColor" : "none"}
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
+          <BookmarkIcon size={iconSize} strokeWidth={2.2} fill={isSaved ? "currentColor" : "none"} aria-hidden="true" />
         </button>
         {dropdown}
       </>
@@ -504,18 +460,7 @@ const BookmarkButton = ({
         }}
         title="Save to collection"
       >
-        <svg
-          width={iconSize}
-          height={iconSize}
-          viewBox="0 0 24 24"
-          fill={isSaved ? "currentColor" : "none"}
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
+        <BookmarkIcon size={iconSize} strokeWidth={2} fill={isSaved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
       {dropdown}
     </>

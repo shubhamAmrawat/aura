@@ -111,7 +111,8 @@ describe("POST /api/admin/uploads", () => {
   });
 
   it("hold for review: stored as PENDING, no uploader, full metadata, audited", async () => {
-    const f = await stage(admin, await pngOf(320, 480));
+    const image = await pngOf(320, 480);
+    const f = await stage(admin, image);
     const res = await api("POST", "/api/admin/uploads", {
       token: admin.token,
       json: { ...f, width: 1, height: 1, title: "  Admin Upload  ", description: " d ", tags: ["Blue", "blue", "test"], categoryId, isPremium: true, isAiGenerated: true, publish: false, aiText: false },
@@ -134,11 +135,11 @@ describe("POST /api/admin/uploads", () => {
     const feed = await api("GET", "/api/wallpapers?limit=20");
     expect(feed.body.data.some((x: any) => x.id === row!.id)).toBe(false);
 
-    // the same bytes again → flagged as a likely duplicate
-    const again = await stage(admin, await pngOf(320, 480));
+    // the same picture again → flagged (admins aren't blocked, they get a warning)
+    const again = await stage(admin, image);
     const dup = await api("POST", "/api/admin/uploads", { token: admin.token, json: { ...again, title: "Admin Upload 2", categoryId, publish: false } });
     expect(dup.status).toBe(201);
-    expect(dup.body.warnings.some((w: string) => w.startsWith("Possible duplicate of"))).toBe(true);
+    expect(dup.body.warnings).toContain("Already on Aurora: “Admin Upload” (same picture).");
   });
 
   it("AI text: aiTitle replaces the file-name title, aiText fills the description and adds tags", async () => {

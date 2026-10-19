@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import AvatarImage from "@/app/components/AvatarImage";
 import { ConfirmDialog } from "@/app/admin/_components/ui";
+import { ChevronDownIcon, LockIcon, LogOutIcon, PlusIcon, UserIcon } from "lucide-react";
 
 const NavbarAuth = () => {
   const router = useRouter();
@@ -38,20 +39,7 @@ const NavbarAuth = () => {
         style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
       >
        
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx="12" cy="7" r="4" />
-        </svg>
+        <UserIcon size={16} strokeWidth={1.75} aria-hidden />
         <span className="hidden sm:inline">Sign in</span>
       </Link>
     );
@@ -66,12 +54,7 @@ const NavbarAuth = () => {
           style={{ color: "var(--text-primary)", border: "1px solid var(--border-hover)" }}
           title="Upload wallpaper"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <PlusIcon size={13} strokeWidth={2.5} aria-hidden="true" />
           <span className="hidden sm:inline">Upload</span>
         </Link>
       )}
@@ -93,21 +76,10 @@ const NavbarAuth = () => {
             </div>
           }
         />
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="transition-transform duration-200"
-          style={{
+        <ChevronDownIcon size={12} strokeWidth={2} className="transition-transform duration-200" style={{
             color: "var(--text-muted)",
             transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+          }} aria-hidden="true" />
       </button>
 
       {open && (
@@ -152,10 +124,7 @@ const NavbarAuth = () => {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
+                <UserIcon size={14} strokeWidth={2} aria-hidden="true" />
                 Profile
               </Link>
               <Link
@@ -164,10 +133,7 @@ const NavbarAuth = () => {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="4" y="11" width="16" height="10" rx="2" />
-                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                </svg>
+                <LockIcon size={14} strokeWidth={2} aria-hidden="true" />
                 Account settings
               </Link>
               {/* <Link
@@ -176,10 +142,7 @@ const NavbarAuth = () => {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-secondary)" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-                  <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-                </svg>
+                <LayoutGridIcon size={14} strokeWidth={2} aria-hidden="true" />
                 Collections
               </Link> */}
             </div>
@@ -190,11 +153,7 @@ const NavbarAuth = () => {
                 className="flex items-center gap-3 px-4 py-2.5 text-sm w-full text-left transition-colors hover:bg-white/5"
                 style={{ color: "#ef4444" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
+                <LogOutIcon size={14} strokeWidth={2} aria-hidden="true" />
                 Sign out
               </button>
             </div>

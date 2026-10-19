@@ -7,7 +7,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, next: N
   if (res.headersSent) return next(err);
 
   if (err instanceof ApiError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json({ ...err.extra, error: err.message });
     return;
   }
 

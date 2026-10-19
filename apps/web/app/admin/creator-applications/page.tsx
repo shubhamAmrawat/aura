@@ -17,6 +17,7 @@ import {
   type CreatorAppListItem,
   type CreatorAppStatus,
 } from "@/lib/adminApi";
+import { ArrowLeftIcon, ArrowUpRightIcon, CheckIcon, SparkleIcon, XIcon } from "lucide-react";
 
 const TABS: { id: CreatorAppStatus; label: string }[] = [
   { id: "pending", label: "Waiting" },
@@ -298,7 +299,7 @@ function Page() {
           ) : (
             <>
               <button type="button" onClick={() => setQuery({ id: null })} className="lg:hidden self-start text-sm inline-flex items-center gap-1.5 min-h-10" style={{ color: "var(--text-secondary)" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+                <ArrowLeftIcon size={14} strokeWidth={2} aria-hidden="true" />
                 All applications
               </button>
 
@@ -313,7 +314,7 @@ function Page() {
                 {detail.portfolioUrl && (
                   <a href={detail.portfolioUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-[13px] underline underline-offset-4 inline-flex items-center gap-1" style={{ color: "#cfcfcf" }}>
                     Portfolio
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9" /></svg>
+                    <ArrowUpRightIcon size={12} strokeWidth={2} aria-hidden="true" />
                   </a>
                 )}
               </div>
@@ -383,7 +384,7 @@ function Page() {
                       <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Email to {detail.user.displayName.split(" ")[0]}</h2>
                       {fromAi ? (
                         <span className="h-5 px-1.5 rounded text-[10px] font-semibold uppercase tracking-wider inline-flex items-center gap-1" style={{ background: "rgba(139,124,246,0.14)", color: "#b4a9ff" }}>
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>
+                          <SparkleIcon size={10} strokeWidth={1} fill="currentColor" aria-hidden="true" />
                           AI draft
                         </span>
                       ) : edited[decision] ? (
@@ -458,9 +459,9 @@ function Page() {
                       style={decision === "approve" ? { background: "var(--accent)", color: "var(--bg-primary)" } : { background: "#ef4444", color: "#fff" }}
                     >
                       {decision === "approve" ? (
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+                        <CheckIcon size={15} strokeWidth={2.6} aria-hidden="true" />
                       ) : (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                        <XIcon size={14} strokeWidth={2.6} aria-hidden="true" />
                       )}
                       {decision === "approve" ? "Approve and send" : "Reject and send"}
                     </button>

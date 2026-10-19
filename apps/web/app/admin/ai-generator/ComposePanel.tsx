@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Toggle, inputStyle } from "../_components/ui";
 import { BUDGET, Chip, DIMS, ICONS, Label, MODELS, PRESETS, PRICE, Segmented, usd, type Format, type ModelId, type Mode, type Res } from "./shared";
+import { XIcon } from "lucide-react";
 
 const FIELDS = [
   { key: "subject", label: "Subject", placeholder: "Lone lighthouse on a basalt cliff" },
@@ -171,7 +172,7 @@ export default function ComposePanel({ onGenerate }: { onGenerate: (summary: str
                       <span key={i} className="relative group">
                         <input type="color" value={c} onChange={(e) => setPalette((p) => p.map((v, j) => (j === i ? e.target.value : v)))} aria-label={`Colour ${i + 1}`} className="w-7 h-7 rounded-md cursor-pointer border-0 p-0 bg-transparent" />
                         <button type="button" onClick={() => setPalette((p) => p.filter((_, j) => j !== i))} aria-label="Remove colour" className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full hidden group-hover:flex items-center justify-center" style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border-hover)" }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                          <XIcon size={8} strokeWidth={3} aria-hidden="true" />
                         </button>
                       </span>
                     ))}

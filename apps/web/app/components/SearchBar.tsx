@@ -5,6 +5,7 @@ import { useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type 
 import { DEVICE_LABEL, type Device } from "@/lib/device";
 import { useDevice } from "@/lib/useDevice";
 import { getAutocomplete, getSearchSuggestions, type Category } from "@/lib/api";
+import { HistoryIcon, LayoutGridIcon, MonitorIcon, SearchIcon, SmartphoneIcon, TrendingUpIcon, XIcon } from "lucide-react";
 
 const svg = {
   width: 13,
@@ -20,25 +21,13 @@ const svg = {
 
 const DEVICE_ICON: Record<Device, React.ReactNode> = {
   all: (
-    <svg {...svg}>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" />
-    </svg>
+    <LayoutGridIcon {...svg} aria-hidden="true" />
   ),
   phone: (
-    <svg {...svg}>
-      <rect x="7" y="2" width="10" height="20" rx="2" />
-      <line x1="11" y1="18" x2="13" y2="18" />
-    </svg>
+    <SmartphoneIcon {...svg} aria-hidden="true" />
   ),
   desktop: (
-    <svg {...svg}>
-      <rect x="2" y="4" width="20" height="13" rx="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-    </svg>
+    <MonitorIcon {...svg} aria-hidden="true" />
   ),
 };
 
@@ -188,23 +177,13 @@ function Highlight({ text, q }: { text: string; q: string }) {
 
 const ICON = {
   search: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <circle cx="11" cy="11" r="7" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
+    <SearchIcon size={15} strokeWidth={2} aria-hidden />
   ),
   recent: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-      <polyline points="3 3 3 8 8 8" />
-      <polyline points="12 7 12 12 15 14" />
-    </svg>
+    <HistoryIcon size={15} strokeWidth={2} aria-hidden />
   ),
   popular: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-      <polyline points="16 7 22 7 22 13" />
-    </svg>
+    <TrendingUpIcon size={15} strokeWidth={2} aria-hidden />
   ),
 };
 
@@ -405,10 +384,7 @@ const SearchBar = ({ defaultValue = "", inputRef, showShortcut = false, onSearch
         style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-hover)" }}
       >
         <button type="submit" aria-label="Search" className="shrink-0 transition-opacity hover:opacity-70" style={{ color: "var(--text-secondary)" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="11" cy="11" r="7" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
+          <SearchIcon size={16} strokeWidth={2} aria-hidden />
         </button>
         <input
           ref={inputEl}
@@ -541,10 +517,7 @@ function SuggestionRow({ id, option: o, q, active, heading, onHover, onChoose, o
             className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-white/10"
             style={{ color: "var(--text-muted)" }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <XIcon size={12} strokeWidth={2.5} aria-hidden />
           </button>
         )}
       </li>

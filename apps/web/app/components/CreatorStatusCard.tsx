@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { CreatorStatus } from "@/lib/creatorApi";
+import { ArrowRightIcon } from "lucide-react";
 
 /** "18 h 24 min" until `iso` (never below 1 min). */
 export function timeUntil(iso: string, now = Date.now()): string {
@@ -132,7 +133,7 @@ export default function CreatorStatusCard({ status, onPauseEnd }: { status: Crea
       </div>
       <Link href="/creator/apply" className={primary} style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
         Apply to become a creator
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        <ArrowRightIcon size={15} strokeWidth={2.2} aria-hidden="true" />
       </Link>
     </section>
   );

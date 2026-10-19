@@ -2,6 +2,7 @@
 
 import type { CategoryOption } from "@/lib/adminApi";
 import { inputStyle } from "./ui";
+import { XIcon } from "lucide-react";
 
 /** A wallpaper's main category plus up to this many extras. */
 export const MAX_EXTRA_CATEGORIES = 2;
@@ -33,7 +34,7 @@ export default function ExtraCategories({ value, primaryId, categories, aiIds = 
           {name(id)}{aiIds.includes(id) ? " ✨" : ""}
           {!disabled && (
             <button type="button" aria-label={`Remove ${name(id)}`} onClick={() => onChange(chosen.filter((x) => x !== id))} className="rounded-full p-0.5 hover:bg-white/10" style={{ color: "var(--text-muted)" }}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              <XIcon size={10} strokeWidth={2.5} aria-hidden="true" />
             </button>
           )}
         </span>

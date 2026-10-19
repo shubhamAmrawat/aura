@@ -5,6 +5,7 @@ import { wallpapers } from "../models";
 import { deleteFile, getFileBytes, keyFromPublicUrl, uploadFileToKey } from "../integrations/r2";
 import { extractImageMetadataFromBuffer, type ImageMetadata } from "../utils/imageMetadata";
 import { createSemaphore } from "../utils/semaphore";
+import { computePhash, pixelSignature } from "../utils/phash";
 
 /**
  * Full-size image work (download + decode) is memory-heavy: a 5K PNG is ~60 MB once decoded.
@@ -112,23 +113,31 @@ export async function fillMissingThumbs(limit = 40, concurrency = 4): Promise<{ 
 
 /**
  * For a file just uploaded to R2: download it once, read its size/colours, make its
- * thumbnail from the same bytes. Width 0 in `metadata` = not a readable image.
+ * thumbnail and its duplicate-detection fingerprint from the same bytes.
+ * Width 0 in `metadata` = not a readable image.
  */
-export async function prepareUploadedImage(key: string, fileUrl: string): Promise<{ metadata: ImageMetadata; thumb: ThumbVariant | null }> {
+export async function prepareUploadedImage(
+  key: string,
+  fileUrl: string
+): Promise<{ metadata: ImageMetadata; thumb: ThumbVariant | null; print: { phash: string; signature: string } | null }> {
   return heavyImageWork(async () => {
     let bytes: Buffer;
     try {
       bytes = await getFileBytes(key);
     } catch (e) {
       console.error("[upload] could not read the uploaded file:", key, e instanceof Error ? e.message : e);
-      return { metadata: await extractImageMetadataFromBuffer(Buffer.alloc(0)), thumb: null };
+      return { metadata: await extractImageMetadataFromBuffer(Buffer.alloc(0)), thumb: null, print: null };
     }
     const metadata = await extractImageMetadataFromBuffer(bytes);
-    if (!metadata.width) return { metadata, thumb: null };
+    if (!metadata.width) return { metadata, thumb: null, print: null };
     const thumb = await createThumb(fileUrl, bytes).catch((e) => {
       console.error("[thumbs] create failed (will retry hourly):", fileUrl, e instanceof Error ? e.message : e);
       return null;
     });
-    return { metadata, thumb };
+    // Duplicate-detection fingerprint + pixel signature (services/duplicate.service)
+    const print = await Promise.all([computePhash(bytes), pixelSignature(bytes)])
+      .then(([phash, signature]) => ({ phash, signature }))
+      .catch(() => null);
+    return { metadata, thumb, print };
   });
 }

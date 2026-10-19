@@ -12,6 +12,7 @@ import {
   type UserUpload,
 } from "@/lib/profileApi";
 import { useToast } from "@/lib/toast";
+import { ChevronDownIcon, CloudUploadIcon, SquarePenIcon, Trash2Icon, XIcon } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -25,47 +26,31 @@ interface Category {
 
 function IcEdit() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
+    <SquarePenIcon size={13} strokeWidth={2} aria-hidden="true" />
   );
 }
 
 function IcTrash() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-    </svg>
+    <Trash2Icon size={13} strokeWidth={2} aria-hidden="true" />
   );
 }
 
 function IcChevronDown() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
+    <ChevronDownIcon size={14} strokeWidth={2} aria-hidden="true" />
   );
 }
 
 function IcUploadCloud() {
   return (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="16 16 12 12 8 16" />
-      <line x1="12" y1="12" x2="12" y2="21" />
-      <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-    </svg>
+    <CloudUploadIcon size={32} strokeWidth={1.5} aria-hidden="true" />
   );
 }
 
 function IcX() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
+    <XIcon size={16} strokeWidth={2} aria-hidden="true" />
   );
 }
 

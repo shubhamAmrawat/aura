@@ -20,6 +20,7 @@ import { useToast } from "@/lib/toast";
 import { StatusBadge, Toggle, inputStyle } from "../_components/ui";
 import { readImageHeaderSize } from "@/lib/imageSize";
 import ExtraCategories from "../_components/ExtraCategories";
+import { UploadIcon, XIcon } from "lucide-react";
 
 /**
  * Bulk upload, review first:
@@ -497,9 +498,7 @@ export default function BulkUploadPage() {
               opacity: publishing ? 0.5 : 1,
             }}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: dragOver ? "var(--accent)" : "var(--text-muted)" }}>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
+            <UploadIcon size={28} strokeWidth={1.8} style={{ color: dragOver ? "var(--accent)" : "var(--text-muted)" }} aria-hidden="true" />
             <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Drop images here or <span style={{ color: "var(--accent)" }}>browse</span></p>
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>{unpublished}/{UPLOAD_MAX_FILES} in this batch</p>
             <input
@@ -648,7 +647,7 @@ function UploadRow({ item: i, categories, editable, showErrors, aiText, onChange
       </div>
       {i.status !== "done" && i.status !== "publishing" && (
         <button onClick={onRemove} aria-label={`Remove ${i.file.name}`} title="Remove" className="self-start p-1.5 rounded hover:bg-white/5" style={{ color: "var(--text-muted)" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          <XIcon size={14} strokeWidth={2.2} aria-hidden="true" />
         </button>
       )}
     </li>

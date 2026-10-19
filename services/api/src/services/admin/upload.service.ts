@@ -1,4 +1,4 @@
-import { and, eq, lt, ne } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "../../config/db";
 import { env } from "../../config/env";
 import { categories, categorySuggestions, uploadDrafts, wallpapers } from "../../models";
@@ -10,6 +10,7 @@ import { deleteThumbFor, prepareUploadedImage, type ThumbVariant } from "../wall
 import { CATEGORY_AI_MODEL } from "../categoryAi.service";
 import { analyzeUpload, embedWallpaper, type UploadAnalysis } from "../uploadAi.service";
 import { normalizeExtraCategories, setExtraCategories } from "../wallpaperCategories.service";
+import { findImageDuplicate } from "../duplicate.service";
 import type { ImageMetadata } from "../../utils/imageMetadata";
 import type { ModerationResult } from "../../integrations/sightengine";
 import type { AdminUploadInput, UploadAnalyzeInput } from "../../validators/admin.schema";
@@ -69,7 +70,7 @@ export type AdminUploadResult = {
 };
 
 type Draft = typeof uploadDrafts.$inferSelect & {
-  metadata: ImageMetadata;
+  metadata: ImageMetadata & { print?: { phash: string; signature: string } | null };
   thumb: ThumbVariant | null;
   moderation: ModerationResult;
   analysis: UploadAnalysis;
@@ -102,7 +103,7 @@ export async function analyzeAdminUpload(adminId: string, input: UploadAnalyzeIn
   const cats = await categoryRows();
   if (existing) return draftView(existing, cats);
 
-  const { metadata, thumb } = await prepareUploadedImage(input.key, input.fileUrl);
+  const { metadata, thumb, print } = await prepareUploadedImage(input.key, input.fileUrl);
   if (!metadata.width) {
     // Nothing readable in storage (upload never finished, or not an image)
     await discardFile(input.key, input.fileUrl);
@@ -128,7 +129,7 @@ export async function analyzeAdminUpload(adminId: string, input: UploadAnalyzeIn
       fileUrl: input.fileUrl,
       fileType: input.fileType,
       fileSizeBytes: input.fileSizeBytes,
-      metadata,
+      metadata: { ...metadata, print },
       thumb,
       moderation,
       analysis,
@@ -156,8 +157,8 @@ async function draftView(d: Draft, cats: { id: string; name: string }[]): Promis
   }
   if (!d.analysis.title) warnings.push("The AI couldn't analyse this image — fill in the details yourself.");
   else if (d.analysis.categoryId && d.analysis.confidence < 0.7) warnings.push("The AI isn't sure about the category — check it.");
-  const dupe = await findDuplicate(d.metadata.width, d.metadata.height, d.fileSizeBytes, d.fileUrl);
-  if (dupe) warnings.push(`Possible duplicate of “${dupe.title}” (same size and dimensions).`);
+  const dupe = d.metadata.print ? await findImageDuplicate(d.metadata.print) : null;
+  if (dupe) warnings.push(duplicateWarning(dupe));
   return {
     key: d.key,
     width: d.metadata.width,
@@ -176,14 +177,9 @@ async function draftView(d: Draft, cats: { id: string; name: string }[]): Promis
   };
 }
 
-/** Same pixel size + same byte size as an existing wallpaper → almost certainly the same file. */
-async function findDuplicate(width: number, height: number, bytes: number, fileUrl: string) {
-  const [dupe] = await db
-    .select({ id: wallpapers.id, title: wallpapers.title })
-    .from(wallpapers)
-    .where(and(eq(wallpapers.width, width), eq(wallpapers.height, height), eq(wallpapers.fileSizeBytes, bytes), ne(wallpapers.fileUrl, fileUrl)))
-    .limit(1);
-  return dupe;
+/** Admin uploads aren't blocked by a match — it's shown as a warning (services/duplicate.service). */
+function duplicateWarning(d: { title: string; level: "block" | "review" }) {
+  return d.level === "block" ? `Already on Aurora: “${d.title}” (same picture).` : `Very similar to “${d.title}” — possibly an edited copy.`;
 }
 
 /** Remove a draft the admin dropped from the batch, with its file and thumbnail. */
@@ -252,8 +248,8 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   if (input.aiTitle && !ai.title) warnings.push("The AI couldn't write a title — kept the file name.");
   const autoFellBack = auto && !ai.categoryId;
   if (autoFellBack) warnings.push("The AI couldn't pick a category — filed under Uncategorized (see Categories → AI suggestions).");
-  const dupe = await findDuplicate(metadata.width, metadata.height, input.fileSizeBytes, input.fileUrl);
-  if (dupe) warnings.push(`Possible duplicate of “${dupe.title}” (same size and dimensions).`);
+  const dupe = metadata.print ? await findImageDuplicate(metadata.print) : null;
+  if (dupe) warnings.push(duplicateWarning(dupe));
 
   const format = input.fileType === "image/png" ? "png" : input.fileType === "image/webp" ? "webp" : "jpeg";
   const now = new Date();
@@ -287,6 +283,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         ...(input.publish ? { reviewedBy: adminId, reviewedAt: now } : {}),
         ...(embedding ? { textEmbedding: embedding } : {}),
         ...(thumb ? { cdnVariants: { thumb } } : {}),
+        ...(metadata.print ? { phash: metadata.print.phash } : {}),
       })
       .returning({
         id: wallpapers.id,

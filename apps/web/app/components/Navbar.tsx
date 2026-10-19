@@ -8,6 +8,7 @@ import NavbarAuth from "@/app/components/NavbarAuth";
 import SearchBar, { DeviceSwitch } from "@/app/components/SearchBar";
 import type { Category } from "@/lib/api";
 import { groupCategories, popularCategories, visibleCategories } from "@/lib/categoryGroups";
+import { ChevronDownIcon, MenuIcon, XIcon } from "lucide-react";
 
 interface NavbarProps {
   /** Categories fetched by the root layout (server side). */
@@ -20,21 +21,7 @@ const NAV_LINKS = [
 ] as const;
 
 const Chevron = ({ open }: { open: boolean }) => (
-  <svg
-    width="12"
-    height="12"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-    className="transition-transform duration-200"
-    style={{ transform: open ? "rotate(180deg)" : "none" }}
-  >
-    <polyline points="6 9 12 15 18 9" />
-  </svg>
+  <ChevronDownIcon size={12} strokeWidth={2.5} aria-hidden className="transition-transform duration-200" style={{ transform: open ? "rotate(180deg)" : "none" }} />
 );
 
 /** Small square thumbnail for a category; a lettered tile when it has none yet. */
@@ -207,13 +194,9 @@ const Navbar = ({ initialCategories = [] }: NavbarProps) => {
             style={{ color: "var(--text-primary)" }}
           >
             {mobileOpen ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <XIcon size={20} strokeWidth={2} aria-hidden />
             ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
+              <MenuIcon size={20} strokeWidth={2} aria-hidden />
             )}
           </button>
         </div>

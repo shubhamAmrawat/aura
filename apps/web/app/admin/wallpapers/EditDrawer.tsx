@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, Toggle, inputStyle } from "../_components/ui";
 import WallpaperLightbox from "../_components/WallpaperLightbox";
+import { XIcon } from "lucide-react";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 const fmtDate = (iso: string) => new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -187,7 +188,7 @@ export default function EditDrawer({ id, categories, onClose, onChanged, onDelet
             {w && <StatusBadge status={w.status} />}
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5" style={{ color: "var(--text-secondary)" }} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <XIcon size={16} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
 

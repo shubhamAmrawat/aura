@@ -28,6 +28,7 @@ import {
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import { Modal, inputStyle } from "../_components/ui";
+import { ChevronDownIcon, ChevronUpIcon, EyeIcon, EyeOffIcon, GripVerticalIcon, PenLineIcon, Trash2Icon } from "lucide-react";
 
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
 const SITE_NOTE = (ok: boolean) => (ok ? "site updated." : "site updates within a day (cache).");
@@ -303,7 +304,7 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
           style={{ color: "var(--text-muted)" }}
           aria-label={`Drag to reorder ${c.name}`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+          <GripVerticalIcon size={14} strokeWidth={1} fill="currentColor" aria-hidden="true" />
         </button>
         <span className="w-6 text-center text-sm font-semibold tabular-nums" style={{ color: "var(--text-muted)" }}>{index + 1}</span>
         {c.previewUrl ? (
@@ -332,10 +333,10 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
             Wallpapers
           </Link>
           <button aria-label={`Move ${c.name} up`} disabled={!canUp} onClick={() => onMove(-1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="18 15 12 9 6 15" /></svg>
+            <ChevronUpIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <button aria-label={`Move ${c.name} down`} disabled={!canDown} onClick={() => onMove(1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="6 9 12 15 18 9" /></svg>
+            <ChevronDownIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <button
             aria-label={c.isHidden ? `Show ${c.name} on the site` : `Hide ${c.name} from the site`}
@@ -347,16 +348,16 @@ function CategoryRow({ cat: c, index, canUp, canDown, dragDisabled, actionsDisab
             style={{ color: c.isHidden ? "#f59e0b" : "var(--text-secondary)" }}
           >
             {c.isHidden ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
+              <EyeOffIcon size={14} strokeWidth={2} aria-hidden="true" />
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+              <EyeIcon size={14} strokeWidth={2} aria-hidden="true" />
             )}
           </button>
           <button aria-label={`Edit ${c.name}`} disabled={actionsDisabled} title={actionsDisabled ? "Save or reset the order first" : "Edit"} onClick={onEdit} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+            <PenLineIcon size={14} strokeWidth={2} aria-hidden="true" />
           </button>
           <button aria-label={`Delete ${c.name}`} disabled={actionsDisabled} title={actionsDisabled ? "Save or reset the order first" : "Delete"} onClick={onDelete} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "#ef4444" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
+            <Trash2Icon size={14} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
       </div>

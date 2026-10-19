@@ -10,6 +10,11 @@ import type { UploadInput } from "../validators/wallpaper.schema";
 import { resolveCategorySlug } from "./category.service";
 import { extraCategoryIdsSql, inCategorySql } from "./wallpaperCategories.service";
 import { deleteThumbFor, prepareUploadedImage, thumbUrlSql, type ThumbVariant } from "./wallpaperThumb.service";
+import { embedWallpaper } from "./uploadAi.service";
+import { findImageDuplicate, type DuplicateMatch } from "./duplicate.service";
+import { duplicateError, getCreatorDraft } from "./creatorUpload.service";
+import { normalizeExtraCategories, setExtraCategories } from "./wallpaperCategories.service";
+import { uploadDrafts } from "../models";
 
 /** Columns returned by every list/feed endpoint. */
 export const wallpaperListSelect = {
@@ -100,7 +105,7 @@ export async function listTrending(params: { limit: number; offset: number; scre
 
 /** Remove admin-only review fields before a wallpaper goes into a public response. */
 export function withoutReviewFields<T extends Partial<typeof wallpapers.$inferSelect>>(row: T) {
-  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, reviewNote: _n, featuredOrder: _o, ...rest } = row;
+  const { moderationReason: _r, reviewedBy: _b, reviewedAt: _a, rejectedAt: _j, reviewNote: _n, featuredOrder: _o, phash: _p, ...rest } = row;
   return rest;
 }
 
@@ -303,12 +308,20 @@ const MIN_IMAGE_DIMENSION = 200;
 
 export type UploadResult =
   | { kind: "rejected"; reason: string | null }
-  | { kind: "created"; wallpaper: typeof wallpapers.$inferSelect; moderationStatus: "approved" | "pending" };
+  | {
+      kind: "created";
+      wallpaper: typeof wallpapers.$inferSelect;
+      moderationStatus: "approved" | "pending";
+      /** Set when it went to review for looking like another wallpaper */
+      similarTo: DuplicateMatch | null;
+    };
 
 /**
- * Upload pipeline (file is already in R2):
- * moderation + metadata extraction + vision embedding run in parallel, then the row
- * is inserted with the embedding so "Similar Vibes" works immediately.
+ * Upload pipeline (file is already in R2). Normally the upload page ran "prepare" first
+ * (services/creatorUpload.service): the size, thumbnail, fingerprint, safety check and AI analysis
+ * are then reused from that draft. Without a draft (older app versions) they're done here.
+ * The duplicate check always runs again here (another copy may have been published meanwhile):
+ * the same picture → 409; a very similar one → published to the review queue instead of live.
  */
 export async function createWallpaperFromUpload(userId: string, input: UploadInput): Promise<UploadResult> {
   const key = String(input.key);
@@ -322,21 +335,40 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
   const clientW = typeof input.width === "number" ? input.width : Number(input.width) || 0;
   const clientH = typeof input.height === "number" ? input.height : Number(input.height) || 0;
 
-  // Read the file once (size, colours, thumbnail; gated against memory spikes), then run the
-  // safety check and vision embedding on the 600px thumbnail instead of the full original.
-  const { metadata, thumb } = await prepareUploadedImage(key, fileUrl);
-  const aiUrl = thumb?.url ?? fileUrl;
-  const [moderation, textEmbedding] = await Promise.all([
-    checkImageSafety(aiUrl),
-    generateVisionEmbedding(aiUrl, { title, description, tags }).catch((err) => {
-      console.error("[embedding] Vision embedding failed during upload:", err);
+  const draft = await getCreatorDraft(userId, key);
+  let metadata, thumb: ThumbVariant | null, print: { phash: string; signature: string } | null;
+  let moderation: Awaited<ReturnType<typeof checkImageSafety>>;
+  let textEmbedding: number[] | null;
+  if (draft) {
+    ({ metadata, thumb } = draft);
+    print = draft.metadata.print ?? null;
+    moderation = draft.moderation;
+    textEmbedding = await embedWallpaper(draft.analysis.visualDescription, { title, description, tags }).catch((err) => {
+      console.error("[embedding] Text embedding failed during upload:", err);
       return null;
-    }),
-  ]);
+    });
+  } else {
+    // Read the file once (size, colours, thumbnail, fingerprint), then run the safety check and
+    // vision embedding on the 600px thumbnail instead of the full original.
+    ({ metadata, thumb, print } = await prepareUploadedImage(key, fileUrl));
+    const aiUrl = thumb?.url ?? fileUrl;
+    [moderation, textEmbedding] = await Promise.all([
+      checkImageSafety(aiUrl),
+      generateVisionEmbedding(aiUrl, { title, description, tags }).catch((err) => {
+        console.error("[embedding] Vision embedding failed during upload:", err);
+        return null;
+      }),
+    ]);
+  }
 
-  if (moderation.status === "rejected") {
+  const discard = async () => {
     await deleteFile(key).catch(() => {});
     await deleteThumbFor(fileUrl);
+    if (draft) await db.delete(uploadDrafts).where(eq(uploadDrafts.key, key));
+  };
+
+  if (moderation.status === "rejected") {
+    await discard();
     return { kind: "rejected", reason: moderation.reason };
   }
 
@@ -345,53 +377,68 @@ export async function createWallpaperFromUpload(userId: string, input: UploadInp
   const finalHeight = metadata.height || clientH;
 
   if (finalWidth < MIN_IMAGE_DIMENSION || finalHeight < MIN_IMAGE_DIMENSION) {
-    await deleteFile(key).catch(() => {});
-    await deleteThumbFor(fileUrl);
+    await discard();
     throw new ApiError(400, `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels.`);
   }
 
-  if (textEmbedding) {
-    console.log(`[embedding] Vision+text vector ready (${textEmbedding.length}-dim)`);
-  } else {
-    console.warn("[embedding] No vector produced — Similar Vibes will be empty until reembedded");
+  const duplicate: DuplicateMatch | null = print ? await findImageDuplicate(print) : null;
+  if (duplicate?.level === "block") {
+    await discard();
+    throw duplicateError(duplicate, userId);
   }
 
-  const [created] = await db
-    .insert(wallpapers)
-    .values({
-      title,
-      description,
-      fileUrl,
-      blurhash: metadata.blurhash,
-      dominantColor: metadata.dominantColor,
-      palette: metadata.palette,
-      width: finalWidth,
-      height: finalHeight,
-      fileSizeBytes: input.fileSizeBytes || 0,
-      format,
-      categoryId: input.categoryId as string,
-      uploaderId: userId,
-      tags,
-      isPremium: false,
-      isFeatured: false,
-      isAiGenerated: false,
-      isMobile: metadata.isMobile,
-      downloadCount: 0,
-      likeCount: 0,
-      viewCount: 0,
-      status: moderation.status,
-      moderationReason: moderation.status === "pending" ? moderation.reason : null,
-      ...(textEmbedding ? { textEmbedding } : {}),
-      ...(thumb ? { cdnVariants: { thumb } satisfies { thumb: ThumbVariant } } : {}),
-    })
-    .returning();
+  const extras = await normalizeExtraCategories(input.extraCategoryIds ?? [], input.categoryId as string);
 
-  await db
-    .update(users)
-    .set({ totalUploads: sql`${users.totalUploads} + 1` })
-    .where(eq(users.id, userId));
+  // Live unless the safety check wasn't sure or it looks like an edited copy of another wallpaper.
+  const status = moderation.status === "pending" || duplicate ? "pending" : "approved";
+  const reasons = [
+    moderation.status === "pending" ? moderation.reason : null,
+    duplicate ? `Possible copy of “${duplicate.title}”${duplicate.uploaderUsername ? ` by @${duplicate.uploaderUsername}` : ""} (very similar image)` : null,
+  ].filter(Boolean);
 
-  return { kind: "created", wallpaper: created!, moderationStatus: moderation.status };
+  if (!textEmbedding) console.warn("[embedding] No vector produced — Similar Vibes will be empty until reembedded");
+
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(wallpapers)
+      .values({
+        title,
+        description,
+        fileUrl,
+        blurhash: metadata.blurhash,
+        dominantColor: metadata.dominantColor,
+        palette: metadata.palette,
+        width: finalWidth,
+        height: finalHeight,
+        fileSizeBytes: input.fileSizeBytes || draft?.fileSizeBytes || 0,
+        format,
+        categoryId: input.categoryId as string,
+        uploaderId: userId,
+        tags,
+        isPremium: false,
+        isFeatured: false,
+        isAiGenerated: false,
+        isMobile: metadata.isMobile,
+        downloadCount: 0,
+        likeCount: 0,
+        viewCount: 0,
+        status,
+        moderationReason: reasons.length ? reasons.join(" · ") : null,
+        ...(print ? { phash: print.phash } : {}),
+        ...(textEmbedding ? { textEmbedding } : {}),
+        ...(thumb ? { cdnVariants: { thumb } satisfies { thumb: ThumbVariant } } : {}),
+      })
+      .returning();
+    if (extras.length) await setExtraCategories(row!.id, extras, tx);
+    await tx
+      .update(users)
+      .set({ totalUploads: sql`${users.totalUploads} + 1` })
+      .where(eq(users.id, userId));
+    if (draft) await tx.delete(uploadDrafts).where(eq(uploadDrafts.key, key));
+    return row!;
+  });
+
+  return { kind: "created", wallpaper: created, moderationStatus: status, similarTo: duplicate };
 }
 
 // ─── Admin ─────────────────────────────────────────────────

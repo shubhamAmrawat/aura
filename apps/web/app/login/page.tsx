@@ -10,18 +10,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/lib/authContext";
 import { useSearchParams } from "next/navigation";
+import { ArrowLeftIcon, ArrowRightIcon, Check, Eye, EyeOff, MailIcon } from "lucide-react";
 const EyeIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
+  <Eye size={16} strokeWidth={2} aria-hidden="true" />
 );
 
 const EyeOffIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
+  <EyeOff size={16} strokeWidth={2} aria-hidden="true" />
 );
 
 /* ── Hero: featured wallpapers that cross-fade (bundled in /public/auth, ~1920px webp) ── */
@@ -47,15 +42,11 @@ const HERO_MASK = (() => {
 })();
 
 const CheckIcon = ({ size = 16, color = "currentColor" }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M5 12l5 5L20 7" />
-  </svg>
+  <Check size={size} strokeWidth={2.4} stroke={color} aria-hidden="true" />
 );
 
 const ArrowIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M5 12h14M13 6l6 6-6 6" />
-  </svg>
+  <ArrowRightIcon size={16} strokeWidth={2.2} aria-hidden="true" />
 );
 
 function AuthHero({ mode }: { mode: "login" | "signup" }) {
@@ -504,9 +495,7 @@ function LoginContent() {
             className="ml-auto inline-flex items-center gap-2 min-h-11 text-[13px] transition-opacity hover:opacity-70"
             style={mutedStyle}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <path d="M19 12H5M11 6l-6 6 6 6" />
-            </svg>
+            <ArrowLeftIcon size={14} strokeWidth={2} aria-hidden="true" />
             Back to Aurora
           </Link>
         </div>
@@ -536,10 +525,7 @@ function LoginContent() {
                   className="w-[52px] h-[52px] rounded-[14px] flex items-center justify-center mb-6"
                   style={{ background: "var(--accent-muted)", border: "1px solid rgba(129,238,78,0.25)" }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="14" rx="2" />
-                    <path d="M3 7l9 6 9-6" />
-                  </svg>
+                  <MailIcon size={22} strokeWidth={1.8} stroke="var(--accent)" aria-hidden="true" />
                 </div>
               )}
               {mode === "login" && step === 1 && (view === "password" || view === "otp") && (

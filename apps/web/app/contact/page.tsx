@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Mail, Palette, Scale, Shield } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Contact | Aurora",
@@ -15,76 +16,19 @@ type ContactCard = {
 };
 
 const MailIcon = (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
-  </svg>
+  <Mail size={20} strokeWidth={1.8} aria-hidden />
 );
 
 const PaletteIcon = (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <circle cx="13.5" cy="6.5" r="1.5" />
-    <circle cx="17.5" cy="10.5" r="1.5" />
-    <circle cx="8.5" cy="7.5" r="1.5" />
-    <circle cx="6.5" cy="12.5" r="1.5" />
-    <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
-  </svg>
+  <Palette size={20} strokeWidth={1.8} aria-hidden />
 );
 
 const ShieldIcon = (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </svg>
+  <Shield size={20} strokeWidth={1.8} aria-hidden />
 );
 
 const ScaleIcon = (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M12 3v18" />
-    <path d="M5 21h14" />
-    <path d="M5 7l-3 7h6l-3-7z" />
-    <path d="M19 7l-3 7h6l-3-7z" />
-    <path d="M5 7h14" />
-  </svg>
+  <Scale size={20} strokeWidth={1.8} aria-hidden />
 );
 
 const CARDS: ContactCard[] = [

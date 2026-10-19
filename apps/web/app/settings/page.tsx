@@ -16,6 +16,7 @@ import {
 import { forgotPassword, resetPassword } from "@/lib/authApi";
 import { useAuth } from "@/lib/authContext";
 import { useToast } from "@/lib/toast";
+import { ArrowLeftIcon, KeyIcon, MailIcon, ShieldIcon, StarIcon } from "lucide-react";
 
 const INPUT =
   "w-full h-12 px-3.5 rounded-xl text-[15px] bg-[#151515] border border-white/[0.08] outline-none transition-[border-color,box-shadow] duration-200 placeholder:text-[#6f6f6f] focus:border-[color:var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-muted)]";
@@ -179,7 +180,7 @@ export default function SettingsPage() {
     <main className="min-h-screen pt-16" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       <div className="max-w-[820px] mx-auto px-6 sm:px-12 pt-10 pb-20">
         <Link href="/profile" className="inline-flex items-center gap-2 min-h-11 text-[13px] transition-opacity hover:opacity-70" style={{ color: "var(--text-secondary)" }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+          <ArrowLeftIcon size={14} strokeWidth={2} aria-hidden="true" />
           Back to profile
         </Link>
         <h1 className="mt-2 mb-8 text-[44px] sm:text-[48px] leading-none" style={{ fontFamily: "var(--font-serif), serif" }}>Account settings</h1>
@@ -196,7 +197,7 @@ export default function SettingsPage() {
                 <h2 id="h-interests" className="text-[13px] font-medium tracking-[0.14em] uppercase" style={{ color: "var(--text-muted)" }}>Your feed</h2>
                 <div className="rounded-[20px] overflow-hidden" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)" }}>
                   <Row
-                    icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" /></svg>}
+                    icon={<StarIcon size={18} strokeWidth={2} aria-hidden="true" />}
                     title="Interests"
                     sub={interests && interests.length ? "Categories you love — used to shape your home feed" : "Pick up to 4 categories to shape your home feed"}
                     right={
@@ -229,7 +230,7 @@ export default function SettingsPage() {
                 <h2 id="h-sign-in" className="text-[13px] font-medium tracking-[0.14em] uppercase" style={{ color: "var(--text-muted)" }}>Sign-in methods</h2>
                 <div className="rounded-[20px] overflow-hidden" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)" }}>
                   <Row
-                    icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>}
+                    icon={<MailIcon size={18} strokeWidth={2} aria-hidden="true" />}
                     title="Email"
                     sub={<><span style={{ color: "#d4d4d4" }}>{profile.email}</span> · you can always sign in with an emailed code</>}
                     right={<Pill tone="good">Verified</Pill>}
@@ -243,7 +244,7 @@ export default function SettingsPage() {
                     right={<Pill tone={profile.googleLinked ? "neutral" : "soon"}>{profile.googleLinked ? "Connected" : "Not connected"}</Pill>}
                   />
                   <Row
-                    icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M14 9l2 2" /></svg>}
+                    icon={<KeyIcon size={18} strokeWidth={2} aria-hidden="true" />}
                     title="Password"
                     sub={noPassword ? "Not set — add one to also sign in with email and password" : "Set — sign in with email and password"}
                     right={
@@ -307,7 +308,7 @@ export default function SettingsPage() {
                 <h2 id="h-security" className="text-[13px] font-medium tracking-[0.14em] uppercase" style={{ color: "var(--text-muted)" }}>Extra security</h2>
                 <div className="rounded-[20px] overflow-hidden" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)" }}>
                   <Row
-                    icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /></svg>}
+                    icon={<ShieldIcon size={18} strokeWidth={2} aria-hidden="true" />}
                     title="Two-factor authentication"
                     sub="A second step when you sign in"
                     right={<Pill tone="soon">Coming soon</Pill>}

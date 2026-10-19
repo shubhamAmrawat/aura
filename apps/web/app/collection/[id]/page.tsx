@@ -8,6 +8,7 @@ import { getCollection, deleteCollection, updateCollection, removeFromCollection
 import { useToast } from "@/lib/toast";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import type { Wallpaper } from "@aura/types";
+import { BookmarkIcon, CheckIcon, XIcon } from "lucide-react";
 
 /** Minimal shape returned for wallpapers in a collection detail response */
 interface CollectionWallpaperRow {
@@ -266,9 +267,7 @@ export default function CollectionPage() {
                   }}
                 >
                   {editIsPublic && (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--bg-primary)" strokeWidth="3">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
+                    <CheckIcon size={10} strokeWidth={3} stroke="var(--bg-primary)" aria-hidden="true" />
                   )}
                 </div>
                 Make public
@@ -300,9 +299,7 @@ export default function CollectionPage() {
             className="flex flex-col items-center justify-center py-24 rounded-2xl"
             style={{ border: "1px dashed var(--border)" }}
           >
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4" style={{ color: "var(--text-muted)" }}>
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
+            <BookmarkIcon size={40} strokeWidth={1.5} className="mb-4" style={{ color: "var(--text-muted)" }} aria-hidden="true" />
             <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>This collection is empty</p>
             <Link href="/" className="text-xs mt-2 transition-opacity hover:opacity-70" style={{ color: "var(--accent)" }}>
               Browse wallpapers →
@@ -325,9 +322,7 @@ export default function CollectionPage() {
                       }}
                       title="Remove from collection"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      <XIcon size={12} strokeWidth={2.5} stroke="white" aria-hidden="true" />
                     </button>
                   )}
                 </div>

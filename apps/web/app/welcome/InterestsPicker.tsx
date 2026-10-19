@@ -6,6 +6,7 @@ import Logo from "@/app/components/Logo";
 import { useAuth } from "@/lib/authContext";
 import { getInterests, saveInterests } from "@/lib/profileApi";
 import { queueToast, useToast } from "@/lib/toast";
+import { ArrowRightIcon, XIcon } from "lucide-react";
 
 export interface PickerCategory {
   id: string;
@@ -173,7 +174,7 @@ export default function InterestsPicker({ categories }: { categories: PickerCate
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={c.image} alt="" className="w-8 h-8 rounded-full object-cover" />
                     {c.name}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                    <XIcon size={12} strokeWidth={2.4} aria-hidden="true" />
                   </button>
                 );
               })}
@@ -191,7 +192,7 @@ export default function InterestsPicker({ categories }: { categories: PickerCate
           >
             {saving ? "Saving…" : editing ? "Save interests" : "Show me my feed"}
             {!saving && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              <ArrowRightIcon size={16} strokeWidth={2.2} aria-hidden="true" />
             )}
           </button>
         </div>

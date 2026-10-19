@@ -14,6 +14,13 @@ import {
 import { users } from "./user.model";
 import { customType } from "drizzle-orm/pg-core";
 
+/** Postgres bigint kept as a decimal string in JS (a 64-bit value doesn't fit a JS number, and BigInt can't go in JSON). */
+const bigintText = customType<{ data: string; driverData: string }>({
+  dataType: () => "bigint",
+  fromDriver: (v) => String(v),
+  toDriver: (v) => v,
+});
+
 
 export const wallpaperStatusEnum = pgEnum("wallpaper_status", [
   "pending",
@@ -107,6 +114,8 @@ export const wallpapers = pgTable("wallpapers", {
   rejectedAt: timestamp("rejected_at"),
   /** Admin's reason when rejecting (moderationReason is the automatic check's) */
   reviewNote: text("review_note"),
+  /** 64-bit perceptual hash of the image (utils/phash) — finds re-uploads of the same picture. */
+  phash: bigintText("phash"),
   /** Position on the home page hero (1 = first). Set only while isFeatured. */
   featuredOrder: integer("featured_order"),
 }, (t) => [index("wallpapers_status_created_at_idx").on(t.status, t.createdAt)]);

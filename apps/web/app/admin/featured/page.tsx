@@ -28,6 +28,7 @@ import {
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, inputStyle } from "../_components/ui";
 import WallpaperLightbox, { type LightboxWallpaper } from "../_components/WallpaperLightbox";
+import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, XIcon } from "lucide-react";
 
 /** The two independent lists: same page, switched by the tabs at the top. */
 const LISTS: Record<FeaturedList, { tab: string; place: string; shape: string; blurb: string }> = {
@@ -401,7 +402,7 @@ function ReserveDivider({ empty, canUp, canDown, onMove }: { empty: boolean; can
           style={{ color: "var(--text-muted)" }}
           aria-label="Drag the reserve line to change how many are shown"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+          <GripVerticalIcon size={14} strokeWidth={1} fill="currentColor" aria-hidden="true" />
         </button>
         <span className="h-px flex-1" style={{ background: "var(--border-hover)" }} />
         <span className="text-[11px] uppercase tracking-wider text-center" style={{ color: "var(--text-muted)" }}>
@@ -410,10 +411,10 @@ function ReserveDivider({ empty, canUp, canDown, onMove }: { empty: boolean; can
         <span className="h-px flex-1" style={{ background: "var(--border-hover)" }} />
         <div className="flex items-center gap-1">
           <button aria-label="Move reserve line up" disabled={!canUp} onClick={() => onMove(-1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="18 15 12 9 6 15" /></svg>
+            <ChevronUpIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <button aria-label="Move reserve line down" disabled={!canDown} onClick={() => onMove(1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="6 9 12 15 18 9" /></svg>
+            <ChevronDownIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <span className="w-[26px]" />
         </div>
@@ -454,7 +455,7 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
           style={{ color: "var(--text-muted)" }}
           aria-label={`Drag to reorder ${w.title}`}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+          <GripVerticalIcon size={14} strokeWidth={1} fill="currentColor" aria-hidden="true" />
         </button>
         <span className="w-6 text-center text-sm font-semibold tabular-nums" style={{ color: shown ? "var(--accent)" : "var(--text-muted)" }}>{index + 1}</span>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -468,10 +469,10 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
         </div>
         <div className="flex items-center gap-1">
           <button aria-label="Move up" disabled={!canUp} onClick={() => onMove(-1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="18 15 12 9 6 15" /></svg>
+            <ChevronUpIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <button aria-label="Move down" disabled={!canDown} onClick={() => onMove(1)} className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="6 9 12 15 18 9" /></svg>
+            <ChevronDownIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
           <button
             aria-label={`Remove ${w.title} from featured`}
@@ -481,7 +482,7 @@ function FeaturedRow({ item: w, index, shown, canUp, canDown, onMove, onRemove, 
             className="p-1.5 rounded hover:bg-white/5 disabled:opacity-25"
             style={{ color: "#ef4444" }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            <XIcon size={14} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
       </div>

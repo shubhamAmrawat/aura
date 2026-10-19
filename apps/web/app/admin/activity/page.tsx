@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { listActivity, type ActivityEntry, type ActivityFilters, type ActivityGroup, type ActivityPage } from "@/lib/adminApi";
 import { inputStyle } from "../_components/ui";
+import { ChevronDownIcon } from "lucide-react";
 
 const PAGE = 50;
 const GROUPS: { v: ActivityGroup; label: string; color: string }[] = [
@@ -277,7 +278,7 @@ export default function ActivityPage() {
                       </Link>
                     )}
                     <button onClick={() => toggle(e.id)} aria-label={isOpen ? "Hide details" : "Show details"} className="p-1 rounded hover:bg-white/5 shrink-0" style={{ color: "var(--text-muted)" }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" style={{ transform: isOpen ? "rotate(180deg)" : undefined }}><polyline points="6 9 12 15 18 9" /></svg>
+                      <ChevronDownIcon size={12} strokeWidth={2.4} style={{ transform: isOpen ? "rotate(180deg)" : undefined }} aria-hidden="true" />
                     </button>
                   </div>
                   {isOpen && <div className="px-4 pb-3 pl-[5.25rem]"><Details e={e} categoryNames={page?.categoryNames ?? {}} /></div>}

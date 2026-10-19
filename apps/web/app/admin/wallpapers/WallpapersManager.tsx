@@ -19,6 +19,7 @@ import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, StatusBadge, inputStyle } from "../_components/ui";
 import EditDrawer from "./EditDrawer";
 import WallpaperLightbox, { type LightboxWallpaper } from "../_components/WallpaperLightbox";
+import { MonitorIcon, SearchIcon, SmartphoneIcon } from "lucide-react";
 
 const PAGE = 50;
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
@@ -188,7 +189,7 @@ export default function WallpapersManager() {
       {/* Filters — one row, scopes the table */}
       <div className="flex flex-wrap items-center gap-2 mt-5">
         <div className="relative flex-1 min-w-[180px] max-w-md">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+          <SearchIcon size={14} strokeWidth={2} className="absolute left-3 top-1/2 -translate-y-1/2" stroke="var(--text-muted)" aria-hidden="true" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title, tags or paste an id" className="w-full rounded-lg pl-9 pr-3 py-2 text-sm" style={inputStyle} />
         </div>
         <input value={uploader} onChange={(e) => setUploader(e.target.value)} placeholder="Uploader" className="w-32 rounded-lg px-3 py-2 text-sm" style={inputStyle} />
@@ -414,9 +415,9 @@ type Device = "mobile" | "all" | "desktop";
 /** Three-position sliding switch: Mobile ← All → Desktop. */
 function DeviceSlider({ value, onChange }: { value: Device; onChange: (v: Device) => void }) {
   const options: { v: Device; label: string; icon: React.ReactNode }[] = [
-    { v: "mobile", label: "Mobile", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="7" y="2" width="10" height="20" rx="2" /><line x1="11" y1="18" x2="13" y2="18" /></svg> },
+    { v: "mobile", label: "Mobile", icon: <SmartphoneIcon size={12} strokeWidth={2} aria-hidden="true" /> },
     { v: "all", label: "All", icon: null },
-    { v: "desktop", label: "Desktop", icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="13" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg> },
+    { v: "desktop", label: "Desktop", icon: <MonitorIcon size={12} strokeWidth={2} aria-hidden="true" /> },
   ];
   const idx = options.findIndex((o) => o.v === value);
   return (

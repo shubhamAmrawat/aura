@@ -11,6 +11,7 @@ import {
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import WallpaperLightbox from "../_components/WallpaperLightbox";
+import { CheckIcon } from "lucide-react";
 
 const PAGE = 24;
 const PRESET_REASONS = [
@@ -234,7 +235,7 @@ export default function ReviewQueuePage() {
       {!loading && !error && items.length === 0 && (
         <div className="mt-16 flex flex-col items-center text-center gap-2">
           <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: "rgba(129,238,78,0.12)", color: "var(--accent)" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            <CheckIcon size={22} strokeWidth={2.5} aria-hidden="true" />
           </div>
           <p className="font-semibold" style={{ color: "var(--text-primary)" }}>{tab === "pending" ? "All caught up" : "Nothing rejected"}</p>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>

@@ -3,6 +3,7 @@ import { db } from "../config/db";
 import { purgeExpiredRejected } from "../services/admin/review.service";
 import { fillMissingCategoryThumbs } from "../services/categoryThumb.service";
 import { fillMissingThumbs } from "../services/wallpaperThumb.service";
+import { fillMissingPhashes } from "../services/duplicate.service";
 import { fillMissingDescriptions } from "../services/wallpaperDescription.service";
 import { purgeStaleDrafts } from "../services/admin/upload.service";
 /**
@@ -93,6 +94,12 @@ async function runJob() {
     if (wallThumbs.created || wallThumbs.failed) {
       console.log(`[scheduler] Wallpaper thumbnails: ${wallThumbs.created} created, ${wallThumbs.failed} failed, ${wallThumbs.remaining} still missing`);
     }
+    // Duplicate-detection fingerprints for wallpapers from before it existed (and any that failed).
+    const ph = await fillMissingPhashes(200, 4).catch((e) => {
+      console.error("[scheduler] Fingerprints failed:", e instanceof Error ? e.message : e);
+      return null;
+    });
+    if (ph && (ph.filled || ph.failed)) console.log(`[scheduler] Fingerprints: ${ph.filled} added, ${ph.failed} failed, ${ph.remaining} still missing`);
     // New uploads with no (or a one-line) description get a proper one, a few per hour.
     const desc = await fillMissingDescriptions(20, 3).catch((e) => {
       console.error("[scheduler] Descriptions failed:", e instanceof Error ? e.message : e);

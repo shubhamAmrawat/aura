@@ -13,6 +13,7 @@ import {
   type CreatorSample,
   type CreatorStatus,
 } from "@/lib/creatorApi";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, PlusIcon, UploadIcon, XIcon } from "lucide-react";
 
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 /** Uploads running at the same time. */
@@ -225,7 +226,7 @@ export default function ApplyForm() {
       <div className="max-w-[1200px] mx-auto px-5 sm:px-12 pt-8 sm:pt-10 pb-24 flex flex-wrap gap-10 lg:gap-14 items-start">
         <aside className="flex-[1_1_300px] lg:max-w-[370px] flex flex-col gap-5 lg:sticky lg:top-24">
           <Link href="/profile?tab=uploads" className="inline-flex items-center gap-2 min-h-11 text-[13px] transition-opacity hover:opacity-70" style={{ color: "var(--text-secondary)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
+            <ArrowLeftIcon size={14} strokeWidth={2} aria-hidden="true" />
             Back to profile
           </Link>
           <p className="text-xs tracking-[0.18em] uppercase" style={{ color: "var(--accent)" }}>Creator program</p>
@@ -236,7 +237,7 @@ export default function ApplyForm() {
           <details className="group lg:hidden rounded-[18px] px-5 py-4" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)" }}>
             <summary className="flex items-center justify-between cursor-pointer list-none text-[13px] font-medium min-h-6" style={{ color: "#d4d4d4" }}>
               What we look for
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="transition-transform group-open:rotate-180" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              <ChevronDownIcon size={14} strokeWidth={2} className="transition-transform group-open:rotate-180" aria-hidden="true" />
             </summary>
             <div className="flex flex-col gap-3.5 mt-4"><Criteria /></div>
           </details>
@@ -290,7 +291,7 @@ export default function ApplyForm() {
                     style={{ background: dragging ? "var(--accent)" : "#1c1c1c", color: dragging ? "var(--bg-primary)" : "#e5e5e5" }}
                     aria-hidden="true"
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M7 9l5-5 5 5" /><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+                    <UploadIcon size={22} strokeWidth={2} aria-hidden="true" />
                   </span>
                   {slots.length >= max ? (
                     <span className="text-sm" style={{ color: "var(--text-muted)" }}>All {max} slots are filled — remove one to add another.</span>
@@ -320,7 +321,7 @@ export default function ApplyForm() {
                           aria-label={`Add wallpaper ${i + 1}`}
                         >
                           <span className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: first ? "var(--accent)" : "#1c1c1c", color: first ? "var(--bg-primary)" : "#d4d4d4" }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                            <PlusIcon size={18} strokeWidth={2.2} aria-hidden="true" />
                           </span>
                           {i < min ? "Required" : "Optional"}
                         </button>
@@ -393,7 +394,7 @@ export default function ApplyForm() {
                   style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
                 >
                   {submitting ? "Sending…" : "Submit application"}
-                  {!submitting && <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>}
+                  {!submitting && <ArrowRightIcon size={16} strokeWidth={2.2} aria-hidden="true" />}
                 </button>
                 <span className="text-[13px]" style={{ color: "var(--text-muted)" }} aria-live="polite">
                   {blocker || "We’ll email you when it’s reviewed."}
@@ -413,7 +414,7 @@ function Criteria() {
       {CRITERIA.map((c) => (
         <div key={c.t} className="flex gap-3 items-start">
           <span className="w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 mt-px" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+            <CheckIcon size={12} strokeWidth={3} aria-hidden="true" />
           </span>
           <div>
             <p className="text-sm font-medium">{c.t}</p>
@@ -473,7 +474,7 @@ function SlotTile({ slot, n, onRemove, onRetry }: { slot: Slot; n: number; onRem
         aria-label={`Remove wallpaper ${n}`}
         className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center bg-black/65 text-white hover:bg-black/85 transition-colors"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <XIcon size={12} strokeWidth={2.4} aria-hidden="true" />
       </button>
     </div>
   );

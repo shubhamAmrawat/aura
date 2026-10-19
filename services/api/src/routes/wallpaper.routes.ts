@@ -8,6 +8,8 @@ export const wallpaperRoutes = Router();
 // Static paths are registered before "/:id" so they win.
 wallpaperRoutes.get("/", wallpapers.list);
 wallpaperRoutes.post("/upload-url", requireAuth, wallpapers.uploadUrl);
+wallpaperRoutes.post("/upload/prepare", requireAuth, wallpapers.prepareUpload);
+wallpaperRoutes.post("/upload/discard", requireAuth, wallpapers.discardUpload);
 wallpaperRoutes.post("/upload", requireAuth, wallpapers.upload);
 wallpaperRoutes.get("/trending", wallpapers.trending);
 wallpaperRoutes.post("/trending/recalculate", requireAdminSecret, wallpapers.recalculateTrending);

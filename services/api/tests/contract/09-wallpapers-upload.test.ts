@@ -111,7 +111,7 @@ describe("POST /api/wallpapers/upload", () => {
     });
     await guardPending(res);
     expect(res.status).toBe(200);
-    expectKeys(res.body, ["wallpaper", "moderationStatus", "message"]);
+    expectKeys(res.body, ["wallpaper", "moderationStatus", "message", "similarTo"]);
     expect(res.body.message).toBe("Wallpaper uploaded and under review");
     const w = res.body.wallpaper;
     expect(w).toMatchObject({

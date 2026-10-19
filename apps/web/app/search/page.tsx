@@ -5,6 +5,7 @@ import { SearchGrid } from "@/app/search/SearchGrid";
 import { mapSearchResult } from "@/app/search/mapSearchResult";
 import { getDevice } from "@/lib/device.server";
 import DeviceEmptyState from "@/app/components/DeviceEmptyState";
+import { Search } from "lucide-react";
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string }>;
@@ -20,20 +21,7 @@ export async function generateMetadata({
 }
 
 const SearchIcon = ({ size = 48 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ color: "var(--text-muted)" }}
-  >
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
+  <Search size={size} strokeWidth={1.5} style={{ color: "var(--text-muted)" }} aria-hidden="true" />
 );
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {

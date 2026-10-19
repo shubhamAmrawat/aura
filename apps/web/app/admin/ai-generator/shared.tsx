@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckIcon, CopyIcon, ImageIcon, Maximize2Icon, PenLineIcon, PlusIcon, RotateCwIcon, ShuffleIcon, SparkleIcon, StarIcon, Trash2Icon, TriangleAlertIcon, XIcon, type LucideIcon } from "lucide-react";
+
 /**
  * AI generator — shared types, pricing, mock data and small UI pieces.
  * Layout only: nothing here calls a model yet (see docs/ai-generator-plan.md).
@@ -196,24 +198,20 @@ export function qaColor(score: number) {
   return score >= 80 ? "#7bc95a" : score >= 65 ? "#eab308" : "#ef4444";
 }
 
-export const ico = (d: React.ReactNode, size = 14) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    {d}
-  </svg>
-);
+export const ico = (Icon: LucideIcon, size = 14) => <Icon size={size} strokeWidth={2} aria-hidden="true" />;
 
 export const ICONS = {
-  sparkle: ico(<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />),
-  star: ico(<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />),
-  shuffle: ico(<><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></>),
-  upscale: ico(<><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></>),
-  ref: ico(<><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></>),
-  trash: ico(<><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></>),
-  copy: ico(<><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>),
-  plus: ico(<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>),
-  edit: ico(<><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>),
-  warn: ico(<><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>),
-  close: ico(<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>),
-  check: ico(<polyline points="20 6 9 17 4 12" />),
-  rerun: ico(<><polyline points="23 4 23 10 17 10" /><path d="M20.5 15a9 9 0 1 1-2.1-9.4L23 10" /></>),
+  sparkle: ico(SparkleIcon),
+  star: ico(StarIcon),
+  shuffle: ico(ShuffleIcon),
+  upscale: ico(Maximize2Icon),
+  ref: ico(ImageIcon),
+  trash: ico(Trash2Icon),
+  copy: ico(CopyIcon),
+  plus: ico(PlusIcon),
+  edit: ico(PenLineIcon),
+  warn: ico(TriangleAlertIcon),
+  close: ico(XIcon),
+  check: ico(CheckIcon),
+  rerun: ico(RotateCwIcon),
 };

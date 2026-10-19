@@ -2,9 +2,11 @@ import { route } from "../utils/asyncRoute";
 import { authUserId, param, queryParam } from "../utils/request";
 import { parseScreenFilter } from "../utils/screenFilter";
 import { parseOrThrow } from "../utils/validate";
-import { UploadBody, UploadUrlBody } from "../validators/wallpaper.schema";
+import { DiscardUploadBody, PrepareUploadBody, UploadBody, UploadUrlBody } from "../validators/wallpaper.schema";
 import { recalculateTrendingScores } from "../jobs/trending.job";
 import * as wallpaperService from "../services/wallpaper.service";
+import * as creatorUpload from "../services/creatorUpload.service";
+import { publicMatch } from "../services/creatorUpload.service";
 
 /** GET /api/wallpapers?featured=true&limit=20&offset=0&category=nature&q=forest&screen=mobile */
 export const list = route("Failed to fetch wallpapers", async (req, res) => {
@@ -105,11 +107,26 @@ export const upload = route("Failed to upload wallpaper", async (req, res) => {
   res.json({
     wallpaper: wallpaperService.withoutReviewFields(result.wallpaper),
     moderationStatus: result.moderationStatus,
+    similarTo: result.similarTo ? publicMatch(result.similarTo) : null,
     message:
       result.moderationStatus === "approved"
         ? "Wallpaper uploaded and live!"
         : "Wallpaper uploaded and under review",
   });
+});
+
+/** POST /api/wallpapers/upload/prepare { key, fileUrl, fileType, fileSizeBytes } — after the PUT to storage */
+export const prepareUpload = route("Couldn't process the image", async (req, res) => {
+  const userId = authUserId(req);
+  await wallpaperService.assertCreator(userId);
+  const input = parseOrThrow(PrepareUploadBody, req.body);
+  res.json(await creatorUpload.prepareCreatorUpload(userId, input));
+});
+
+/** POST /api/wallpapers/upload/discard { key } — the creator removed the image before publishing */
+export const discardUpload = route("Couldn't remove the image", async (req, res) => {
+  const { key } = parseOrThrow(DiscardUploadBody, req.body);
+  res.json(await creatorUpload.discardCreatorUpload(authUserId(req), key));
 });
 
 /** POST /api/wallpapers/trending/recalculate (X-Admin-Secret) */

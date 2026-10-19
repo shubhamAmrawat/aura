@@ -1,957 +1,670 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import Image from "next/image";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link, { useLinkStatus } from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
-import { getCategories, getUploadUrl, submitWallpaper } from "@/lib/api";
-import { revalidateFeeds } from "@/app/actions";
+import { useToast } from "@/lib/toast";
+import { getCategories } from "@/lib/api";
+import {
+  discardUpload,
+  prepareUpload,
+  publishUpload,
+  sendToStorage,
+  UploadError,
+  type DuplicateInfo,
+  type PreparedUpload,
+  type PublishResult,
+} from "@/lib/uploadApi";
+import { DesktopPreview, PhonePreview } from "./DevicePreview";
+import {
+  AlignLeft, ArrowRight, Check, Clock, FileImage, Folder, House, LayoutGrid, Link as LinkIcon, LoaderCircle as LoaderCircleIcon, Lock, Maximize, Monitor, Palette,
+  RectangleHorizontal, RectangleVertical, RefreshCw, Smartphone, Sparkles, Tag, Type, Upload, X,
+  type LucideIcon,
+} from "lucide-react";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+const TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 25 * 1024 * 1024;
-const MIN_IMAGE_DIMENSION = 200;
-
-function meetsMinImageSize(width: number, height: number): boolean {
-  return width >= MIN_IMAGE_DIMENSION && height >= MIN_IMAGE_DIMENSION;
-}
-
-type Progress = "idle" | "uploading" | "moderating" | "saving" | "done";
-
-const PROGRESS_STEPS: {
-  key: Progress;
-  label: string;
-  sublabel: string;
-}[] = [
-  {
-    key: "uploading",
-    label: "Uploading image",
-    sublabel: "Sending your wallpaper to secure storage",
-  },
-  {
-    key: "moderating",
-    label: "Safety check",
-    sublabel: "AI is reviewing your image for content policy",
-  },
-  {
-    key: "saving",
-    label: "Finalizing",
-    sublabel: "Extracting metadata and generating visual index",
-  },
-  {
-    key: "done",
-    label: "Complete",
-    sublabel: "Your wallpaper is live",
-  },
-];
-
-const STEP_INDEX: Record<Progress, number> = {
-  idle: -1,
-  uploading: 0,
-  moderating: 1,
-  saving: 2,
-  done: 3,
-};
-
-const PROGRESS_WIDTH: Record<Progress, string> = {
-  idle: "0%",
-  uploading: "20%",
-  moderating: "50%",
-  saving: "80%",
-  done: "100%",
-};
+/** Shortest side — the API enforces the same. */
+const MIN_SHORT_SIDE = 1080;
+const MAX_TAGS = 10;
 
 type Category = { id: string; name: string; slug: string };
+type Phase = "empty" | "uploading" | "reading" | "ready" | "duplicate" | "publishing" | "done";
+type View = "lock" | "home" | "desktop";
 
-function normalizeTag(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, "-");
+/** Which previews fit an image: portrait → phone only, landscape → desktop only, near-square → both. */
+function viewsFor(w: number, h: number): { id: View; label: string; icon: IconName }[] {
+  const r = w / h;
+  if (r < 0.8) return [{ id: "lock", label: "Lock screen", icon: "lock" }, { id: "home", label: "Home screen", icon: "home" }];
+  if (r > 1.25) return [{ id: "desktop", label: "Desktop", icon: "desktop" }];
+  return [{ id: "lock", label: "Phone", icon: "phone" }, { id: "desktop", label: "Desktop", icon: "desktop" }];
 }
 
-function loadImageDimensions(file: File): Promise<{ width: number; height: number }> {
+const fmtBytes = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+const resLabel = (w: number, h: number) => {
+  const long = Math.max(w, h);
+  return long >= 3840 ? "4K" : long >= 2560 ? "QHD" : long >= 1920 ? "Full HD" : "HD";
+};
+const cleanTag = (t: string) => t.trim().toLowerCase().replace(/\s+/g, " ").slice(0, 30);
+
+function imageSize(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
-    const el = document.createElement("img");
-    el.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: el.naturalWidth, height: el.naturalHeight });
-    };
-    el.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Could not read image dimensions"));
-    };
-    el.src = url;
+    const img = new Image();
+    img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file isn’t an image we can read.")); };
+    img.src = url;
   });
 }
 
-async function validateImageFile(
-  file: File
-): Promise<{ error: string | null; dims?: { width: number; height: number } }> {
-  if (!ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
-    return { error: "Only JPEG, PNG, or WebP images are allowed." };
-  }
-  if (file.size > MAX_BYTES) {
-    return { error: "File must be 25 MB or smaller." };
-  }
-  try {
-    const { width, height } = await loadImageDimensions(file);
-    if (!meetsMinImageSize(width, height)) {
-      return {
-        error: `Image must be at least ${MIN_IMAGE_DIMENSION}×${MIN_IMAGE_DIMENSION} pixels (this file is ${width}×${height}).`,
-      };
-    }
-    return { error: null, dims: { width, height } };
-  } catch {
-    return { error: "Could not read this image. Try another file." };
-  }
-}
+/** Icons used in the studio (lucide). */
+const ICONS = {
+  lock: Lock, home: LayoutGrid, phone: Smartphone, desktop: Monitor,
+  title: Type, description: AlignLeft, category: Folder, tag: Tag, replace: RefreshCw,
+} satisfies Record<string, LucideIcon>;
+type IconName = keyof typeof ICONS;
+const Icon = ({ name, size = 15 }: { name: IconName; size?: number }) => {
+  const C = ICONS[name];
+  return <C size={size} strokeWidth={1.9} aria-hidden="true" className="shrink-0" />;
+};
+/** Label row icon, a touch dimmer than the label text. */
+const LabelIcon = ({ name }: { name: IconName }) => <span className="text-[#8a8a8a]"><Icon name={name} size={14} /></span>;
+const Sparkle = ({ size = 14 }: { size?: number }) => <Sparkles size={size} strokeWidth={2} aria-hidden="true" />;
+/** Icon at the start of an image-info pill. */
+const PillIcon = ({ icon: C }: { icon: LucideIcon }) => <C size={14} strokeWidth={1.9} aria-hidden="true" className="shrink-0 text-[#8a8a8a]" />;
 
-const inputBorder = (focused: boolean): CSSProperties => ({
-  border: `1px solid ${focused ? "var(--accent)" : "var(--border)"}`,
-  background: "var(--bg-elevated)",
-  color: "var(--text-primary)",
-  borderRadius: "0.75rem",
-  outline: "none",
-});
-
-/** DevTools: filter by `[Aurora upload]` to trace presign → R2 PUT → submit. */
-function uploadLog(...args: unknown[]) {
-  console.log("[Aurora upload]", ...args);
-}
-
-function uploadWarn(...args: unknown[]) {
-  console.warn("[Aurora upload]", ...args);
-}
-
-function safeUrlHost(url: string): string {
-  try {
-    return new URL(url).host;
-  } catch {
-    return "(unparseable URL)";
-  }
-}
-
-type UploadPhase = "presign" | "storage_put" | "submit";
-
-function uploadFailureMessage(phase: UploadPhase, err: unknown): string {
-  const raw = err instanceof Error ? err.message : String(err);
-  const isNetwork = raw === "Failed to fetch" || raw === "Load failed" || raw === "NetworkError when attempting to fetch resource.";
-
-  if (!isNetwork) return raw;
-
-  if (phase === "presign") {
-    return `${raw} — could not reach the API for a presigned URL. Confirm NEXT_PUBLIC_API_URL and that the API is running (see Network tab for /api/wallpapers/upload-url).`;
-  }
-  if (phase === "storage_put") {
-    return `${raw} — browser could not PUT the file to object storage. This is usually R2/S3 CORS: the bucket must allow PUT (and OPTIONS) from your site origin (e.g. http://localhost:3000). The failing request host in Network tab should be your R2 endpoint, not your API.`;
-  }
-  return `${raw} — could not reach the API to save wallpaper metadata (see Network tab for /api/wallpapers/upload).`;
+/** Inside a <Link>: swaps the label for a spinner while the next page loads. */
+function LinkLabel({ children }: { children: React.ReactNode }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className="inline-flex items-center gap-2">
+      {pending && <LoaderCircleIcon size={16} strokeWidth={2.4} className="animate-spin" aria-hidden="true" />}
+      {children}
+    </span>
+  );
 }
 
 export default function UploadPage() {
   const router = useRouter();
   const { user, loaded } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-
+  const [phase, setPhase] = useState<Phase>("empty");
   const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [prepared, setPrepared] = useState<PreparedUpload | null>(null);
+  const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
+  const [result, setResult] = useState<PublishResult | null>(null);
+  const [view, setView] = useState<View>("lock");
+  const [dragging, setDragging] = useState(false);
 
+  // details
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [extras, setExtras] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [aiFilled, setAiFilled] = useState(false);
+  const [showAllCats, setShowAllCats] = useState(false);
+  const touched = useRef({ title: false, description: false, category: false, tags: false });
 
-  const [focusField, setFocusField] = useState<string | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
-  const [categoryHighlightIndex, setCategoryHighlightIndex] = useState(0);
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
-  const categoryTriggerRef = useRef<HTMLButtonElement>(null);
-  const categoryListboxRef = useRef<HTMLDivElement>(null);
-  const categoryOpenIntentRef = useRef<"default" | "last">("default");
+  const fileInput = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const uploadedKey = useRef<string | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [progress, setProgress] = useState<Progress>("idle");
-
+  // Creators only (everyone else applies first)
   useEffect(() => {
     if (!loaded) return;
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (!user.isCreator) {
-      router.replace("/creator/apply");
-    }
+    if (!user) router.replace("/login?next=%2Fupload");
+    else if (!user.isCreator) router.replace("/creator/apply");
   }, [loaded, user, router]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await getCategories();
-        if (!cancelled) setCategories(data);
-      } catch {
-        if (!cancelled) setCategories([]);
-      } finally {
-        if (!cancelled) setCategoriesLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    getCategories()
+      .then((list) => setCategories(list.filter((c) => c.slug !== "uncategorized")))
+      .catch(() => setCategories([]));
   }, []);
 
-  const closeCategoryMenu = useCallback((opts?: { focusTrigger?: boolean }) => {
-    setCategoryMenuOpen(false);
-    setCategoryHighlightIndex(0);
-    if (opts?.focusTrigger) categoryTriggerRef.current?.focus();
-  }, []);
-
+  // Leaving with an unpublished upload: warn, and clean it up.
   useEffect(() => {
-    if (!categoryMenuOpen || categoriesLoading || categories.length === 0) return;
-    const intent = categoryOpenIntentRef.current;
-    categoryOpenIntentRef.current = "default";
-    let idx = categories.findIndex((c) => c.id === categoryId);
-    if (intent === "last") idx = categories.length - 1;
-    else if (idx < 0) idx = 0;
-    setCategoryHighlightIndex(idx);
-  }, [categoryMenuOpen, categoriesLoading, categories, categoryId]);
+    const unsaved = phase === "uploading" || phase === "reading" || phase === "ready";
+    if (!unsaved) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [phase]);
 
-  useEffect(() => {
-    if (!categoryMenuOpen || categoriesLoading || categories.length === 0) return;
-    categoryListboxRef.current?.focus({ preventScroll: true });
-  }, [categoryMenuOpen, categoriesLoading, categories.length]);
+  useEffect(() => () => { if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview); }, [preview]);
 
-  useEffect(() => {
-    if (!categoryMenuOpen || categories.length === 0) return;
-    const idx = Math.min(Math.max(0, categoryHighlightIndex), categories.length - 1);
-    const id = categories[idx]?.id;
-    if (!id) return;
-    document.getElementById(`upload-cat-option-${id}`)?.scrollIntoView({ block: "nearest" });
-  }, [categoryMenuOpen, categoryHighlightIndex, categories]);
-
-  useEffect(() => {
-    if (!categoryMenuOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const root = categoryMenuRef.current;
-      if (root && !root.contains(e.target as Node)) closeCategoryMenu();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (categoryListboxRef.current?.contains(document.activeElement)) return;
-      closeCategoryMenu();
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [categoryMenuOpen, closeCategoryMenu]);
-
-  const onCategoryTriggerKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (categoriesLoading || busy || categories.length === 0) return;
-    if (e.key === "ArrowDown" && !categoryMenuOpen) {
-      e.preventDefault();
-      categoryOpenIntentRef.current = "default";
-      setCategoryMenuOpen(true);
-      return;
-    }
-    if (e.key === "ArrowUp" && !categoryMenuOpen) {
-      e.preventDefault();
-      categoryOpenIntentRef.current = "last";
-      setCategoryMenuOpen(true);
-    }
+  const resetDetails = () => {
+    setTitle(""); setDescription(""); setCategoryId(""); setExtras([]); setTags([]); setTagInput("");
+    setAiFilled(false); setShowAllCats(false);
+    touched.current = { title: false, description: false, category: false, tags: false };
   };
 
-  const onCategoryListboxKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (categories.length === 0) return;
-    const last = categories.length - 1;
-
-    switch (e.key) {
-      case "ArrowDown": {
-        e.preventDefault();
-        setCategoryHighlightIndex((i) => Math.min(last, i + 1));
-        break;
-      }
-      case "ArrowUp": {
-        e.preventDefault();
-        setCategoryHighlightIndex((i) => Math.max(0, i - 1));
-        break;
-      }
-      case "Home": {
-        e.preventDefault();
-        setCategoryHighlightIndex(0);
-        break;
-      }
-      case "End": {
-        e.preventDefault();
-        setCategoryHighlightIndex(last);
-        break;
-      }
-      case "Enter":
-      case " ": {
-        e.preventDefault();
-        const idx = Math.min(Math.max(0, categoryHighlightIndex), last);
-        const c = categories[idx];
-        if (c) {
-          setCategoryId(c.id);
-          closeCategoryMenu({ focusTrigger: true });
-        }
-        break;
-      }
-      case "Escape": {
-        e.preventDefault();
-        e.stopPropagation();
-        closeCategoryMenu({ focusTrigger: true });
-        break;
-      }
-      case "Tab": {
-        closeCategoryMenu();
-        break;
-      }
-      default:
-        break;
-    }
-  };
-
-  const clearFile = useCallback(() => {
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setFile(null);
-    setDims(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  /** Throw away the current image (and its upload, if it reached storage). */
+  const clearImage = useCallback(() => {
+    abortRef.current?.abort();
+    if (uploadedKey.current) void discardUpload(uploadedKey.current);
+    uploadedKey.current = null;
+    setFile(null); setPreview(null); setDims(null); setProgress(0); setPrepared(null);
+    setDuplicate(null); setError(null); setResult(null);
+    setPhase("empty");
   }, []);
 
-  const applyValidFile = useCallback(async (next: File) => {
+  const startOver = () => { clearImage(); resetDetails(); };
+
+  async function takeFile(f: File | undefined | null) {
+    if (!f) return;
     setError(null);
-    const { error: validationError, dims: nextDims } = await validateImageFile(next);
-    if (validationError || !nextDims) {
-      setError(validationError);
+    if (!TYPES.includes(f.type)) { setError("Use a JPG, PNG or WebP image."); return; }
+    if (f.size > MAX_BYTES) { setError("That file is larger than 25 MB."); return; }
+    let size: { width: number; height: number };
+    try { size = await imageSize(f); } catch (e) { setError(e instanceof Error ? e.message : "Couldn’t read that image."); return; }
+    if (Math.min(size.width, size.height) < MIN_SHORT_SIDE) {
+      setError(`This image is ${size.width} × ${size.height}. Use at least ${MIN_SHORT_SIDE} px on the short side so it looks sharp on phones.`);
       return;
     }
-    setPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(next);
-    });
-    setFile(next);
-    setDims(nextDims);
-  }, []);
 
-  const onFileChosen = useCallback(
-    async (f: File | undefined) => {
-      if (!f) return;
-      await applyValidFile(f);
-    },
-    [applyValidFile]
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      const f = e.dataTransfer.files?.[0];
-      void onFileChosen(f);
-    },
-    [onFileChosen]
-  );
-
-  const addTagsFromString = useCallback(
-    (raw: string) => {
-      const parts = raw.split(",").map((p) => normalizeTag(p)).filter(Boolean);
-      if (parts.length === 0) return;
-      setTags((prev) => {
-        const next = [...prev];
-        for (const p of parts) {
-          if (next.length >= 10) break;
-          if (!next.includes(p)) next.push(p);
-        }
-        return next;
-      });
-      setTagInput("");
-    },
-    []
-  );
-
-  const onTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addTagsFromString(tagInput);
-      return;
-    }
-    if (e.key === ",") {
-      e.preventDefault();
-      addTagsFromString(tagInput);
-    }
-  };
-
-  const removeTag = (t: string) => {
-    setTags((prev) => prev.filter((x) => x !== t));
-  };
-
-  const busy = progress !== "idle";
-
-  const selectedCategoryName = categories.find((c) => c.id === categoryId)?.name ?? null;
-
-  const canSubmit =
-    !busy &&
-    !pendingMessage &&
-    Boolean(file) &&
-    title.trim().length > 0 &&
-    Boolean(categoryId);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !dims) return;
-    if (!title.trim() || !categoryId) return;
-
-    setError(null);
-    setPendingMessage(null);
-    closeCategoryMenu();
-    setProgress("uploading");
-
-    let phase: UploadPhase = "presign";
+    clearImage();
+    const abort = new AbortController();
+    abortRef.current = abort;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
+    setDims(size);
+    setView(viewsFor(size.width, size.height)[0]?.id ?? "lock");
+    setPhase("uploading");
 
     try {
-      uploadLog("step 1/3 presign: requesting upload-url", { fileType: file.type, size: file.size });
-      const { uploadUrl, fileUrl, key } = await getUploadUrl(file.type);
-      uploadLog("step 1/3 presign: OK", {
-        key,
-        fileUrlHost: safeUrlHost(fileUrl),
-        putHost: safeUrlHost(uploadUrl),
-      });
-
-      phase = "storage_put";
-      uploadLog("step 2/3 storage: PUT file to presigned URL", {
-        host: safeUrlHost(uploadUrl),
-        contentType: file.type,
-      });
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      uploadLog("step 2/3 storage: response", { ok: putRes.ok, status: putRes.status, statusText: putRes.statusText });
-      if (!putRes.ok) {
-        const bodySnippet = await putRes.text().catch(() => "");
-        uploadWarn("step 2/3 storage: non-OK body (truncated)", bodySnippet.slice(0, 500));
-        throw new Error(`Upload to storage failed (${putRes.status}).`);
-      }
-      uploadLog("step 2/3 storage: OK");
-
-      setProgress("moderating");
-      phase = "submit";
-      uploadLog("step 3/3 submit: POST /api/wallpapers/upload", { key, fileUrlHost: safeUrlHost(fileUrl) });
-      const result = await submitWallpaper({
-        title: title.trim().slice(0, 100),
-        description: description.trim().slice(0, 500),
-        categoryId,
-        tags,
-        fileUrl,
-        key,
-        width: dims.width,
-        height: dims.height,
-        fileSizeBytes: file.size,
-        fileType: file.type,
-      });
-      uploadLog("step 3/3 submit: OK", {
-        moderationStatus: result.moderationStatus,
-        wallpaperId: result.wallpaper?.id,
-      });
-
-      if (result.moderationStatus === "approved") {
-        const id = result.wallpaper?.id as string | undefined;
-        setProgress("done");
-        uploadLog("complete: approved, redirect", { id });
-        // Bust feed caches so the new wallpaper appears immediately on homepage/latest/trending
-        await revalidateFeeds().catch(() => {});
-        if (id) router.push(`/wallpaper/${id}`);
-        else router.push("/");
+      const { key, fileUrl } = await sendToStorage(f, setProgress, abort.signal);
+      if (abort.signal.aborted) return;
+      uploadedKey.current = key;
+      setPhase("reading");
+      const p = await prepareUpload({ key, fileUrl, fileType: f.type, fileSizeBytes: f.size });
+      if (abort.signal.aborted) return;
+      setPrepared(p);
+      applySuggestions(p);
+      setPhase("ready");
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      uploadedKey.current = null; // the API already removed a refused file
+      if (e instanceof UploadError && e.duplicate) {
+        setDuplicate(e.duplicate);
+        setPhase("duplicate");
         return;
       }
-
-      if (result.moderationStatus === "pending") {
-        setProgress("idle");
-        uploadLog("complete: pending, redirect to profile in 2s");
-        setPendingMessage(
-          result.message || "Your wallpaper is under review. You will be redirected to your profile."
-        );
-        setTimeout(() => {
-          router.push("/profile");
-        }, 2000);
-        return;
-      }
-
-      setError("Unexpected response from server.");
-      setProgress("idle");
-    } catch (err) {
-      console.error("[Aurora upload] FAILED", { phase, err });
-      setProgress("idle");
-      setError(uploadFailureMessage(phase, err));
+      setError(e instanceof Error ? e.message : "Upload failed. Try again.");
+      setFile(null); setPreview(null); setDims(null);
+      setPhase("empty");
     }
+  }
+
+  /** Fill in what the AI suggested — never over something the creator already typed. */
+  function applySuggestions(p: PreparedUpload) {
+    const s = p.suggestions;
+    const t = touched.current;
+    let used = false;
+    if (!t.title && s.title) { setTitle(s.title); used = true; }
+    if (!t.description && s.description) { setDescription(s.description); used = true; }
+    if (!t.category && s.categoryId) {
+      setCategoryId(s.categoryId);
+      setExtras(s.extraCategoryIds.filter((id) => id !== s.categoryId).slice(0, 2));
+      used = true;
+    }
+    if (!t.tags && s.tags.length) { setTags(s.tags.map(cleanTag).filter(Boolean).slice(0, MAX_TAGS)); used = true; }
+    setAiFilled(used);
+  }
+
+  // Paste an image from the clipboard (Ctrl + V) while on the empty screen.
+  useEffect(() => {
+    if (phase !== "empty") return;
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.files ?? []).find((f) => f.type.startsWith("image/"));
+      if (item) { e.preventDefault(); void takeFile(item); }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const addTag = (raw: string) => {
+    const t = cleanTag(raw.replace(/,/g, ""));
+    touched.current.tags = true;
+    if (t && !tags.includes(t) && tags.length < MAX_TAGS) setTags([...tags, t]);
+    setTagInput("");
   };
 
+  const pickCategory = (id: string) => {
+    touched.current.category = true;
+    setCategoryId(id);
+    setExtras((cur) => cur.filter((x) => x !== id));
+  };
+  const toggleExtra = (id: string) => {
+    touched.current.category = true;
+    setExtras((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length < 2 ? [...cur, id] : cur));
+  };
+
+  const ready = phase === "ready" && !!prepared && !!file && !!dims;
+  const blocker = !ready
+    ? phase === "uploading" ? "Uploading…" : phase === "reading" ? "Reading your image…" : ""
+    : !title.trim() ? "Add a title" : !categoryId ? "Pick a category" : "";
+
+  async function publish() {
+    if (!ready || blocker || !prepared || !file || !dims) return;
+    setPhase("publishing");
+    try {
+      const r = await publishUpload({
+        key: prepared.key, fileUrl: prepared.fileUrl, fileType: file.type, fileSizeBytes: file.size,
+        width: prepared.width || dims.width, height: prepared.height || dims.height,
+        title: title.trim().slice(0, 100), description: description.trim().slice(0, 500),
+        categoryId, extraCategoryIds: extras, tags,
+      });
+      uploadedKey.current = null;
+      setResult(r);
+      setPhase("done");
+      window.scrollTo({ top: 0 });
+      if (r.moderationStatus === "approved") void fetch("/api/revalidate-feeds", { method: "POST" }).catch(() => undefined);
+    } catch (e) {
+      if (e instanceof UploadError && e.duplicate) {
+        uploadedKey.current = null;
+        setDuplicate(e.duplicate);
+        setPhase("duplicate");
+        return;
+      }
+      if (e instanceof UploadError && e.status === 422) {
+        uploadedKey.current = null;
+        setError(e.message);
+        setFile(null); setPreview(null); setDims(null); setPrepared(null);
+        setPhase("empty");
+        return;
+      }
+      toast(e instanceof Error ? e.message : "Couldn’t publish. Try again.", "error");
+      setPhase("ready");
+    }
+  }
+
+  const close = () => {
+    if (phase === "uploading" || phase === "reading" || phase === "ready") clearImage();
+    router.push("/profile?tab=uploads");
+  };
+
+  const catName = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const suggestedIds = useMemo(() => {
+    const s = prepared?.suggestions;
+    const ids = [s?.categoryId, s?.alternativeId, ...(s?.extraCategoryIds ?? [])].filter((x): x is string => !!x && catName.has(x));
+    if (categoryId && !ids.includes(categoryId)) ids.unshift(categoryId);
+    return [...new Set(ids)];
+  }, [prepared, categoryId, catName]);
+
   if (!loaded || !user || !user.isCreator) {
+    return <main className="min-h-screen" style={{ background: "var(--bg-primary)" }} />;
+  }
+
+  // ─── finished ───
+  if (phase === "done" && result) {
+    const live = result.moderationStatus === "approved";
+    const wide = prepared ? !prepared.isMobile : !!dims && dims.width > dims.height;
+    const link = `${window.location.origin}/wallpaper/${result.wallpaper.id}`;
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center gap-4 px-6" style={{ background: "var(--bg-primary)" }}>
-        <p className="text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-          Loading
-        </p>
-        <div
-          className="w-full max-w-[200px] h-1 rounded-full overflow-hidden"
-          style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
-        >
-          <div
-            className="h-full rounded-full w-[35%] animate-[upload-bar-indeterminate_1.1s_ease-in-out_infinite]"
-            style={{ background: "var(--accent)" }}
-          />
+      <main className="relative min-h-screen flex items-center justify-center px-5 pt-24 pb-16" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 35%, #14201a, var(--bg-primary) 70%)", color: "var(--text-primary)" }}>
+        <header className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-5 sm:px-10 py-4">
+          <Link href="/" className="h-10 pl-3 pr-4 rounded-full text-sm font-medium inline-flex items-center gap-2 bg-white/[0.05] hover:bg-white/[0.1] transition-colors" style={{ color: "#e5e5e5" }}>
+            <House size={16} strokeWidth={2} aria-hidden="true" />
+            <LinkLabel>Home</LinkLabel>
+          </Link>
+          <Link href="/profile?tab=uploads" className="h-10 px-4 rounded-full text-sm font-medium inline-flex items-center hover:bg-white/[0.05] transition-colors" style={{ color: "var(--text-secondary)" }}>
+            <LinkLabel>Your uploads</LinkLabel>
+          </Link>
+        </header>
+        <div className="w-full max-w-[640px] flex flex-col items-center gap-5 text-center" style={{ animation: "auth-in 0.5s ease both" }}>
+          {/* Same frame as the image was made for: phone for portrait, screen for landscape. */}
+          <div className={`relative ${wide ? "w-[min(460px,84vw)] aspect-[16/10]" : "w-[200px] aspect-[9/16]"}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={prepared?.thumbUrl ?? preview ?? ""} alt="" className={`absolute inset-0 w-full h-full object-cover ${wide ? "rounded-[12px]" : "rounded-[28px]"}`} style={{ boxShadow: `0 0 0 ${wide ? 6 : 7}px #050505, 0 0 0 ${wide ? 7 : 8}px rgba(255,255,255,0.12), 0 40px 90px rgba(0,0,0,0.55)` }} />
+            <span className="absolute -right-3.5 -bottom-3.5 w-12 h-12 rounded-full flex items-center justify-center" style={{ background: live ? "var(--accent)" : "#facc15", color: "#0a0a0a", boxShadow: "0 0 0 6px var(--bg-primary)" }}>
+              {live ? <Check size={22} strokeWidth={3} aria-hidden="true" /> : <Clock size={21} strokeWidth={2.4} aria-hidden="true" />}
+            </span>
+          </div>
+          <h1 className="mt-3 text-[40px] sm:text-[48px] leading-[1.04]" style={{ fontFamily: "var(--font-serif), serif" }}>{live ? "It’s live on Aurora" : "Sent for a quick review"}</h1>
+          <p className="text-[15px] leading-relaxed max-w-[460px]" style={{ color: "var(--text-secondary)" }}>
+            {live
+              ? <>“{result.wallpaper.title}” is now on Aurora. You’ll see its views and downloads on your profile.</>
+              : result.similarTo
+                ? <>It looks very similar to “{result.similarTo.title}”{result.similarTo.by ? ` by @${result.similarTo.by}` : ""}, so our team will take a look first. We’ll email you when it’s live.</>
+                : <>Our safety check wasn’t sure about it, so our team will take a look first. We’ll email you when it’s live.</>}
+          </p>
+          <div className="flex flex-wrap justify-center gap-2.5 mt-1.5">
+            {live ? (
+              <Link href={`/wallpaper/${result.wallpaper.id}`} className="h-12 px-6 rounded-full text-sm font-semibold inline-flex items-center hover:opacity-90" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}><LinkLabel>View wallpaper</LinkLabel></Link>
+            ) : (
+              <Link href="/profile?tab=uploads" className="h-12 px-6 rounded-full text-sm font-semibold inline-flex items-center hover:opacity-90" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}><LinkLabel>See your uploads</LinkLabel></Link>
+            )}
+            <button type="button" onClick={startOver} className="h-12 px-6 rounded-full text-sm font-semibold border border-white/[0.14] hover:bg-white/[0.05]">Upload another</button>
+            {live && (
+              <button
+                type="button"
+                onClick={() => navigator.clipboard.writeText(link).then(() => toast("Link copied", "success"), () => toast("Couldn’t copy the link", "error"))}
+                className="h-12 px-6 rounded-full text-sm font-semibold border border-white/[0.14] hover:bg-white/[0.05] inline-flex items-center gap-2"
+              >
+                <LinkIcon size={15} strokeWidth={2} aria-hidden="true" />
+                Copy link
+              </button>
+            )}
+          </div>
         </div>
       </main>
     );
   }
 
+  const busy = phase === "uploading" || phase === "reading";
+  const views = dims ? viewsFor(dims.width, dims.height) : [];
+  const status =
+    phase === "uploading" ? `Uploading ${Math.round(progress * 100)}%`
+    : phase === "reading" ? "Reading your image…"
+    : phase === "ready" ? "Ready to publish"
+    : phase === "publishing" ? "Publishing…"
+    : phase === "duplicate" ? "Already on Aurora"
+    : "Add an image to start";
+
   return (
-    <main
-      className="min-h-screen pt-24 px-4 sm:px-8 md:px-12 pb-16"
-      style={{ background: "var(--bg-primary)" }}
-    >
-      <div className="max-w-5xl mx-auto">
-        <Link
-          href="/"
-          className="text-xs tracking-widest uppercase inline-block mb-8 transition-opacity hover:opacity-70"
-          style={{ color: "var(--accent)" }}
-        >
-          ← Home
-        </Link>
+    <main className="min-h-screen flex flex-col" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+      {/* ── top bar ── */}
+      <header className="sticky top-0 z-20 flex items-center gap-4 px-5 sm:px-10 py-3.5 border-b border-white/[0.06] backdrop-blur-xl" style={{ background: "rgba(10,10,10,0.85)" }}>
+        <button type="button" onClick={close} aria-label="Close" className="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.05] hover:bg-white/[0.1]" style={{ color: "#cfcfcf" }}>
+          <X size={17} strokeWidth={2.2} aria-hidden="true" />
+        </button>
+        <div className="flex flex-col min-w-0">
+          <span className="text-[15px] font-semibold">New wallpaper</span>
+          <span className="text-xs truncate" style={{ color: "var(--text-muted)" }} aria-live="polite">{status}</span>
+        </div>
+        <div className="ml-auto flex items-center gap-3">
+          {blocker && phase !== "empty" && phase !== "duplicate" && <span className="hidden sm:inline text-[13px]" style={{ color: "var(--text-muted)" }}>{blocker}</span>}
+          {phase !== "empty" && phase !== "duplicate" && <button
+            type="button"
+            onClick={() => void publish()}
+            disabled={!ready || !!blocker}
+            className="h-[42px] px-5 sm:px-6 rounded-full text-sm font-semibold inline-flex items-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
+          >
+            {phase === "publishing" ? "Publishing…" : "Publish"}
+            {phase !== "publishing" && <ArrowRight size={16} strokeWidth={2.2} aria-hidden="true" />}
+          </button>}
+        </div>
+      </header>
 
-        <h1 className="text-2xl font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-          Upload wallpaper
-        </h1>
-        <p className="text-sm mb-8 max-w-xl" style={{ color: "var(--text-muted)" }}>
-          Add a high-resolution image, details, and tags. Files are scanned for safety before publishing.
-        </p>
+      <input
+        ref={fileInput}
+        type="file"
+        accept={TYPES.join(",")}
+        hidden
+        onChange={(e) => { void takeFile(e.target.files?.[0]); e.target.value = ""; }}
+      />
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
-          {/* Left: dropzone / preview */}
+      {phase === "empty" ? (
+        /* ── empty: one big drop zone ── */
+        <div className="flex-1 w-full max-w-[880px] mx-auto px-5 sm:px-10 py-10 sm:py-14 flex flex-col gap-6">
           <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ALLOWED_TYPES.join(",")}
-              className="hidden"
-              aria-label="Choose wallpaper image file"
-              onChange={(e) => void onFileChosen(e.target.files?.[0])}
-            />
-
-            {!previewUrl ? (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                className="w-full min-h-[360px] rounded-2xl flex flex-col items-center justify-center gap-3 px-6 py-10 transition-colors"
-                style={{
-                  border: `2px dashed ${dragOver ? "var(--accent)" : "var(--border)"}`,
-                  background: "var(--bg-elevated)",
-                }}
-              >
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
-                  Drop an image here or click to browse
-                </p>
-                <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-muted)" }}>
-                  JPEG, PNG, or WebP · max 25 MB · min {MIN_IMAGE_DIMENSION}×{MIN_IMAGE_DIMENSION}px
-                </p>
-              </button>
-            ) : (
-              <div className="rounded-2xl overflow-hidden relative" style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}>
-                <div className="relative w-full aspect-[16/10] max-h-[420px]">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    fill
-                    className="object-contain"
-                    unoptimized
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                  />
-                </div>
-                {dims && (
-                  <div
-                    className="absolute top-3 right-3 text-[10px] font-medium px-2 py-1 rounded-md"
-                    style={{ background: "var(--bg-primary)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-                  >
-                    {dims.width} × {dims.height}
-                  </div>
-                )}
-                <div className="p-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>
-                  <button
-                    type="button"
-                    onClick={clearFile}
-                    disabled={busy}
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80 disabled:opacity-40"
-                    style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-                  >
-                    Remove file
-                  </button>
-                </div>
-              </div>
-            )}
+            <h1 className="text-[40px] sm:text-[52px] leading-[1.03]" style={{ fontFamily: "var(--font-serif), serif" }}>Share a wallpaper</h1>
+            <p className="mt-2 text-[15px]" style={{ color: "var(--text-secondary)" }}>One at a time — we’ll fill in the details from your image, you check them and publish.</p>
           </div>
-
-          {/* Right: form */}
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
-                Title <span style={{ color: "var(--accent)" }}>*</span>
-              </label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 100))}
-                onFocus={() => setFocusField("title")}
-                onBlur={() => setFocusField(null)}
-                maxLength={100}
-                placeholder="A short, descriptive title"
-                className="w-full px-3 py-2.5 text-sm transition-colors"
-                style={inputBorder(focusField === "title")}
-              />
-              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{title.length}/100</p>
-            </div>
-
-            <div>
-              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
-                Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value.slice(0, 500))}
-                onFocus={() => setFocusField("desc")}
-                onBlur={() => setFocusField(null)}
-                rows={4}
-                placeholder="Optional — tools used, mood, or story behind the piece"
-                className="w-full px-3 py-2.5 text-sm resize-y min-h-[100px] transition-colors"
-                style={inputBorder(focusField === "desc")}
-              />
-              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{description.length}/500</p>
-            </div>
-
-            <div ref={categoryMenuRef} className="relative">
-              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
-                Category <span style={{ color: "var(--accent)" }}>*</span>
-              </label>
-              <button
-                ref={categoryTriggerRef}
-                type="button"
-                id="upload-category-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={categoryMenuOpen ? "true" : "false"}
-                aria-controls="upload-category-listbox"
-                disabled={categoriesLoading || busy}
-                onClick={() => {
-                  setCategoryMenuOpen((open) => {
-                    if (open) {
-                      setCategoryHighlightIndex(0);
-                      return false;
-                    }
-                    categoryOpenIntentRef.current = "default";
-                    return true;
-                  });
-                }}
-                onKeyDown={onCategoryTriggerKeyDown}
-                onFocus={() => setFocusField("cat")}
-                onBlur={() => setFocusField(null)}
-                className="w-full px-3 py-2.5 text-sm text-left flex items-center justify-between gap-2 transition-colors disabled:opacity-50"
-                style={inputBorder(focusField === "cat" || categoryMenuOpen)}
-              >
-                <span style={{ color: selectedCategoryName ? "var(--text-primary)" : "var(--text-muted)" }}>
-                  {categoriesLoading ? "Loading categories…" : selectedCategoryName ?? "Select a category"}
-                </span>
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="var(--text-muted)"
-                  strokeWidth="2"
-                  className={`shrink-0 transition-transform ${categoryMenuOpen ? "rotate-180" : ""}`}
-                  aria-hidden
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-              {categoryMenuOpen && !categoriesLoading && (
-                <div
-                  ref={categoryListboxRef}
-                  id="upload-category-listbox"
-                  role="listbox"
-                  tabIndex={-1}
-                  aria-labelledby="upload-category-trigger"
-                  aria-activedescendant={
-                    categories.length > 0
-                      ? `upload-cat-option-${categories[Math.min(categoryHighlightIndex, categories.length - 1)]!.id}`
-                      : undefined
-                  }
-                  onKeyDown={onCategoryListboxKeyDown}
-                  className="absolute z-50 left-0 right-0 mt-1 py-1 rounded-xl shadow-lg overflow-y-auto upload-category-scroll outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]"
-                  style={{
-                    maxHeight: "min(16rem, calc(100vh - 12rem))",
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--border)",
-                    boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
-                  }}
-                >
-                  {categories.length === 0 ? (
-                    <div
-                      role="option"
-                      aria-selected="false"
-                      aria-disabled="true"
-                      className="px-3 py-2.5 text-sm cursor-default"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      No categories available
-                    </div>
-                  ) : (
-                    categories.map((c, i) => {
-                      const selected = c.id === categoryId;
-                      const hi = Math.min(Math.max(0, categoryHighlightIndex), categories.length - 1);
-                      const activeDesc = i === hi;
-                      return (
-                        <div
-                          key={c.id}
-                          id={`upload-cat-option-${c.id}`}
-                          role="option"
-                          aria-selected={selected ? "true" : "false"}
-                          className="w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer hover:bg-white/[0.04]"
-                          style={{
-                            background: selected ? "var(--accent-muted)" : "transparent",
-                            color: "var(--text-primary)",
-                            boxShadow: activeDesc ? "inset 0 0 0 1px var(--accent)" : undefined,
-                          }}
-                          onMouseDown={(e) => e.preventDefault()}
-                          onMouseEnter={() => setCategoryHighlightIndex(i)}
-                          onClick={() => {
-                            setCategoryId(c.id);
-                            closeCategoryMenu();
-                          }}
-                        >
-                          {c.name}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="text-[10px] tracking-widest uppercase block mb-1.5" style={{ color: "var(--text-muted)" }}>
-                Tags (max 10)
-              </label>
-              <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={onTagKeyDown}
-                onFocus={() => setFocusField("tags")}
-                onBlur={() => setFocusField(null)}
-                disabled={tags.length >= 10}
-                placeholder={tags.length >= 10 ? "Maximum tags reached" : "Type and press Enter or comma"}
-                className="w-full px-3 py-2.5 text-sm transition-colors"
-                style={inputBorder(focusField === "tags")}
-              />
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-xs"
-                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
-                    >
-                      {t}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(t)}
-                        className="p-0.5 rounded-full leading-none transition-opacity hover:opacity-70"
-                        style={{ color: "var(--text-muted)" }}
-                        aria-label={`Remove tag ${t}`}
-                      >
-                        ×
-                      </button>
-                    </span>
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); void takeFile(e.dataTransfer.files[0]); }}
+            className="w-full min-h-[380px] rounded-[28px] flex flex-col items-center justify-center gap-4 px-6 text-center transition-[background,border-color,transform] duration-200 hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            style={{
+              border: `1.5px dashed ${dragging ? "var(--accent)" : "rgba(255,255,255,0.16)"}`,
+              background: dragging ? "var(--accent-muted)" : "rgba(255,255,255,0.015)",
+              transform: dragging ? "scale(1.01)" : undefined,
+            }}
+          >
+            <span className="w-[60px] h-[60px] rounded-[18px] flex items-center justify-center" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
+              <Upload size={26} strokeWidth={2} aria-hidden="true" />
+            </span>
+            <span className="text-lg font-medium">{dragging ? "Drop to upload" : "Drop your wallpaper here, or click to choose"}</span>
+            <span className="text-[13px]" style={{ color: "var(--text-muted)" }}>JPG, PNG or WebP · at least {MIN_SHORT_SIDE} px on the short side · up to 25 MB · you can also paste with Ctrl + V</span>
+          </button>
+          {error && (
+            <p role="alert" className="rounded-2xl px-5 py-4 text-sm leading-relaxed" style={{ background: "rgba(248,113,113,0.07)", border: "1px solid rgba(248,113,113,0.25)", color: "#fca5a5" }}>{error}</p>
+          )}
+          <div className="grid sm:grid-cols-3 gap-3 text-[13px]" style={{ color: "var(--text-secondary)" }}>
+            {[
+              ["Your own work", "Made or shot by you — reposts of other people’s wallpapers are blocked."],
+              ["Sharp and made for screens", "High resolution, works behind app icons and a clock."],
+              ["Small signatures are fine", "A subtle watermark is OK if it doesn’t cover the image."],
+            ].map(([t, s]) => (
+              <div key={t} className="rounded-2xl px-4 py-3.5" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <p className="font-medium" style={{ color: "var(--text-primary)" }}>{t}</p>
+                <p className="mt-1 leading-normal">{s}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* ── studio: preview + details ── */
+        <div className="flex-1 w-full max-w-[1280px] mx-auto px-5 sm:px-10 pt-6 sm:pt-8 pb-16 flex flex-wrap gap-8 lg:gap-10 items-start">
+          <section aria-label="Preview" className="flex-[1_1_520px] min-w-0 flex flex-col gap-4 lg:sticky lg:top-24">
+            <div className="flex items-center gap-3 min-h-[42px]">
+              {phase !== "duplicate" && views.length > 1 && (
+                <div role="group" aria-label="Preview" className="flex gap-1 p-1 rounded-full border border-white/[0.08] bg-[#111]">
+                  {views.map((v) => (
+                    <button key={v.id} type="button" aria-pressed={view === v.id} onClick={() => setView(v.id)} className="h-[34px] px-3 sm:px-3.5 rounded-full text-[13px] font-medium whitespace-nowrap inline-flex items-center gap-1.5 transition-colors" style={view === v.id ? { background: "#f5f0eb", color: "#0a0a0a" } : { color: "#cfcfcf" }}><Icon name={v.icon} size={14} />{v.label}</button>
                   ))}
                 </div>
               )}
+              {phase !== "duplicate" && views.length === 1 && <span className="text-[13px] inline-flex items-center gap-1.5" style={{ color: "var(--text-muted)" }}><Icon name="desktop" size={14} />Desktop preview</span>}
+              {phase !== "publishing" && phase !== "duplicate" && (
+                <button type="button" onClick={() => fileInput.current?.click()} aria-label="Replace image" title="Replace image" className="ml-auto h-[34px] w-[34px] sm:w-auto justify-center sm:px-3.5 rounded-full text-[13px] font-medium whitespace-nowrap inline-flex items-center gap-1.5 border border-white/[0.12] hover:bg-white/[0.08]" style={{ color: "#e5e5e5" }}>
+                  <Icon name="replace" size={14} /><span className="hidden sm:inline">Replace image</span>
+                </button>
+              )}
+            </div>
+            <div className={`relative ${view === "desktop" ? "h-[300px] sm:h-[460px]" : "h-[560px] sm:h-[640px]"} rounded-3xl border border-white/[0.06] overflow-hidden flex items-center justify-center`} style={{ background: "radial-gradient(ellipse 70% 60% at 50% 40%, #17201a, #0f0f0f 70%)" }}>
+              {preview && (view === "desktop" ? <DesktopPreview src={preview} dim={busy || phase === "duplicate"} /> : <PhonePreview src={preview} screen={view} dim={busy || phase === "duplicate"} />)}
+
+              {busy && (
+                <div className="absolute inset-x-0 bottom-0 p-5 flex flex-col items-center gap-3" role="status">
+                  <div className="w-full max-w-[320px] h-1.5 rounded-full overflow-hidden bg-white/[0.12]">
+                    <div
+                      className={`h-full rounded-full transition-[width] duration-200 ${phase === "reading" ? "w-[35%] animate-[upload-bar-indeterminate_1.1s_ease-in-out_infinite]" : ""}`}
+                      style={{ background: "var(--accent)", width: phase === "uploading" ? `${Math.round(progress * 100)}%` : undefined }}
+                    />
+                  </div>
+                  <span className="text-[13px] font-medium text-white/85">
+                    {phase === "uploading" ? `Uploading · ${Math.round(progress * 100)}%` : "Checking it and drafting the details…"}
+                  </span>
+                </div>
+              )}
+
+              {phase === "duplicate" && duplicate && (
+                <div className="absolute inset-0 flex items-center justify-center p-5" role="alert">
+                  <div className="w-full max-w-[420px] rounded-3xl p-6 flex flex-col items-center gap-4 text-center border border-white/[0.1]" style={{ background: "rgba(14,14,14,0.92)", backdropFilter: "blur(10px)", animation: "auth-in 0.35s ease both" }}>
+                    <div className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {preview && <img src={preview} alt="Your image" className="w-[72px] h-[120px] object-cover rounded-xl" />}
+                      <span className="text-xl" style={{ color: "var(--text-muted)" }} aria-hidden="true">=</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {duplicate.thumbUrl && <img src={duplicate.thumbUrl} alt={`“${duplicate.title}” on Aurora`} className="w-[72px] h-[120px] object-cover rounded-xl" />}
+                    </div>
+                    <h2 className="text-[26px] leading-tight" style={{ fontFamily: "var(--font-serif), serif" }}>
+                      {duplicate.yours ? "You’ve already uploaded this" : "This wallpaper is already on Aurora"}
+                    </h2>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                      It matches <Link href={`/wallpaper/${duplicate.id}`} className="underline underline-offset-4" style={{ color: "var(--text-primary)" }}>“{duplicate.title}”</Link>
+                      {duplicate.by && !duplicate.yours ? <> by @{duplicate.by}</> : null}. Each picture can only be on Aurora once — share something new of your own.
+                    </p>
+                    <button type="button" onClick={() => { clearImage(); fileInput.current?.click(); }} className="h-11 px-6 rounded-full text-sm font-semibold hover:opacity-90" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>Choose another image</button>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {error && (
-              <div
-                className="rounded-xl px-4 py-3 text-sm"
-                style={{
-                  border: "1px solid #ef4444",
-                  background: "rgba(239, 68, 68, 0.08)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {error}
+            {prepared && phase !== "duplicate" && (
+              <div className="flex flex-wrap gap-2 text-[13px]" style={{ color: "#d4d4d4" }}>
+                <span className="h-[30px] px-3 rounded-full inline-flex items-center gap-1.5 bg-[#141414] border border-white/[0.08]"><PillIcon icon={Maximize} />{prepared.width} × {prepared.height} · {resLabel(prepared.width, prepared.height)}</span>
+                <span className="h-[30px] px-3 rounded-full inline-flex items-center gap-1.5 bg-[#141414] border border-white/[0.08]"><PillIcon icon={prepared.isMobile ? RectangleVertical : RectangleHorizontal} />{prepared.isMobile ? "Portrait · best on phones" : "Landscape · best on desktops"}</span>
+                <span className="h-[30px] px-3 rounded-full inline-flex items-center gap-1.5 bg-[#141414] border border-white/[0.08]"><PillIcon icon={FileImage} />{file?.type.split("/")[1]?.toUpperCase()} · {fmtBytes(prepared.fileSizeBytes)}</span>
+                {prepared.palette.length > 0 && (
+                  <span className="h-[30px] px-3 rounded-full inline-flex items-center gap-1.5 bg-[#141414] border border-white/[0.08]">
+                    <PillIcon icon={Palette} />Colours
+                    <span className="inline-flex">
+                      {prepared.palette.slice(0, 4).map((c, i) => <span key={c + i} className="w-3.5 h-3.5 rounded-full border border-black/40" style={{ background: c, marginLeft: i ? -4 : 0 }} />)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+          </section>
+
+          {/* ── details ── */}
+          <section aria-label="Details" className="flex-[1_1_380px] max-w-[520px] flex flex-col gap-5" style={{ opacity: phase === "duplicate" ? 0.4 : 1, pointerEvents: phase === "duplicate" ? "none" : undefined }}>
+            {phase === "reading" || phase === "uploading" ? (
+              <div className="rounded-[14px] px-3.5 py-3 flex gap-2.5 items-center text-[13px]" style={{ background: "rgba(139,124,246,0.08)", border: "1px solid rgba(139,124,246,0.25)", color: "#d6d0ff" }}>
+                <span className="text-[#b4a9ff] animate-pulse"><Sparkle size={16} /></span>
+                We’re reading your image and drafting a title, description, tags and category…
+              </div>
+            ) : aiFilled ? (
+              <div className="rounded-[14px] px-3.5 py-3 flex gap-2.5 items-start text-[13px] leading-normal" style={{ background: "rgba(139,124,246,0.08)", border: "1px solid rgba(139,124,246,0.25)", color: "#d6d0ff" }}>
+                <span className="text-[#b4a9ff] mt-0.5"><Sparkle size={16} /></span>
+                We filled these in from your image. Check them and change anything you like.
+              </div>
+            ) : null}
+
+            {prepared?.similarTo && (
+              <div className="rounded-[14px] px-3.5 py-3 flex gap-3 items-center text-[13px] leading-normal" style={{ background: "rgba(250,204,21,0.07)", border: "1px solid rgba(250,204,21,0.25)", color: "#f1dc8a" }} role="status">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {prepared.similarTo.thumbUrl && <img src={prepared.similarTo.thumbUrl} alt="" className="w-9 h-14 rounded-md object-cover shrink-0" />}
+                <span>Looks very similar to “{prepared.similarTo.title}”{prepared.similarTo.by ? ` by @${prepared.similarTo.by}` : ""}. You can still publish — it’ll go to a quick review first.</span>
               </div>
             )}
 
-            {pendingMessage && (
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{pendingMessage}</p>
-            )}
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between gap-3">
+                <label htmlFor="up-title" className="text-[13px] flex items-center gap-2" style={{ color: "#c9c9c9" }}><LabelIcon name="title" />Title {aiFilled && !touched.current.title && title && <span className="h-[18px] px-1.5 rounded-full text-[10.5px] font-medium inline-flex items-center gap-1 text-[#c4bbff] bg-[rgba(139,124,246,0.14)]"><Sparkle size={9} />AI</span>}</label>
+                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{title.length}/100</span>
+              </div>
+              <input
+                id="up-title"
+                value={title}
+                maxLength={100}
+                disabled={busy}
+                onChange={(e) => { touched.current.title = true; setTitle(e.target.value); }}
+                placeholder={busy ? "Drafting…" : "A short, descriptive title"}
+                className="w-full h-12 px-3.5 rounded-xl text-[15px] bg-[#151515] border border-white/[0.08] outline-none transition-[border-color,box-shadow] placeholder:text-[#6f6f6f] focus:border-[color:var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-muted)] disabled:opacity-60"
+              />
+            </div>
 
-            {progress !== "idle" && (
-              <div
-                className="rounded-2xl overflow-hidden mt-2"
-                style={{ border: "1px solid var(--border)", background: "var(--bg-elevated)" }}
-              >
-                {/* animated progress bar at top */}
-                <div className="h-0.5 w-full" style={{ background: "var(--bg-primary)" }}>
-                  <div
-                    className="h-full"
-                    style={{
-                      background: "linear-gradient(90deg, var(--accent), rgba(64,192,87,0.6))",
-                      width: PROGRESS_WIDTH[progress],
-                      transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-                    }}
-                  />
-                </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between gap-3">
+                <label htmlFor="up-desc" className="text-[13px] flex items-center gap-2" style={{ color: "#c9c9c9" }}><LabelIcon name="description" />Description <span style={{ color: "var(--text-muted)" }}>· optional</span></label>
+                <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>{description.length}/500</span>
+              </div>
+              <textarea
+                id="up-desc"
+                rows={4}
+                value={description}
+                maxLength={500}
+                disabled={busy}
+                onChange={(e) => { touched.current.description = true; setDescription(e.target.value); }}
+                placeholder={busy ? "Drafting…" : "What’s in it, the mood, the story behind it"}
+                className="w-full px-3.5 py-3 rounded-xl text-[15px] leading-relaxed bg-[#151515] border border-white/[0.08] outline-none resize-y transition-[border-color,box-shadow] placeholder:text-[#6f6f6f] focus:border-[color:var(--accent)] focus:shadow-[0_0_0_4px_var(--accent-muted)] disabled:opacity-60"
+              />
+            </div>
 
-                {/* steps */}
-                <div className="p-4 flex flex-col gap-2.5">
-                  {PROGRESS_STEPS.map((step, i) => {
-                    const activeIndex = STEP_INDEX[progress];
-                    const isActive = i === activeIndex;
-                    const isCompleted = progress === "done" || i < activeIndex;
-                    const isPending = !isActive && !isCompleted;
-
+            <div className="flex flex-col gap-2.5">
+              <span className="text-[13px] flex items-center gap-2" style={{ color: "#c9c9c9" }} id="lbl-cat"><LabelIcon name="category" />Category</span>
+              <div role="radiogroup" aria-labelledby="lbl-cat" className="flex flex-wrap gap-2">
+                {(showAllCats ? categories.map((c) => c.id) : suggestedIds).map((id) => {
+                  const on = categoryId === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      disabled={busy}
+                      onClick={() => pickCategory(id)}
+                      className="h-[34px] px-3 rounded-full text-[13px] font-medium inline-flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                      style={on ? { border: "1px solid var(--accent)", background: "var(--accent-muted)", color: "var(--text-primary)" } : { border: "1px solid rgba(255,255,255,0.12)", color: "#cfcfcf" }}
+                    >
+                      {catName.get(id)}
+                      {on && id === prepared?.suggestions.categoryId && <span className="text-[11px] opacity-75">AI pick</span>}
+                    </button>
+                  );
+                })}
+                <button type="button" disabled={busy} onClick={() => setShowAllCats((v) => !v)} className="h-[34px] px-3 rounded-full text-[13px] font-medium disabled:opacity-50" style={{ border: "1px dashed rgba(255,255,255,0.18)", color: "#cfcfcf" }}>
+                  {showAllCats ? "Fewer" : suggestedIds.length ? "All categories…" : "Choose a category…"}
+                </button>
+              </div>
+              {categoryId && (
+                <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span>Also show in <span className="opacity-70">(up to 2)</span>:</span>
+                  {suggestedIds.filter((id) => id !== categoryId).concat(extras.filter((id) => !suggestedIds.includes(id))).map((id) => {
+                    const on = extras.includes(id);
                     return (
-                      <div
-                        key={step.key}
-                        className="flex items-center gap-3 transition-all duration-300"
-                        style={{ opacity: isPending ? 0.35 : 1 }}
-                      >
-                        {/* step indicator */}
-                        <div
-                          className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300"
-                          style={{
-                            background: isCompleted
-                              ? "var(--accent)"
-                              : isActive
-                                ? "transparent"
-                                : "transparent",
-                            border: isCompleted
-                              ? "none"
-                              : isActive
-                                ? "1.5px solid var(--accent)"
-                                : "1.5px solid var(--border)",
-                          }}
-                        >
-                          {isCompleted ? (
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="var(--bg-primary)"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          ) : isActive ? (
-                            <div
-                              className="w-2.5 h-2.5 rounded-full border-2 animate-spin"
-                              style={{
-                                borderColor: "rgba(64,192,87,0.25)",
-                                borderTopColor: "var(--accent)",
-                              }}
-                            />
-                          ) : (
-                            <span
-                              className="text-[9px] font-semibold"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {i + 1}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* text */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="text-xs font-medium"
-                              style={{
-                                color: isCompleted
-                                  ? "var(--accent)"
-                                  : isActive
-                                    ? "var(--text-primary)"
-                                    : "var(--text-muted)",
-                              }}
-                            >
-                              {step.label}
-                            </span>
-                            {isActive && (
-                              <span
-                                className="text-[10px] px-1.5 py-0.5 rounded-full"
-                                style={{
-                                  background: "rgba(64,192,87,0.12)",
-                                  color: "var(--accent)",
-                                }}
-                              >
-                                in progress
-                              </span>
-                            )}
-                          </div>
-                          {isActive && (
-                            <p
-                              className="text-[10px] mt-0.5 leading-relaxed"
-                              style={{ color: "var(--text-muted)" }}
-                            >
-                              {step.sublabel}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      <button key={id} type="button" aria-pressed={on} onClick={() => toggleExtra(id)} disabled={!on && extras.length >= 2} className="h-7 px-2.5 rounded-full text-xs transition-colors disabled:opacity-40" style={on ? { background: "rgba(255,255,255,0.1)", color: "var(--text-primary)" } : { border: "1px solid rgba(255,255,255,0.1)" }}>
+                        {on ? "✓ " : "+ "}{catName.get(id)}
+                      </button>
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="px-6 py-2.5 rounded-[5px] text-xs font-semibold tracking-wide transition-opacity hover:opacity-85 disabled:opacity-40"
-                style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-              >
-                {busy ? (progress === "done" ? "Done!" : "Processing…") : "Upload Wallpaper"}
-              </button>
+              )}
             </div>
-          </div>
-        </form>
 
-        <p className="text-xs max-w-2xl mt-12 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Content policy: uploads are automatically checked for safety. Images that violate community guidelines are
-          rejected and removed from storage. By uploading, you confirm you own or have rights to distribute this work.
-        </p>
-      </div>
+            <div className="flex flex-col gap-2">
+              <span className="text-[13px] flex items-center gap-2" style={{ color: "#c9c9c9" }}><LabelIcon name="tag" />Tags <span style={{ color: "var(--text-muted)" }}>· {tags.length}/{MAX_TAGS}</span></span>
+              <div className="min-h-12 p-1.5 rounded-xl bg-[#151515] border border-white/[0.08] flex flex-wrap gap-1.5 items-center focus-within:border-[color:var(--accent)]">
+                {tags.map((t) => (
+                  <span key={t} className="h-[30px] pl-2.5 pr-1 rounded-lg text-[13px] inline-flex items-center gap-1 bg-[#222]">
+                    {t}
+                    <button type="button" onClick={() => { touched.current.tags = true; setTags(tags.filter((x) => x !== t)); }} aria-label={`Remove ${t}`} className="w-[22px] h-[22px] rounded-md flex items-center justify-center hover:bg-white/[0.08]" style={{ color: "#9a9a9a" }}>
+                      <X size={11} strokeWidth={3} aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+                {tags.length < MAX_TAGS && (
+                  <input
+                    aria-label="Add a tag"
+                    value={tagInput}
+                    disabled={busy}
+                    onChange={(e) => (e.target.value.endsWith(",") ? addTag(e.target.value) : setTagInput(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); addTag(tagInput); }
+                      else if (e.key === "Backspace" && !tagInput && tags.length) { touched.current.tags = true; setTags(tags.slice(0, -1)); }
+                    }}
+                    onBlur={() => tagInput.trim() && addTag(tagInput)}
+                    placeholder={tags.length ? "Add tag…" : "Type a tag and press Enter"}
+                    className="flex-1 min-w-[110px] h-[30px] px-1.5 bg-transparent outline-none text-sm placeholder:text-[#6f6f6f]"
+                  />
+                )}
+              </div>
+            </div>
+
+            <ul className="pt-4 flex flex-col gap-2.5 text-[13px] border-t border-white/[0.06]" aria-label="Checks">
+              <li className="flex items-center gap-2.5" style={{ color: prepared ? "#c9c9c9" : "var(--text-muted)" }}>
+                <span style={{ color: prepared ? "var(--accent)" : "var(--text-muted)" }}><Check size={16} strokeWidth={2.6} aria-hidden="true" /></span>
+                {prepared ? `${prepared.width} × ${prepared.height} — sharp enough for any screen` : dims ? `${dims.width} × ${dims.height}` : "Resolution"}
+              </li>
+              <li className="flex items-center gap-2.5" style={{ color: prepared ? "#c9c9c9" : "var(--text-muted)" }}>
+                {prepared ? <span style={{ color: prepared.similarTo ? "#facc15" : "var(--accent)" }}><Check size={16} strokeWidth={2.6} aria-hidden="true" /></span> : <span className="w-4 flex justify-center"><span className="w-1.5 h-1.5 rounded-full bg-[#6f6f6f] animate-pulse" /></span>}
+                {prepared ? (prepared.similarTo ? "Similar wallpaper found — goes to review" : "Not a copy of anything on Aurora") : "Checking it’s not already on Aurora…"}
+              </li>
+              <li className="flex items-center gap-2.5" style={{ color: "var(--text-muted)" }}>
+                <span className="w-4 flex justify-center"><span className="w-1.5 h-1.5 rounded-full bg-[#6f6f6f]" /></span>
+                By publishing you confirm it’s your own work.
+              </li>
+            </ul>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

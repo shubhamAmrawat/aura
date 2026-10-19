@@ -25,6 +25,7 @@ import CreatorStatusCard from "@/app/components/CreatorStatusCard";
 import { getCreatorStatus, type CreatorStatus } from "@/lib/creatorApi";
 import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
+import { ArrowDownToLineIcon, ArrowUpFromLineIcon, Bookmark, CameraIcon, Heart, ImageIcon, InfoIcon, LockIcon, type LucideIcon, PlusIcon, SettingsIcon, StarIcon } from "lucide-react";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -87,7 +88,7 @@ function Stat({ icon, value, label, hint }: { icon: React.ReactNode; value: Reac
                 aria-label={hint}
                 className="w-5 h-5 -my-1 rounded-full flex items-center justify-center transition-colors hover:text-[color:var(--text-primary)] focus-visible:text-[color:var(--text-primary)] outline-none"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5h.01" /></svg>
+                <InfoIcon size={13} strokeWidth={2} aria-hidden="true" />
               </button>
               <span
                 role="tooltip"
@@ -105,14 +106,12 @@ function Stat({ icon, value, label, hint }: { icon: React.ReactNode; value: Reac
 }
 
 /* 18px stroke icons shared by the stats row and the tabs */
-const ic = (d: React.ReactNode, size = 18) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
-);
+const ic = (Icon: LucideIcon, size = 18) => <Icon size={size} strokeWidth={1.9} aria-hidden="true" />;
 const ICONS = {
-  uploads: (size?: number) => ic(<><path d="M12 15V4" /><path d="M7 8.5l5-5 5 5" /><path d="M5 20h14" /></>, size),
-  downloads: (size?: number) => ic(<><path d="M12 4v11" /><path d="M7 10.5l5 5 5-5" /><path d="M5 20h14" /></>, size),
-  liked: (size?: number) => ic(<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21.2l8.8-8.8a5.5 5.5 0 0 0 0-7.8z" />, size),
-  collections: (size?: number) => ic(<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />, size),
+  uploads: (size?: number) => ic(ArrowUpFromLineIcon, size),
+  downloads: (size?: number) => ic(ArrowDownToLineIcon, size),
+  liked: (size?: number) => ic(Heart, size),
+  collections: (size?: number) => ic(Bookmark, size),
 };
 
 function EmptyState({ icon, title, body, action }: { icon: React.ReactNode; title: string; body: string; action?: React.ReactNode }) {
@@ -135,14 +134,10 @@ const GridSkeleton = () => (
 );
 
 const HeartIcon = () => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-  </svg>
+  <Heart size={32} strokeWidth={1.5} aria-hidden="true" />
 );
 const BookmarkIcon = ({ size = 32 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-  </svg>
+  <Bookmark size={size} strokeWidth={1.5} aria-hidden="true" />
 );
 
 // ─── page ─────────────────────────────────────────────────────
@@ -344,7 +339,7 @@ function ProfileContent() {
             {uploadingCover ? (
               <span className="w-3.5 h-3.5 rounded-full border-2 animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }} />
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="2" /><path d="M21 17l-5-5-9 7" /></svg>
+              <ImageIcon size={14} strokeWidth={2} aria-hidden="true" />
             )}
             {uploadingCover ? "Uploading…" : profile.coverUrl ? "Change cover" : "Add a cover"}
           </button>
@@ -379,7 +374,7 @@ function ProfileContent() {
                 className="absolute right-1.5 bottom-2 w-[34px] h-[34px] rounded-full flex items-center justify-center transition-transform hover:scale-105"
                 style={{ border: "3px solid var(--bg-primary)", background: "var(--text-primary)", color: "var(--bg-primary)" }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" /></svg>
+                <CameraIcon size={14} strokeWidth={2.2} aria-hidden="true" />
               </button>
             </div>
 
@@ -391,7 +386,7 @@ function ProfileContent() {
                 <span style={{ color: "#e5e5e5" }}>@{profile.username}</span>
                 {profile.isCreator && (
                   <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-medium" style={{ background: "var(--accent-muted)", color: "var(--accent)" }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.6 5.5 6 .8-4.4 4.2 1.1 6L12 16.6 6.7 19.5l1.1-6L3.4 9.3l6-.8z" /></svg>
+                    <StarIcon size={12} strokeWidth={2.4} aria-hidden="true" />
                     Creator
                   </span>
                 )}
@@ -417,7 +412,7 @@ function ProfileContent() {
                   className="h-11 px-5 rounded-full text-sm font-semibold inline-flex items-center gap-2 transition-opacity hover:opacity-90"
                   style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                  <PlusIcon size={15} strokeWidth={2.4} aria-hidden="true" />
                   Upload
                 </Link>
               )}
@@ -435,7 +430,7 @@ function ProfileContent() {
                 className="w-11 h-11 rounded-full flex items-center justify-center border border-white/[0.12] transition-colors hover:bg-white/[0.06]"
                 style={{ background: "rgba(255,255,255,0.04)", color: "#e8e8e8" }}
               >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+                <SettingsIcon size={17} strokeWidth={2} aria-hidden="true" />
               </Link>
             </div>
           </div>
@@ -551,7 +546,7 @@ function ProfileContent() {
                         )}
                         {!col.isPublic && (
                           <span className="absolute top-3 right-3 h-[26px] px-2.5 rounded-full text-xs flex items-center gap-1.5" style={{ background: "rgba(10,10,10,0.6)", color: "#e5e5e5", backdropFilter: "blur(6px)" }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+                            <LockIcon size={11} strokeWidth={2.4} aria-hidden="true" />
                             Private
                           </span>
                         )}
