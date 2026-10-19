@@ -9,6 +9,7 @@ import * as categories from "../controllers/admin/categories.controller";
 import * as suggestions from "../controllers/admin/categorySuggestions.controller";
 import * as usersCtl from "../controllers/admin/users.controller";
 import * as activity from "../controllers/admin/activity.controller";
+import * as creatorApps from "../controllers/admin/creatorApplications.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -60,6 +61,14 @@ adminRoutes.post("/users/:id/unlock", usersCtl.unlock);
 adminRoutes.post("/users/:id/disable", usersCtl.disable);
 adminRoutes.post("/users/:id/enable", usersCtl.enable);
 adminRoutes.delete("/users/:id", usersCtl.remove);
+
+// Creator applications — /counts before /:id
+adminRoutes.get("/creator-applications", creatorApps.list);
+adminRoutes.get("/creator-applications/counts", creatorApps.counts);
+adminRoutes.get("/creator-applications/:id", creatorApps.detail);
+adminRoutes.post("/creator-applications/:id/approve", creatorApps.approve);
+adminRoutes.post("/creator-applications/:id/reject", creatorApps.reject);
+adminRoutes.post("/creator-applications/:id/rescore", creatorApps.rescore);
 
 // Activity log (Phase 8)
 adminRoutes.get("/activity", activity.list);

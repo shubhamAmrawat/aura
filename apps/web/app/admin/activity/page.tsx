@@ -20,7 +20,7 @@ const groupOf = (action: string): ActivityGroup => {
   if (action.startsWith("category.")) return "categories";
   if (action.startsWith("featured.")) return "featured";
   if (action.startsWith("user.role.")) return "system";
-  if (action.startsWith("user.")) return "users";
+  if (action.startsWith("user.") || action.startsWith("creator.")) return "users";
   return "system";
 };
 const colorOf = (action: string) => GROUPS.find((g) => g.v === groupOf(action))!.color;
@@ -82,6 +82,8 @@ function describe(e: ActivityEntry): React.ReactNode {
     case "featured.limit": return <>{d.list === "mobile" ? "The app" : "The website"} now shows <b>{d.to}</b> featured wallpapers (was {d.from})</>;
     case "user.creator.grant": return <>Made {usr} a creator</>;
     case "user.creator.revoke": return <>Removed creator from {usr}</>;
+    case "creator.application.approve": return <>Approved {usr}’s creator application{d.aiScore != null ? <> (AI score {d.aiScore})</> : null}</>;
+    case "creator.application.reject": return <>Rejected {usr}’s creator application — “{d.note}”</>;
     case "user.unlock": return <>Unlocked sign-in for {usr}</>;
     case "user.disable": return <>Disabled {usr} — “{d.reason}”{d.wallpapersHidden ? <> · {plural(d.wallpapersHidden, "wallpaper")} hidden</> : null}</>;
     case "user.enable": return <>Re-enabled {usr}{d.wallpapersRestored ? <> · {plural(d.wallpapersRestored, "wallpaper")} restored</> : null}</>;

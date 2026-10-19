@@ -21,7 +21,8 @@ import {
 } from "@/lib/profileApi";
 import { getUserCollections, type Collection } from "@/lib/collectionsApi";
 import { getLikedWallpapers } from "@/lib/likesApi";
-import { becomeCreator } from "@/lib/api";
+import CreatorStatusCard from "@/app/components/CreatorStatusCard";
+import { getCreatorStatus, type CreatorStatus } from "@/lib/creatorApi";
 import { useToast } from "@/lib/toast";
 import { useAuth } from "@/lib/authContext";
 
@@ -166,7 +167,7 @@ function ProfileContent() {
   const [cropMode, setCropMode] = useState<"avatar" | "cover">("avatar");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [becomingCreator, setBecomingCreator] = useState(false);
+  const [creatorStatus, setCreatorStatus] = useState<CreatorStatus | null>(null);
 
   const tabParam = searchParams.get("tab");
   const requestedTab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : null;
@@ -182,7 +183,11 @@ function ProfileContent() {
       return;
     }
     getProfile()
-      .then(setProfile)
+      .then((p) => {
+        setProfile(p);
+        // Not a creator yet: where they stand in the creator program (for the Uploads tab).
+        if (!p.isCreator) getCreatorStatus().then(setCreatorStatus).catch(() => undefined);
+      })
       .catch((err: unknown) => toast(err instanceof Error ? err.message : "Failed to load profile", "error"))
       .finally(() => setLoading(false));
     getLikedWallpapers()
@@ -246,20 +251,9 @@ function ProfileContent() {
     [authUser, setAuthUser, cropMode, toast]
   );
 
-  const handleBecomeCreator = async () => {
-    if (!authUser) return;
-    setBecomingCreator(true);
-    try {
-      await becomeCreator();
-      setAuthUser({ ...authUser, isCreator: true });
-      setProfile((prev) => (prev ? { ...prev, isCreator: true } : prev));
-      toast("You’re a creator now. Upload your first wallpaper!");
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Failed to become creator", "error");
-    } finally {
-      setBecomingCreator(false);
-    }
-  };
+  const reloadCreatorStatus = useCallback(() => {
+    getCreatorStatus().then(setCreatorStatus).catch(() => undefined);
+  }, []);
 
   const handleProfileSaved = (updated: ProfileUser) => {
     setProfile(updated);
@@ -497,24 +491,10 @@ function ProfileContent() {
                   isCreator={profile.isCreator}
                   onUploadCountChange={(delta) => setProfile((p) => (p ? { ...p, totalUploads: Math.max(0, p.totalUploads + delta) } : p))}
                 />
+              ) : creatorStatus ? (
+                <CreatorStatusCard status={creatorStatus} onPauseEnd={reloadCreatorStatus} />
               ) : (
-                <div className="rounded-3xl p-8 sm:p-10 flex flex-wrap items-center justify-between gap-6" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}>
-                  <div className="max-w-xl">
-                    <h2 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-serif), serif" }}>Share your own wallpapers</h2>
-                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                      Become a creator to upload your work to Aurora. You’ll get a creator badge and see how your uploads are doing.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleBecomeCreator}
-                    disabled={becomingCreator}
-                    className="h-11 px-6 rounded-full text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                    style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-                  >
-                    {becomingCreator ? "Activating…" : "Become a creator"}
-                  </button>
-                </div>
+                <div className="h-44 rounded-3xl animate-pulse" style={{ background: "var(--bg-elevated)" }} />
               ))}
 
             {tab === "liked" &&

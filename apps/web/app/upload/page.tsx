@@ -185,7 +185,7 @@ export default function UploadPage() {
       return;
     }
     if (!user.isCreator) {
-      router.replace("/profile");
+      router.replace("/creator/apply");
     }
   }, [loaded, user, router]);
 

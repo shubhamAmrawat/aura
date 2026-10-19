@@ -181,3 +181,64 @@ export async function sendOTPEmail(
   const data = (await response.json()) as { messageId?: string };
   console.log("Email sent:", data.messageId);
 }
+
+
+// ─── Creator application result ────────────────────────────
+
+const SITE_URL = "https://www.aurora-walls.com";
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+
+function buildCreatorDecisionHtml(name: string, approved: boolean, note: string | null): string {
+  const title = approved ? "You’re an Aurora creator" : "About your creator application";
+  const lead = approved
+    ? `Congratulations, ${escapeHtml(name)} — our team loved your work. You can now publish wallpapers to Aurora. Each upload still goes through a quick review.`
+    : `Thanks for applying, ${escapeHtml(name)}. This time we couldn’t approve your application, but you’re welcome to apply again with new samples.`;
+  const cta = approved ? { label: "Upload your first wallpaper", href: `${SITE_URL}/upload` } : { label: "Apply again", href: `${SITE_URL}/creator/apply` };
+  const noteBlock = note
+    ? `<tr><td style="padding:0 0 24px 0;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${THEME.elevated};border-radius:12px;"><tr><td style="padding:16px 18px;">
+        <p style="margin:0 0 6px 0;font-family:${FONT};font-size:12px;color:${THEME.muted};">Note from the Aurora team</p>
+        <p style="margin:0;font-family:${FONT};font-size:15px;line-height:1.6;color:${THEME.text};white-space:pre-line;">${escapeHtml(note)}</p>
+      </td></tr></table></td></tr>`
+    : "";
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aurora</title></head>
+<body style="margin:0;padding:0;background-color:${THEME.bg};">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${THEME.bg};"><tr><td align="center" style="padding:48px 20px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;">
+      <tr><td style="height:3px;border-radius:999px;background-color:${THEME.accent};"></td></tr>
+      <tr><td style="height:28px;line-height:28px;font-size:0;">&nbsp;</td></tr>
+      <tr><td>
+        <p style="margin:0 0 4px 0;font-family:Georgia,'Times New Roman',serif;font-size:11px;font-weight:600;letter-spacing:0.28em;text-transform:uppercase;color:${THEME.accent};">Creator program</p>
+        <h1 style="margin:0 0 16px 0;font-family:${FONT};font-size:28px;font-weight:700;letter-spacing:-0.02em;line-height:1.15;color:${THEME.text};">${title}</h1>
+        <p style="margin:0 0 24px 0;font-family:${FONT};font-size:15px;line-height:1.6;color:${THEME.muted};">${lead}</p>
+      </td></tr>
+      ${noteBlock}
+      <tr><td style="padding:0 0 32px 0;"><a href="${cta.href}" style="display:inline-block;padding:14px 26px;border-radius:999px;background-color:${THEME.accent};color:#0a0a0a;font-family:${FONT};font-size:15px;font-weight:600;text-decoration:none;">${cta.label}</a></td></tr>
+      <tr><td><p style="margin:0;font-family:${FONT};font-size:12px;color:${THEME.dim};">© ${new Date().getFullYear()} Aurora · <a href="${SITE_URL}" style="color:${THEME.accent};text-decoration:none;">aurora-walls.com</a></p></td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
+
+/** Tell an applicant the result. Never throws (the decision is already saved). */
+export async function sendCreatorDecisionEmail(email: string, name: string, approved: boolean, note: string | null): Promise<void> {
+  try {
+    if (env.EMAIL_TRANSPORT === "log") {
+      console.log(`[email:log] creator application ${approved ? "approved" : "rejected"} for ${email}${note ? `: ${note}` : ""}`);
+      return;
+    }
+    const response = await fetch(BREVO_API_URL, {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json", "api-key": env.BREVO_API_KEY! },
+      body: JSON.stringify({
+        sender: { name: "Aurora", email: env.BREVO_FROM_EMAIL },
+        to: [{ email }],
+        subject: approved ? "You’re now an Aurora creator" : "Your Aurora creator application",
+        htmlContent: buildCreatorDecisionHtml(name, approved, note),
+      }),
+    });
+    if (!response.ok) console.error(`[email] creator decision: Brevo ${response.status}: ${await response.text()}`);
+  } catch (err) {
+    console.error("[email] creator decision failed:", err);
+  }
+}

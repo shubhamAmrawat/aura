@@ -120,25 +120,12 @@ export const logout = route("Failed to logout", async (_req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
+/** Old instant "become a creator" — replaced by applications (/api/creator/application). */
 export const becomeCreator = route(
   "Unauthorized",
-  async (req, res) => {
-    const user = await authService.becomeCreator(await activeUserIdFromToken(req));
-    if (!user) throw new ApiError(404, "User not found");
-
-    res.json({
-      message: "You are now a creator!",
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        displayName: user.displayName,
-        avatarUrl: user.avatarUrl,
-        coverUrl: user.coverUrl,
-        isCreator: user.isCreator,
-        isPro: user.isPro,
-      },
-    });
+  async (req) => {
+    await activeUserIdFromToken(req);
+    throw new ApiError(410, "Creator access now needs an application. Apply from your profile.");
   },
   401
 );

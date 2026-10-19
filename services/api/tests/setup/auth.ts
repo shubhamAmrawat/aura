@@ -46,10 +46,10 @@ export async function createUser(label?: string): Promise<TestUser> {
   return { id: signup.body.user.id, email, username, password, token, cookie: `aura_token=${token}` };
 }
 
-/** Flip a TEST user to creator (via the real endpoint). */
+/** Flip a TEST user to creator (direct DB write — real users go through a creator application). */
 export async function makeCreator(user: TestUser): Promise<void> {
-  const res = await api("PUT", "/api/auth/become-creator", { token: user.token });
-  if (res.status !== 200) throw new Error(`become-creator failed ${res.status}: ${res.text}`);
+  if (!user.email.startsWith("aura-test+")) throw new Error(`Refusing to change non-test user ${user.email}`);
+  await sql`UPDATE users SET is_creator = true WHERE id = ${user.id}`;
 }
 
 /** Give a TEST user the admin role (direct DB write — there is no API for this). */

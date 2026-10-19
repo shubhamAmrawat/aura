@@ -260,6 +260,8 @@ function UsersManager() {
 const ACTION_LABEL: Record<string, string> = {
   "user.creator.grant": "Made creator",
   "user.creator.revoke": "Removed creator",
+  "creator.application.approve": "Approved creator application",
+  "creator.application.reject": "Rejected creator application",
   "user.unlock": "Unlocked sign-in",
   "user.disable": "Disabled account",
   "user.enable": "Re-enabled account",

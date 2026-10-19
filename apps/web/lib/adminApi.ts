@@ -558,3 +558,62 @@ export function listActivity(f: ActivityFilters) {
   for (const [k, v] of Object.entries(f)) if (v !== undefined && v !== "") qs.set(k, String(v));
   return adminGet<ActivityPage>(`/activity?${qs}`);
 }
+
+
+// ─── Creator applications ───────────────────────────────────
+
+export type CreatorAppStatus = "pending" | "approved" | "rejected";
+export type CreatorAppCounts = { pending: number; approved: number; rejected: number };
+
+export type CreatorAppListItem = {
+  id: string;
+  status: CreatorAppStatus;
+  aiStatus: "pending" | "done" | "failed";
+  aiScore: number | null;
+  aiVerdict: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  userId: string;
+  displayName: string;
+  username: string;
+  avatarUrl: string | null;
+  sampleCount: number;
+  cover: string | null;
+};
+
+export type CreatorAppDetail = {
+  id: string;
+  status: CreatorAppStatus;
+  about: string | null;
+  portfolioUrl: string | null;
+  aiStatus: "pending" | "done" | "failed";
+  aiScore: number | null;
+  aiVerdict: string | null;
+  aiSummary: string | null;
+  /** AI-written drafts of the note sent with each decision */
+  aiApproveMessage: string | null;
+  aiRejectMessage: string | null;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  reviewerName: string | null;
+  createdAt: string;
+  user: { id: string; email: string; username: string; displayName: string; avatarUrl: string | null; createdAt: string; isCreator: boolean; totalUploads: number };
+  /** 1 = first application */
+  attempt: number;
+  rejectionsBefore: number;
+  /** Rejecting this one starts the applicant's 1-day pause */
+  pausesOnReject: boolean;
+  samples: { id: string; fileUrl: string; thumbUrl: string; width: number; height: number; bytes: number; aiScore: number | null; aiNote: string | null }[];
+};
+
+export const getCreatorApplications = (status: CreatorAppStatus, offset = 0) =>
+  adminGet<{ data: CreatorAppListItem[]; counts: CreatorAppCounts }>(`/creator-applications?status=${status}&limit=50&offset=${offset}`);
+/** Window event fired after an approve/reject, so the sidebar badge refreshes. */
+export const CREATOR_APPS_CHANGED = "aurora:creator-apps-changed";
+export const getCreatorApplicationCounts = () => adminGet<CreatorAppCounts>("/creator-applications/counts");
+export const getCreatorApplication = (id: string) => adminGet<CreatorAppDetail>(`/creator-applications/${id}`);
+export const approveCreatorApplication = (id: string, note: string) =>
+  adminCall<CreatorAppDetail>("POST", `/creator-applications/${id}/approve`, { note });
+export const rejectCreatorApplication = (id: string, note: string) =>
+  adminCall<CreatorAppDetail>("POST", `/creator-applications/${id}/reject`, { note });
+export const rescoreCreatorApplication = (id: string) => adminCall<CreatorAppDetail>("POST", `/creator-applications/${id}/rescore`);

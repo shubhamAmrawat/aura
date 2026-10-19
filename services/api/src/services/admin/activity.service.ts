@@ -22,7 +22,7 @@ function groupFilter(g: Group): SQL {
     case "featured":
       return sql`${a} LIKE 'featured.%'`;
     case "users":
-      return and(sql`${a} LIKE 'user.%'`, sql`${a} NOT LIKE 'user.role.%'`)!;
+      return or(and(sql`${a} LIKE 'user.%'`, sql`${a} NOT LIKE 'user.role.%'`), sql`${a} LIKE 'creator.%'`)!;
     case "system":
       return or(inArray(a, SYSTEM), sql`${a} LIKE 'user.role.%'`)!;
   }

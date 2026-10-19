@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { User, Wallpaper } from "@aura/types";
+import { Wallpaper } from "@aura/types";
 import { screenFor, type Device } from "./device";
 
 /** Keep server initial fetch and client infinite scroll in sync. */
@@ -212,16 +212,6 @@ export async function submitWallpaper(payload: {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to upload wallpaper");
-  return data;
-}
-
-export async function becomeCreator(): Promise<{ user: User }> {
-  const res = await fetch(`${getApiUrl()}/api/auth/become-creator`, {
-    method: "PUT",
-    credentials: "include",
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed");
   return data;
 }
 

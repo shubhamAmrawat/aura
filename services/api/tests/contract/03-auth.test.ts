@@ -222,14 +222,12 @@ describe("PUT /api/auth/become-creator", () => {
     expectError(await api("PUT", "/api/auth/become-creator"), 401, "Unauthorized");
   });
 
-  it("makes the user a creator", async () => {
+  it("no longer grants creator access (410 → apply instead)", async () => {
     const u = await createUser("creator");
-    const res = await api("PUT", "/api/auth/become-creator", { token: u.token });
-    expect(res.status).toBe(200);
-    expect(res.body.message).toBe("You are now a creator!");
-    expectKeys(res.body.user, ["id", "email", "username", "displayName", "avatarUrl", "coverUrl", "isCreator", "isPro"]);
-    expect(res.body.user.isCreator).toBe(true);
-    const viaCookie = await api("PUT", "/api/auth/become-creator", { cookie: u.cookie });
-    expect(viaCookie.status).toBe(200);
+    expectError(
+      await api("PUT", "/api/auth/become-creator", { token: u.token }),
+      410,
+      "Creator access now needs an application. Apply from your profile."
+    );
   });
 });

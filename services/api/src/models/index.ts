@@ -5,3 +5,4 @@ export * from "./collection.model";
 export * from "./interaction.model";
 export * from "./auth.model";
 export * from "./admin.model";
+export * from "./creator.model";

@@ -149,11 +149,6 @@ export async function login(email: string) {
   return { user, token };
 }
 
-export async function becomeCreator(userId: string) {
-  await db.update(users).set({ isCreator: true }).where(eq(users.id, userId));
-  return findUserById(userId);
-}
-
 // ─── Password login (with per-account lockout) ─────────────
 
 const MAX_FAILED_LOGINS = 5;

@@ -8,6 +8,7 @@ import { collectionRoutes } from "./collection.routes";
 import { profileRoutes } from "./profile.routes";
 import { adminRoutes } from "./admin.routes";
 import { featuredRoutes } from "./featured.routes";
+import { creatorRoutes } from "./creator.routes";
 
 /** Everything under /api. */
 export const apiRoutes = Router();
@@ -21,3 +22,4 @@ apiRoutes.use("/collections", collectionRoutes);
 apiRoutes.use("/profile", profileRoutes);
 apiRoutes.use("/admin", adminRoutes);
 apiRoutes.use("/featured", featuredRoutes);
+apiRoutes.use("/creator", creatorRoutes);
