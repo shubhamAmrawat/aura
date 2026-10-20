@@ -49,6 +49,9 @@ export default function Footer() {
             <Link href="/dmca" className={footerLinkClass}>
               DMCA
             </Link>
+            <Link href="/delete-account" className={footerLinkClass}>
+              Delete account
+            </Link>
           </nav>
           <span
             className="hidden h-3 w-px sm:block"
