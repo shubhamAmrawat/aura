@@ -25,6 +25,8 @@ jobs:
   build-and-distribute:
     name: Build preview APK and distribute
     runs-on: ubuntu-latest
+    # A healthy build takes ~15–25 min; anything past this is stuck (e.g. out of memory), so stop it.
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: apps/mobileApp
@@ -64,6 +66,19 @@ jobs:
 
       # Builds on this GitHub runner (--local) instead of Expo's cloud, so it doesn't use the
       # EAS Build monthly quota. Signing key and Plain text / Sensitive EAS env vars still come from EAS.
+      # Expo's generated android/gradle.properties caps Gradle at 2 GB heap / 512 MB Metaspace, which
+      # expo-updates' KSP step outgrows (OutOfMemoryError: Metaspace). Properties in ~/.gradle win over
+      # the project's, and the runner has 16 GB of RAM.
+      - name: Give Gradle more memory
+        shell: bash
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g
+          PROPS
+          cat ~/.gradle/gradle.properties
+
       - name: Build preview APK locally with EAS
         shell: bash
         run: |

@@ -1,0 +1,73 @@
+name: Mobile OTA Update
+
+# Publishes the app's JavaScript as an over-the-air update (EAS Update). Run it from
+# GitHub › Actions › Mobile OTA Update › Run workflow. Only builds with the same app
+# version (app.json "version") receive it; native changes still need a new build.
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Who gets it (preview = Firebase testers, production = Play Store users)
+        required: true
+        default: preview
+        type: choice
+        options:
+          - preview
+          - production
+      message:
+        description: What changed (shown in the EAS dashboard)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ota-${{ github.event.inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish OTA update
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobileApp
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # Set here (not from a .env file) so an update can never point the app at a local server.
+      EXPO_PUBLIC_API_URL: https://api.aurawalls.site
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/mobileApp/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Verify mobile app config
+        run: npm run ci:verify
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish update
+        shell: bash
+        env:
+          CHANNEL: ${{ github.event.inputs.channel }}
+          MESSAGE: ${{ github.event.inputs.message }}
+        run: |
+          eas update \
+            --channel "$CHANNEL" \
+            --message "$MESSAGE" \
+            --platform android \
+            --non-interactive
