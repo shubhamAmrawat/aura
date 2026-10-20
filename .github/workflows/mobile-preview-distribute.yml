@@ -22,8 +22,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides what this push needs: a new APK (native changes) or only an OTA update (JS changes).
+  changes:
+    name: Check what changed
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Look for native changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            native:
+              - "apps/mobileApp/package.json"
+              - "apps/mobileApp/package-lock.json"
+              - "apps/mobileApp/app.json"
+              - "apps/mobileApp/eas.json"
+              - "apps/mobileApp/modules/**"
+              - "apps/mobileApp/patches/**"
+              - "apps/mobileApp/assets/icon.png"
+              - "apps/mobileApp/assets/splash-icon.png"
+              - "apps/mobileApp/assets/adaptive-icon.png"
+              - ".github/workflows/mobile-preview-distribute.yml"
+
+      - name: Remind to bump the app version
+        if: github.event_name == 'push' && steps.filter.outputs.native == 'true'
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          now=$(node -p "require('./apps/mobileApp/app.json').expo.version")
+          if git fetch --quiet --depth=1 origin "$BEFORE" 2>/dev/null; then
+            before=$(git show "$BEFORE:apps/mobileApp/app.json" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).expo.version))")
+            if [ "$now" = "$before" ]; then
+              echo "::warning title=App version not bumped::Native files changed but app.json version is still $now. If a native library, permission or plugin changed, bump the version so OTA updates made for the new build never reach older installs."
+            fi
+          fi
+
   build-and-distribute:
     name: Build preview APK and distribute
+    needs: changes
+    # Manual runs always build; pushes build only when something native changed.
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     # A healthy build takes ~15–25 min; anything past this is stuck (e.g. out of memory), so stop it.
     timeout-minutes: 60
@@ -116,3 +160,53 @@ jobs:
             --app "$FIREBASE_APP_ID" \
             --release-notes "$RELEASE_NOTES" \
             "${EXTRA_ARGS[@]}"
+
+  # JS-only push: send it to testers as an OTA update instead of a new APK.
+  ota-update:
+    name: Publish OTA update to testers
+    needs: changes
+    if: github.event_name == 'push' && needs.changes.outputs.native != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobileApp
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # Set here (not from a .env file) so an update can never point the app at a local server.
+      EXPO_PUBLIC_API_URL: https://api.aurawalls.site
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/mobileApp/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Verify mobile app config
+        run: npm run ci:verify
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish update to the preview channel
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          MESSAGE="$(printf '%s' "$COMMIT_MESSAGE" | head -n 1) (${GITHUB_SHA::7})"
+          eas update \
+            --channel preview \
+            --message "$MESSAGE" \
+            --platform android \
+            --non-interactive
