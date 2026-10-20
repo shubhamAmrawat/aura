@@ -15,6 +15,7 @@ import { findImageDuplicate, type DuplicateMatch } from "./duplicate.service";
 import { duplicateError, getCreatorDraft } from "./creatorUpload.service";
 import { normalizeExtraCategories, setExtraCategories } from "./wallpaperCategories.service";
 import { uploadDrafts } from "../models";
+import { creatorIdColumnSql, creatorIdSql } from "../utils/creatorId";
 
 /** Columns returned by every list/feed endpoint. */
 export const wallpaperListSelect = {
@@ -41,6 +42,8 @@ export const wallpaperListSelect = {
   createdAt: wallpapers.createdAt,
   format: wallpapers.format,
   fileSizeBytes: wallpapers.fileSizeBytes,
+  /** Uploader's id when a creator (not an admin) uploaded it — lets the app hide blocked creators */
+  creatorId: creatorIdSql,
 };
 
 function screenCondition(filter: ScreenFilter | null) {
@@ -124,6 +127,19 @@ async function inHiddenPrimary(categoryId: string | null) {
   return cat?.isHidden === true;
 }
 
+/** Public profile of the uploader when it's a creator; null for admin uploads (shown without a name). */
+async function getCreator(uploaderId: string | null) {
+  if (!uploaderId) return null;
+  const [u] = await db
+    .select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, role: users.role })
+    .from(users)
+    .where(eq(users.id, uploaderId))
+    .limit(1);
+  if (!u || u.role === "admin") return null;
+  const { role: _role, ...creator } = u;
+  return creator;
+}
+
 /** Single wallpaper (any status), without the large textEmbedding vector. */
 export async function getWallpaper(id: string) {
   const [record] = await db.select().from(wallpapers).where(eq(wallpapers.id, id)).limit(1);
@@ -134,7 +150,7 @@ export async function getWallpaper(id: string) {
     .from(wallpapers)
     .where(eq(wallpapers.id, record.id));
   const { textEmbedding: _textEmbedding, ...rest } = record;
-  const wallpaper = { ...rest, extraCategoryIds };
+  const wallpaper = { ...rest, extraCategoryIds, creator: await getCreator(record.uploaderId) };
   return withoutReviewFields(wallpaper);
 }
 
@@ -169,7 +185,7 @@ export async function getSimilar(id: string, params: { limit: number; offset: nu
       id, title, description, file_url, cdn_variants->'thumb'->>'url' AS thumb_url, blurhash, dominant_color,
       palette, width, height, like_count, download_count, view_count,
       format, file_size_bytes,
-      category_id, tags,
+      category_id, tags, ${creatorIdColumnSql},
       (1 - (text_embedding <=> ${embeddingStr}::vector)) AS semantic_score,
       ${categoryBonusSql} AS category_bonus,
       (

@@ -144,7 +144,8 @@ const Explore = () => {
 
 const styles = StyleSheet.create({
   searchRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  searchFlex: { flex: 1 },
+  // Row, so the search bar's flex: 1 fills the width. In a column it collapsed to zero height and clipped the text.
+  searchFlex: { flex: 1, flexDirection: "row" },
   container: {
     flex: 1,
     backgroundColor: Colors.bgSecondary,

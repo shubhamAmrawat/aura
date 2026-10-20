@@ -10,12 +10,12 @@ const SCREEN_ERR = "Invalid screen value. Use 'mobile' or 'tablet'.";
 const SEMANTIC_KEYS = [
   "id", "title", "file_url", "thumb_url", "blurhash", "dominant_color", "palette", "width", "height", "like_count",
   "download_count", "view_count", "trending_score", "is_featured", "is_premium", "tags", "category_id",
-  "status", "created_at", "format", "file_size_bytes", "semantic_score", "keyword_boost", "hybrid_score",
+  "status", "created_at", "format", "file_size_bytes", "creator_id", "semantic_score", "keyword_boost", "hybrid_score",
 ];
 const KEYWORD_KEYS = [
   "id", "title", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "palette", "width", "height", "likeCount",
   "downloadCount", "viewCount", "trendingScore", "isFeatured", "isPremium", "tags", "categoryId",
-  "status", "createdAt", "format", "fileSizeBytes",
+  "status", "createdAt", "format", "fileSizeBytes", "creatorId",
 ];
 const EDITORIAL = [
   "neon city", "amoled minimal", "dark abstract", "cozy rainy evening",

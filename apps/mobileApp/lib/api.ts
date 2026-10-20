@@ -22,6 +22,14 @@ export type User = {
   hasPassword?: boolean
   googleLinked?: boolean
 }
+/** Public profile of a creator who uploaded a wallpaper (admin uploads have none). */
+export type Creator = {
+  id: string
+  username: string
+  displayName: string
+  avatarUrl: string | null
+}
+
 export type Wallpaper = {
   id: string
   title: string
@@ -50,11 +58,16 @@ export type Wallpaper = {
   thumbUrl?: string | null
   /** Up to 2 extra categories (detail endpoint only). */
   extraCategoryIds?: string[]
+  /** Uploader's id when a creator (not an admin) uploaded it; feeds include it so blocked creators can be hidden. */
+  creatorId?: string | null
+  /** Detail endpoint only: who uploaded it, null for admin uploads. */
+  creator?: Creator | null
 }
 
 /** The fields a grid tile needs (feeds, likes, search all return at least these). */
 export type WallpaperTile = Pick<Wallpaper, "id" | "title" | "fileUrl" | "blurhash" | "dominantColor" | "width" | "height"> & {
   thumbUrl?: string | null
+  creatorId?: string | null
 }
 export type Category = {
   id: string

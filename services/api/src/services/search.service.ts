@@ -4,6 +4,7 @@ import { wallpapers } from "../models";
 import { screenFilterSql, visibleCategoryFilterSql, visibleCategorySql, type ScreenFilter } from "../utils/screenFilter";
 import { generateTextEmbedding } from "../integrations/openai";
 import { thumbUrlSql } from "./wallpaperThumb.service";
+import { creatorIdColumnSql, creatorIdSql } from "../utils/creatorId";
 
 const searchSelect = {
   id: wallpapers.id,
@@ -27,6 +28,7 @@ const searchSelect = {
   createdAt: wallpapers.createdAt,
   format: wallpapers.format,
   fileSizeBytes: wallpapers.fileSizeBytes,
+  creatorId: creatorIdSql,
 };
 
 type SuggestionSource = "editorial" | "trending-title" | "trending-tag";
@@ -179,7 +181,7 @@ export async function search(params: {
           id, title, file_url, cdn_variants->'thumb'->>'url' AS thumb_url, blurhash, dominant_color,
           palette, width, height, like_count, download_count,
           view_count, trending_score, is_featured, is_premium,
-          tags, category_id, status, created_at, format, file_size_bytes,
+          tags, category_id, status, created_at, format, file_size_bytes, ${creatorIdColumnSql},
           (1 - (text_embedding <=> ${embStr}::vector)) AS semantic_score,
           CASE
             WHEN LOWER(title) LIKE LOWER(${pattern}) THEN 0.15

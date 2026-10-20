@@ -10,6 +10,7 @@ import { useLayoutInfo } from "../hooks/useLayout";
 import { Colors } from "../constants";
 import SectionTitle from "./SectionTitle";
 import SkeletonBlock from "./SkeletonBlock";
+import { useVisibleWallpapers } from "../lib/BlocksContext";
 
 type Props = { screen: ScreenFilter; refreshToken: number };
 
@@ -17,8 +18,10 @@ type Props = { screen: ScreenFilter; refreshToken: number };
 const HomeSections = ({ screen, refreshToken }: Props) => {
   const { width } = useLayoutInfo();
   const [loading, setLoading] = useState(true);
-  const [featured, setFeatured] = useState<WallpaperTile[]>([]);
-  const [trending, setTrending] = useState<WallpaperTile[]>([]);
+  const [featuredAll, setFeatured] = useState<WallpaperTile[]>([]);
+  const [trendingAll, setTrending] = useState<WallpaperTile[]>([]);
+  const featured = useVisibleWallpapers(featuredAll);
+  const trending = useVisibleWallpapers(trendingAll);
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {

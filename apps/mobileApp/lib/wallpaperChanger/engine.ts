@@ -5,6 +5,7 @@ import { getCollection } from "../collectionsApi";
 import { Sentry } from "../sentry";
 import { getLikedWallpapers, getWallpapers } from "../wallpaperApi";
 import { ChangerSource, ChangerState, loadState, PoolItem, saveState } from "./state";
+import { loadBlockedIds } from "../blockedStore";
 
 /** Pages of a category to pool (100 per page). */
 const CATEGORY_PAGES = 2;
@@ -14,20 +15,24 @@ const fitsScreen = (w: Pick<WallpaperTile, "width" | "height">, screen: ChangerS
   return screen === "mobile" ? w.height >= w.width : w.width > w.height;
 };
 
-const toPool = (items: WallpaperTile[], screen: ChangerState["screen"]): PoolItem[] =>
-  items.filter((w) => w.fileUrl && fitsScreen(w, screen)).map((w) => ({ id: w.id, fileUrl: w.fileUrl, title: w.title ?? "" }));
+const toPool = (items: WallpaperTile[], screen: ChangerState["screen"], blocked: Set<string> = new Set()): PoolItem[] =>
+  items
+    .filter((w) => w.fileUrl && fitsScreen(w, screen) && !(w.creatorId && blocked.has(w.creatorId)))
+    .map((w) => ({ id: w.id, fileUrl: w.fileUrl, title: w.title ?? "" }));
 
 /** The source's current wallpapers from the API (phone-shaped on phones). Throws on network/auth errors. */
 export async function fetchPool(source: ChangerSource, screen: ChangerState["screen"]): Promise<PoolItem[]> {
   if (source.kind === "liked") return toPool(await getLikedWallpapers(), screen);
   if (source.kind === "collection") return toPool((await getCollection(source.id)).wallpapers, screen);
+  // A category can include creators the user blocked: skip their wallpapers.
+  const blocked = new Set(await loadBlockedIds());
   const items: WallpaperTile[] = [];
   for (let page = 0; page < CATEGORY_PAGES; page++) {
     const res = await getWallpapers({ category: source.slug, screen, limit: 100, offset: page * 100 });
     items.push(...res.data);
     if (!res.hasMore) break;
   }
-  return toPool(items, screen);
+  return toPool(items, screen, blocked);
 }
 
 function shuffle<T>(arr: T[]): T[] {

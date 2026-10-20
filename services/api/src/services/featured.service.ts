@@ -5,6 +5,7 @@ import { siteSettings, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { logAdminAction } from "../utils/audit";
 import { thumbUrlSql } from "./wallpaperThumb.service";
+import { creatorIdSql } from "../utils/creatorId";
 
 /**
  * Two independent featured lists, split by the wallpaper's shape:
@@ -58,6 +59,7 @@ const publicColumns = {
   createdAt: wallpapers.createdAt,
   format: wallpapers.format,
   fileSizeBytes: wallpapers.fileSizeBytes,
+  creatorId: creatorIdSql,
 };
 
 const featuredOrderBy = [sql`${wallpapers.featuredOrder} ASC NULLS LAST`, desc(wallpapers.createdAt), asc(wallpapers.id)];

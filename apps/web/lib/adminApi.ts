@@ -617,3 +617,40 @@ export const approveCreatorApplication = (id: string, note: string) =>
 export const rejectCreatorApplication = (id: string, note: string) =>
   adminCall<CreatorAppDetail>("POST", `/creator-applications/${id}/reject`, { note });
 export const rescoreCreatorApplication = (id: string) => adminCall<CreatorAppDetail>("POST", `/creator-applications/${id}/rescore`);
+
+// ─── Reports (Play UGC policy) ──────────────────────────────
+
+export type ReportStatus = "open" | "actioned" | "dismissed";
+export type ReportReason = "nudity" | "violence" | "hate" | "harassment" | "copyright" | "spam" | "impersonation" | "other";
+export type ReportAction = "none" | "delete_wallpaper" | "disable_user";
+
+export type AdminReport = {
+  id: string;
+  targetType: "wallpaper" | "user";
+  /** Wallpaper title or @username when reported (kept after the target is deleted) */
+  targetLabel: string | null;
+  reason: ReportReason;
+  details: string | null;
+  source: "web" | "mobile" | "unknown" | string;
+  status: ReportStatus;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  /** null once deleted */
+  wallpaper: { id: string; title: string; thumbUrl: string | null; fileUrl: string; status: string } | null;
+  /** The reported user, or the wallpaper's creator; null for admin uploads */
+  reportedUser: { id: string; username: string; displayName: string; avatarUrl: string | null; disabledAt: string | null } | null;
+  /** null = a guest */
+  reporter: { id: string; username: string } | null;
+  /** Open reports on the same wallpaper (or user) */
+  openOnTarget: number;
+};
+export type ReportCounts = Record<ReportStatus, number>;
+
+/** Window event fired after a report is closed, so the sidebar badge refreshes. */
+export const REPORTS_CHANGED = "aurora:reports-changed";
+export const getReports = (status: ReportStatus, offset = 0) =>
+  adminGet<{ data: AdminReport[]; total: number }>(`/reports?status=${status}&limit=50&offset=${offset}`);
+export const getReportCounts = () => adminGet<ReportCounts>("/reports/counts");
+export const resolveReport = (id: string, body: { status: "actioned" | "dismissed"; action: ReportAction; note?: string | null }) =>
+  adminCall<{ id: string; status: string; action: ReportAction; closedIds: string[] }>("POST", `/reports/${id}/resolve`, body);

@@ -6,10 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import Logo from "@/app/components/Logo";
 import AvatarImage from "@/app/components/AvatarImage";
-import { CREATOR_APPS_CHANGED, getCreatorApplicationCounts } from "@/lib/adminApi";
-import { ClockIcon, ImageIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, ShapesIcon, SparklesIcon, SquareCheckBigIcon, StarIcon, UploadIcon, UserCheckIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { CREATOR_APPS_CHANGED, getCreatorApplicationCounts, getReportCounts, REPORTS_CHANGED } from "@/lib/adminApi";
+import { ClockIcon, FlagIcon, ImageIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, ShapesIcon, SparklesIcon, SquareCheckBigIcon, StarIcon, UploadIcon, UserCheckIcon, UsersIcon, type LucideIcon } from "lucide-react";
 
-type NavItem = { href: string; label: string; icon: React.ReactNode; soon?: boolean; badge?: "creatorApps" };
+type NavItem = { href: string; label: string; icon: React.ReactNode; soon?: boolean; badge?: "creatorApps" | "reports" };
 
 const icon = (Icon: LucideIcon) => <Icon size={16} strokeWidth={2} aria-hidden="true" />;
 
@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
     badge: "creatorApps",
     icon: icon(UserCheckIcon),
   },
+  { href: "/admin/reports", label: "Reports", badge: "reports", icon: icon(FlagIcon) },
   { href: "/admin/wallpapers", label: "Wallpapers", icon: icon(ImageIcon) },
   { href: "/admin/featured", label: "Featured", icon: icon(StarIcon) },
   { href: "/admin/upload", label: "Bulk upload", icon: icon(UploadIcon) },
@@ -65,6 +66,17 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     window.addEventListener(CREATOR_APPS_CHANGED, load);
     return () => window.removeEventListener(CREATOR_APPS_CHANGED, load);
   }, [isAdmin, pathname]);
+
+  // Open reports → badge on "Reports".
+  const [openReports, setOpenReports] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    const load = () => getReportCounts().then((c) => setOpenReports(c.open)).catch(() => undefined);
+    load();
+    window.addEventListener(REPORTS_CHANGED, load);
+    return () => window.removeEventListener(REPORTS_CHANGED, load);
+  }, [isAdmin, pathname]);
+  const badgeCount = (b: NavItem["badge"]) => (b === "creatorApps" ? waitingApps : b === "reports" ? openReports : 0);
 
   const handleLogout = async () => {
     setSigningOut(true);
@@ -112,13 +124,13 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           >
             <span style={{ color: isActive(item.href) ? "var(--accent)" : undefined }}>{item.icon}</span>
             <span className="flex-1">{item.label}</span>
-            {item.badge === "creatorApps" && waitingApps > 0 && (
+            {item.badge && badgeCount(item.badge) > 0 && (
               <span
                 className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center tabular-nums"
-                style={{ background: "var(--accent)", color: "var(--bg-primary)" }}
-                aria-label={`${waitingApps} waiting`}
+                style={item.badge === "reports" ? { background: "#ef4444", color: "#fff" } : { background: "var(--accent)", color: "var(--bg-primary)" }}
+                aria-label={`${badgeCount(item.badge)} ${item.badge === "reports" ? "open" : "waiting"}`}
               >
-                {waitingApps}
+                {badgeCount(item.badge)}
               </span>
             )}
           </Link>

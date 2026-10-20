@@ -110,6 +110,8 @@ type SearchWallpaperApiItem = {
   format?: string | null;
   fileSizeBytes?: number | string | null;
   file_size_bytes?: number | string | null;
+  creatorId?: string | null;
+  creator_id?: string | null;
 };
 
 type SimilarWallpaperApiItem = {
@@ -137,6 +139,7 @@ type SimilarWallpaperApiItem = {
   trending_score?: number | string | null;
   status?: string | null;
   created_at?: string | null;
+  creator_id?: string | null;
 };
 
 function toNumber(value: number | string | null | undefined, fallback = 0): number {
@@ -174,6 +177,7 @@ function mapSimilarWallpaper(item: SimilarWallpaperApiItem): Wallpaper {
     trendingScore: toNumber(item.trending_score),
     status: item.status ?? "approved",
     createdAt: item.created_at ?? "",
+    creatorId: item.creator_id ?? null,
   };
 }
 
@@ -203,6 +207,7 @@ function mapSearchWallpaper(item: SearchWallpaperApiItem): Wallpaper {
     trendingScore: toNumber(item.trendingScore ?? item.trending_score),
     status: item.status ?? "approved",
     createdAt: item.createdAt ?? item.created_at ?? "",
+    creatorId: item.creatorId ?? item.creator_id ?? null,
   };
 }
 

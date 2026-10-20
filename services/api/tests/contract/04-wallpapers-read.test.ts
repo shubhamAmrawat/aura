@@ -132,7 +132,7 @@ describe("GET /api/wallpapers/:id", () => {
       "id", "title", "description", "fileUrl", "cdnVariants", "blurhash", "dominantColor", "palette",
       "width", "height", "fileSizeBytes", "format", "categoryId", "uploaderId", "tags", "isPremium",
       "isFeatured", "isAiGenerated", "isMobile", "downloadCount", "likeCount", "viewCount",
-      "trendingScore", "status", "createdAt", "updatedAt", "embedding", "extraCategoryIds",
+      "trendingScore", "status", "createdAt", "updatedAt", "embedding", "extraCategoryIds", "creator",
     ]);
     expect(res.body.data.id).toBe(real!.id);
   });
@@ -152,7 +152,7 @@ describe("GET /api/wallpapers/:id", () => {
 describe("GET /api/wallpapers/:id/similar", () => {
   const SIMILAR_KEYS = [
     "id", "title", "description", "file_url", "thumb_url", "blurhash", "dominant_color", "palette", "width", "height",
-    "like_count", "download_count", "view_count", "format", "file_size_bytes", "category_id", "tags",
+    "like_count", "download_count", "view_count", "format", "file_size_bytes", "category_id", "tags", "creator_id",
     "semantic_score", "category_bonus", "hybrid_score",
   ];
 

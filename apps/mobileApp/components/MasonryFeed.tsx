@@ -9,6 +9,7 @@ import { useLayoutInfo } from "../hooks/useLayout";
 import { Colors } from "../constants";
 import type { FeedStatus } from "../lib/useFeed";
 import { useCollectionActions } from "../lib/CollectionsContext";
+import { useVisibleWallpapers } from "../lib/BlocksContext";
 
 type FeedLike = {
   items: WallpaperTile[];
@@ -57,6 +58,8 @@ const MasonryFeed = ({
     [openSaveSheet]
   );
   const longPress = onItemLongPress ?? quickSave;
+  // Wallpapers from creators the user blocked are hidden everywhere.
+  const items = useVisibleWallpapers(feed.items);
   const selecting = !!selectedIds;
   const inset = screenPadding - cardGap / 2;
 
@@ -82,7 +85,7 @@ const MasonryFeed = ({
 
   return (
     <FlashList
-      data={feed.items}
+      data={items}
       masonry
       numColumns={numofCols}
       showsVerticalScrollIndicator={false}

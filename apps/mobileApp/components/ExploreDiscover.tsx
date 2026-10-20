@@ -10,6 +10,9 @@ import { useLayoutInfo } from "../hooks/useLayout";
 import { Colors } from "../constants";
 import SectionTitle from "./SectionTitle";
 import SkeletonBlock from "./SkeletonBlock";
+import { useVisibleWallpapers } from "../lib/BlocksContext";
+
+const NO_ITEMS: WallpaperTile[] = [];
 
 const FALLBACK_TERMS = ["Neon city", "AMOLED minimal", "Cyberpunk", "Dark abstract", "Mountain sunset", "Space art"];
 
@@ -146,7 +149,9 @@ const ExploreDiscover = ({ screen, onSearch }: Props) => {
 /** One search term with a row of its top results; fetches only once it is rendered (i.e. scrolled near). */
 const SearchPreviewRow = ({ term, screen, onSeeAll }: { term: string; screen: ScreenFilter; onSeeAll: () => void }) => {
   const { width } = useLayoutInfo();
-  const [items, setItems] = useState<WallpaperTile[] | null>(null);
+  const [allItems, setItems] = useState<WallpaperTile[] | null>(null);
+  const visibleItems = useVisibleWallpapers(allItems ?? NO_ITEMS);
+  const items = allItems === null ? null : visibleItems;
   const w = Math.min(Math.round(width * 0.26), 140);
   const h = Math.round((w * 16) / 9);
 

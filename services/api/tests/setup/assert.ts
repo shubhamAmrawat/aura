@@ -18,7 +18,7 @@ export function expectSortedDesc(values: number[]) {
 export const WALLPAPER_LIST_KEYS = [
   "id", "title", "fileUrl", "thumbUrl", "blurhash", "dominantColor", "palette", "width", "height",
   "likeCount", "downloadCount", "viewCount", "trendingScore", "isFeatured", "isPremium",
-  "isMobile", "tags", "categoryId", "status", "createdAt", "format", "fileSizeBytes",
+  "isMobile", "tags", "categoryId", "status", "createdAt", "format", "fileSizeBytes", "creatorId",
 ];
 
 export const NONEXISTENT_UUID = "00000000-0000-4000-8000-000000000000";

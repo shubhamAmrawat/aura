@@ -9,6 +9,7 @@ import { profileRoutes } from "./profile.routes";
 import { adminRoutes } from "./admin.routes";
 import { featuredRoutes } from "./featured.routes";
 import { creatorRoutes } from "./creator.routes";
+import { blockRoutes, reportRoutes } from "./moderation.routes";
 
 /** Everything under /api. */
 export const apiRoutes = Router();
@@ -23,3 +24,5 @@ apiRoutes.use("/profile", profileRoutes);
 apiRoutes.use("/admin", adminRoutes);
 apiRoutes.use("/featured", featuredRoutes);
 apiRoutes.use("/creator", creatorRoutes);
+apiRoutes.use("/reports", reportRoutes);
+apiRoutes.use("/blocks", blockRoutes);

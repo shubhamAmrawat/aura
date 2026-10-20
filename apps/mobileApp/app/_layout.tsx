@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../lib/AuthContext";
 import { ToastProvider, useToast } from "../lib/ToastContext";
 import { CollectionsProvider } from "../lib/CollectionsContext";
+import { BlocksProvider } from "../lib/BlocksContext";
 import SaveSheetHost from "../components/SaveSheet";
 import { ScreenFilterProvider, useScreenFilter } from "../lib/ScreenFilterContext";
 import * as SystemUI from "expo-system-ui";
@@ -33,10 +34,12 @@ const RootLayout = () => {
       <ScreenFilterProvider>
         <AuthProvider>
           <ToastProvider>
-            <CollectionsProvider>
-              <AppGate />
-              <SaveSheetHost />
-            </CollectionsProvider>
+            <BlocksProvider>
+              <CollectionsProvider>
+                <AppGate />
+                <SaveSheetHost />
+              </CollectionsProvider>
+            </BlocksProvider>
           </ToastProvider>
         </AuthProvider>
       </ScreenFilterProvider>

@@ -10,6 +10,7 @@ import * as suggestions from "../controllers/admin/categorySuggestions.controlle
 import * as usersCtl from "../controllers/admin/users.controller";
 import * as activity from "../controllers/admin/activity.controller";
 import * as creatorApps from "../controllers/admin/creatorApplications.controller";
+import * as reports from "../controllers/admin/reports.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -69,6 +70,11 @@ adminRoutes.get("/creator-applications/:id", creatorApps.detail);
 adminRoutes.post("/creator-applications/:id/approve", creatorApps.approve);
 adminRoutes.post("/creator-applications/:id/reject", creatorApps.reject);
 adminRoutes.post("/creator-applications/:id/rescore", creatorApps.rescore);
+
+// Reports (Play UGC policy) — /counts before /:id
+adminRoutes.get("/reports", reports.list);
+adminRoutes.get("/reports/counts", reports.counts);
+adminRoutes.post("/reports/:id/resolve", reports.resolve);
 
 // Activity log (Phase 8)
 adminRoutes.get("/activity", activity.list);

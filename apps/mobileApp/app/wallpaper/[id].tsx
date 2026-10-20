@@ -2,7 +2,7 @@
   import { useEffect, useMemo, useRef, useState } from "react";
   import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
   import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike, trackWallpaperView } from "../../lib/wallpaperApi";
-  import { Wallpaper } from "../../lib/api";
+  import { Creator, Wallpaper } from "../../lib/api";
   import { LinearGradient } from "expo-linear-gradient";
   import { getContrastColor, hexToRgba } from "../../utils/color";
   import { Image } from "expo-image";
@@ -18,6 +18,10 @@
   import DockAction from "../../components/DockAction";
   import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
   import * as Haptics from "expo-haptics";
+  import ActionSheet, { SheetAction } from "../../components/ActionSheet";
+  import ConfirmModal from "../../components/ConfirmModal";
+  import ReportSheet, { ReportTarget } from "../../components/ReportSheet";
+  import { useBlocks, useVisibleWallpapers } from "../../lib/BlocksContext";
 
   export default function WallpaperDetail() {
     // ─── Route params ────────────────────────────────────────────────────────────
@@ -88,6 +92,13 @@
     const { savedIds } = useCollections();
     const { openSaveSheet } = useCollectionActions();
     const likeScale = useRef(new Animated.Value(1)).current;
+    // Report / block (the "⋯" menu). Creators are known per wallpaper id; null = admin upload.
+    const { blockedIds, block, unblock } = useBlocks();
+    const [creators, setCreators] = useState<Record<string, Creator | null>>({});
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null);
+    const [confirmBlock, setConfirmBlock] = useState<Creator | null>(null);
+    const visibleSimilar = useVisibleWallpapers(similarWallpapers);
 
     // ─── Layout ──────────────────────────────────────────────────────────────────
     const { width, height } = useLayoutInfo();
@@ -99,8 +110,8 @@
   const itemWidth = width - PEEK * 2;
 
     const carouselData = useMemo(
-      () => (wallpaper ? [wallpaper, ...similarWallpapers] : []),
-      [wallpaper, similarWallpapers]
+      () => (wallpaper ? [wallpaper, ...visibleSimilar] : []),
+      [wallpaper, visibleSimilar]
     );
     const activeWallpaper = carouselData[activeIndex] ?? wallpaper;
     const activeWallpaperId = activeWallpaper?.id ?? id;
@@ -165,6 +176,87 @@
       fetchSimilarWallpapers();
     }, [id, screen, seedWallpaper]);
 
+    // Similar wallpapers only carry creatorId: load the creator's name when one is swiped to.
+    const activeCreatorId = activeWallpaper?.creatorId ?? null;
+    const creatorKnown = activeWallpaperId in creators;
+    useEffect(() => {
+      if (creatorKnown || activeWallpaperId === id) return;
+      if (!activeCreatorId) {
+        setCreators((c) => ({ ...c, [activeWallpaperId]: null }));
+        return;
+      }
+      let alive = true;
+      getWallpaperById(activeWallpaperId)
+        .then((res) => alive && setCreators((c) => ({ ...c, [activeWallpaperId]: res.creator ?? null })))
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }, [activeWallpaperId, activeCreatorId, creatorKnown, id]);
+    const activeCreator = creators[activeWallpaperId] ?? null;
+    const creatorBlocked = !!activeCreator && blockedIds.has(activeCreator.id);
+
+    const menuActions: SheetAction[] = [
+      {
+        key: "report",
+        label: "Report wallpaper",
+        icon: "flag-outline",
+        onPress: () => setReportTarget({ type: "wallpaper", id: activeWallpaperId, label: displayTitle }),
+      },
+      ...(activeCreator
+        ? [
+            {
+              key: "report-user",
+              label: `Report @${activeCreator.username}`,
+              icon: "person-remove-outline" as const,
+              onPress: () => setReportTarget({ type: "user", id: activeCreator.id, label: `@${activeCreator.username}` }),
+            },
+            creatorBlocked
+              ? {
+                  key: "unblock",
+                  label: `Unblock @${activeCreator.username}`,
+                  icon: "checkmark-circle-outline" as const,
+                  onPress: () => void handleUnblock(activeCreator),
+                }
+              : {
+                  key: "block",
+                  label: `Block @${activeCreator.username}`,
+                  icon: "ban-outline" as const,
+                  destructive: true,
+                  onPress: () => {
+                    if (!user) {
+                      showToast("Sign in to block creators.", { type: "info", position: "top" });
+                      return;
+                    }
+                    setConfirmBlock(activeCreator);
+                  },
+                },
+          ]
+        : []),
+    ];
+
+    const handleBlock = async (creator: Creator) => {
+      setConfirmBlock(null);
+      const isMainCreator = creators[id]?.id === creator.id;
+      try {
+        await block({ id: creator.id, username: creator.username, displayName: creator.displayName, avatarUrl: creator.avatarUrl });
+        showToast(`Blocked @${creator.username}. You won't see their wallpapers.`, { type: "success", position: "top" });
+        if (isMainCreator) router.back();
+        else setActiveIndex(0);
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : "Couldn't block. Try again.", { type: "error", position: "top" });
+      }
+    };
+
+    const handleUnblock = async (creator: Creator) => {
+      try {
+        await unblock(creator.id);
+        showToast(`Unblocked @${creator.username}.`, { type: "success", position: "top" });
+      } catch (e) {
+        showToast(e instanceof Error ? e.message : "Couldn't unblock. Try again.", { type: "error", position: "top" });
+      }
+    };
+
     // Count one view per wallpaper shown in this screen (including carousel swipes).
     const viewedIds = useRef(new Set<string>());
     useEffect(() => {
@@ -196,6 +288,7 @@
       const res = await getWallpaperById(id);
       // the detail endpoint has no thumbUrl; keep the one from the tile so the placeholder doesn't flicker
       setWallpaper((prev) => ({ ...res, thumbUrl: res.thumbUrl ?? prev?.thumbUrl ?? null }));
+      setCreators((c) => ({ ...c, [res.id]: res.creator ?? null }));
     };
 
     const fetchSimilarWallpapers = async () => {
@@ -346,31 +439,41 @@
             Back button | Wallpaper title | Like button
             paddingTop accounts for status bar / notch safe area */}
         <View style={[styles.headerContainer, { paddingTop: topPadding + 10 }]}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-          >
-            <Ionicons name="chevron-back-circle-outline" size={28} color={contrastColor} />
-          </Pressable>
+          {/* both sides are the same width so the title stays centred */}
+          <View style={styles.headerSide}>
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Back">
+              <Ionicons name="chevron-back-circle-outline" size={28} color={contrastColor} />
+            </Pressable>
+          </View>
 
-          <Text
-            style={[styles.title, { color: contrastColor }]}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.85}
-          >
-            {displayTitle}
-          </Text>
+          <View style={styles.titleWrap}>
+            <Text
+              style={[styles.title, { color: contrastColor }]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.85}
+            >
+              {displayTitle}
+            </Text>
+            {activeCreator ? (
+              <Text style={[styles.byline, { color: contrastColor }]} numberOfLines={1}>
+                by @{activeCreator.username}
+              </Text>
+            ) : null}
+          </View>
 
-          {/* same width as the back button so the title stays centred */}
-          <Pressable
-            onPress={openSave}
-            hitSlop={12}
-            style={styles.headerSpacer}
-            accessibilityLabel={isSaved ? "Saved to a collection. Change collections" : "Save to collection"}
-          >
-            <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={26} color={isSaved ? Colors.accent : contrastColor} />
-          </Pressable>
+          <View style={[styles.headerSide, styles.headerRight]}>
+            <Pressable
+              onPress={openSave}
+              hitSlop={8}
+              accessibilityLabel={isSaved ? "Saved to a collection. Change collections" : "Save to collection"}
+            >
+              <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={25} color={isSaved ? Colors.accent : contrastColor} />
+            </Pressable>
+            <Pressable onPress={() => setMenuOpen(true)} hitSlop={8} accessibilityLabel="More options">
+              <Ionicons name="ellipsis-vertical" size={22} color={contrastColor} />
+            </Pressable>
+          </View>
         </View>
 
         <FlatList
@@ -428,6 +531,16 @@
           />
         ) : null}
 
+        <ActionSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title={displayTitle} actions={menuActions} />
+        <ReportSheet target={reportTarget} onClose={() => setReportTarget(null)} />
+        <ConfirmModal
+          visible={!!confirmBlock}
+          title={confirmBlock ? `Block @${confirmBlock.username}?` : "Block?"}
+          message="You won't see their wallpapers anywhere in Aurora. They won't be told. You can unblock them in Settings."
+          confirmText="Block"
+          onCancel={() => setConfirmBlock(null)}
+          onConfirm={() => confirmBlock && void handleBlock(confirmBlock)}
+        />
       </View>
     );
   }
@@ -441,12 +554,27 @@
       paddingHorizontal: 20,
       zIndex: 1,
     },
-    headerSpacer: {
-      width: 28,
+    headerSide: {
+      width: 64,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    headerRight: {
+      justifyContent: "flex-end",
+      gap: 14,
+    },
+    titleWrap: {
+      flex: 1,
+      marginHorizontal: 8,
+      alignItems: "center",
+    },
+    byline: {
+      marginTop: 2,
+      fontSize: 12,
+      fontWeight: "600",
+      opacity: 0.75,
     },
     title: {
-      flex: 1,
-      marginHorizontal: 12,
       textAlign: "center",
       fontSize: 15,
       lineHeight: 19,

@@ -10,6 +10,7 @@ import { SettingsRow, SettingsSection } from "../../components/SettingsRow";
 import { Colors } from "../../constants";
 import { useInsets } from "../../hooks/useInsets";
 import { useAuth } from "../../lib/AuthContext";
+import { useBlocks } from "../../lib/BlocksContext";
 import { PRIVACY_URL, TERMS_URL } from "../../lib/authConfig";
 import { useToast } from "../../lib/ToastContext";
 import { getInterests } from "../../lib/profileApi";
@@ -25,6 +26,7 @@ const APP_VERSION = Constants.expoConfig?.version ?? "";
  */
 const Settings = () => {
   const { user, onLogout } = useAuth();
+  const { blocked } = useBlocks();
   const { showToast } = useToast();
   const { bottomPadding } = useInsets();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
@@ -114,6 +116,17 @@ const Settings = () => {
         {user ? (
           <SettingsSection title="Your feed">
             <SettingsRow icon="sparkles-outline" label="Interests" value={interests} onPress={() => router.push("/welcome?mode=edit")} />
+          </SettingsSection>
+        ) : null}
+
+        {user ? (
+          <SettingsSection title="Privacy & safety">
+            <SettingsRow
+              icon="ban-outline"
+              label="Blocked creators"
+              value={blocked?.length ? String(blocked.length) : undefined}
+              onPress={() => router.push("/settings/blocked")}
+            />
           </SettingsSection>
         ) : null}
 
