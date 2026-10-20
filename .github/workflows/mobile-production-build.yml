@@ -1,0 +1,85 @@
+name: Mobile Production Build
+
+# Builds the Google Play app bundle (.aab) on this runner (eas build --local), so it doesn't use
+# the EAS Build monthly quota. Run it from GitHub › Actions › Mobile Production Build › Run workflow,
+# then download "aurora-production-aab" from the run's Artifacts and upload it in Play Console.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build production app bundle
+    runs-on: ubuntu-latest
+    # A healthy build takes ~15–25 min; anything past this is stuck, so stop it.
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/mobileApp
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/mobileApp/package-lock.json
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Verify mobile app config
+        run: npm run ci:verify
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Same as the preview build: Expo's default Gradle memory is too small for expo-updates.
+      - name: Give Gradle more memory
+        shell: bash
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'PROPS'
+          org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=2g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          kotlin.daemon.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1g
+          PROPS
+          cat ~/.gradle/gradle.properties
+
+      # production profile: app bundle, production API URL, "production" OTA channel,
+      # version code raised automatically by EAS (autoIncrement).
+      - name: Build production app bundle locally with EAS
+        shell: bash
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --local \
+            --non-interactive \
+            --output "$RUNNER_TEMP/aurora-production.aab"
+
+      - name: Save the app bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurora-production-aab
+          path: ${{ runner.temp }}/aurora-production.aab
+          retention-days: 14
+          if-no-files-found: error
