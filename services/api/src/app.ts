@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import morgan from "morgan";
 import "./config/env"; // validate env before anything else
 import { globalRateLimit } from "./middleware/rateLimit";
@@ -28,6 +29,8 @@ export function createApp() {
   // so keep their 404s out of the request log.
   app.use(morgan("dev", { skip: (req) => /^\/json(\/|$)/.test(req.path) }));
   app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+  // gzip JSON responses (~80% less bandwidth); tiny bodies (<1 KB) are sent as-is
+  app.use(compression());
   app.use(cookieParser());
   // Parse JSON for every non-multipart body (the old API ignored Content-Type)
   app.use(
