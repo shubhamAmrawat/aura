@@ -11,13 +11,13 @@ const now = () => {
 };
 
 /** Lock screen shows the clock; home screen shows app icons and a dock. */
-export function PhonePreview({ src, dim = false, screen = "lock" }: { src: string; dim?: boolean; screen?: "lock" | "home" }) {
+export function PhonePreview({ src, dim = false, screen = "lock", width = "min(286px, 62vw)" }: { src: string; dim?: boolean; screen?: "lock" | "home"; width?: string }) {
   const { time, date } = now();
   return (
     <div
       className="relative rounded-[44px] p-[10px] shrink-0 transition-[filter] duration-300"
       style={{
-        width: "min(286px, 62vw)",
+        width,
         aspectRatio: "286 / 590",
         background: "#050505",
         boxShadow: "0 0 0 1.5px rgba(255,255,255,0.12), 0 40px 80px rgba(0,0,0,0.6)",

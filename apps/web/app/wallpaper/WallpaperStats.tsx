@@ -9,12 +9,12 @@ interface WallpaperStatsProps {
   layout?: "row" | "grid";
 }
 
-const StatItem = ({ label, value }: { label: string; value: string }) => (
+const StatItem = ({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) => (
   <div>
     <p className="text-xs uppercase tracking-widest mb-1 text-text-muted">
       {label}
     </p>
-    <p className="text-sm font-mono text-text-primary">{value}</p>
+    <p className={`text-sm text-text-primary ${mono ? "font-mono" : "font-medium tabular-nums"}`}>{value}</p>
   </div>
 );
 
@@ -48,20 +48,20 @@ const WallpaperStats = ({
   if (layout === "grid") {
     return (
       <div
-        className="grid grid-cols-2 gap-x-4 gap-y-3 py-4 md:gap-x-5 md:gap-y-4 md:py-5 lg:py-6"
+        className="grid grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-3 py-4 md:gap-x-5 md:gap-y-4 md:py-5"
         style={{
           borderTop: "1px solid var(--border)",
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <StatItem label="Resolution" value={`${width} × ${height}`} />
-        <StatItem label="Format" value={format.toUpperCase()} />
-        {likeCount > 0 && <StatItem label="Likes" value={likeCount.toString()} />}
-        {downloadCount > 0 && <StatItem label="Downloads" value={downloadCount.toString()} />}
+        <StatItem mono={false} label="Resolution" value={`${width} × ${height}`} />
+        <StatItem mono={false} label="Format" value={format.toUpperCase()} />
+        {likeCount > 0 && <StatItem mono={false} label="Likes" value={likeCount.toString()} />}
+        {downloadCount > 0 && <StatItem mono={false} label="Downloads" value={downloadCount.toString()} />}
         {fileSizeBytes > 0 && (
-          <StatItem label="File size" value={formatFileSize(fileSizeBytes)} />
+          <StatItem mono={false} label="File size" value={formatFileSize(fileSizeBytes)} />
         )}
-        <StatItem label="Added" value={formatDate(createdAt)} />
+        <StatItem mono={false} label="Added" value={formatDate(createdAt)} />
       </div>
     );
   }

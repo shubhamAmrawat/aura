@@ -2,35 +2,29 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCategories, getWallpaperById, getSimilarWallpapersPage, isNotFoundError } from "@/lib/api";
-import { Wallpaper } from "@aura/types";
 import WallpaperDetails from "@/app/wallpaper/WallpaperDetails";
 import {
   SimilarWallpapersSection,
   type SimilarSqlRow,
 } from "@/app/wallpaper/SimilarWallpapersSection";
 import { ContextMenuBlock } from "@/app/wallpaper/ContextMenuBlock";
-import { getContrastColor } from "@/lib/color";
+import { PhoneScreenPreview } from "@/app/wallpaper/PhoneScreenPreview";
+import { ArrowLeft } from "lucide-react";
 import { ViewTracker } from "@/app/wallpaper/ViewTracker";
 
 interface WallpaperPageProps {
   params: Promise<{ id: string }>;
 }
 
-const BackButton = ({ wallpaper }: { wallpaper: Wallpaper }) => (
-  <div className="fixed top-24 left-12 z-50">
-    <Link
-      href="/"
-      className="inline-flex items-center justify-center gap-2 text-sm px-3 py-1.5 rounded-full  transition-opacity hover:opacity-90 cursor-pointer"
-      style={{
-        backgroundColor: getContrastColor(wallpaper.dominantColor),
-        color: wallpaper.dominantColor,
-
-      }}
-    >
-
-      ← Back
-    </Link>
-  </div>
+/** Back link that sits on the image (it used to be fixed and floated over the text while scrolling). */
+const BackButton = ({ href, className }: { href: string; className: string }) => (
+  <Link
+    href={href}
+    className={`absolute z-10 inline-flex items-center gap-2 h-9 pl-3 pr-3.5 rounded-full text-sm text-white bg-black/45 backdrop-blur-md hover:bg-black/60 transition-colors ${className}`}
+  >
+    <ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />
+    Back
+  </Link>
 );
 
 export async function generateMetadata({ params }: WallpaperPageProps) {
@@ -101,7 +95,8 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
     );
   }
 
-  const isPortrait = wallpaper.isMobile;
+  // Portrait and (near-)square wallpapers get the side-by-side layout with phone previews.
+  const isPortrait = wallpaper.isMobile || wallpaper.width <= wallpaper.height * 1.1;
   const categoryRow =
     categoriesResult.status === "fulfilled" ? categoriesResult.value.find((c) => c.id === wallpaper.categoryId) : undefined;
   const category = categoryRow ? { name: categoryRow.name, slug: categoryRow.slug } : null;
@@ -113,20 +108,23 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
           .map((c) => ({ name: c.name, slug: c.slug }))
       : [];
 
+  const backHref = category ? `/category/${category.slug}` : "/";
+
   return (
     <main className="min-h-screen" style={{ background: "var(--bg-primary)" }}>
       <ViewTracker wallpaperId={wallpaper.id} />
-      <BackButton wallpaper={wallpaper} />
 
       {isPortrait ? (
         <>
           {/* mobile: stacked. md+: side-by-side (55 / 45 split) */}
-          <div className="flex flex-col md:flex-row pt-[72px] md:overflow-hidden md:min-h-screen">
+          {/* the picture stays put (sticky) while the details scroll with the page — no scroll box inside the panel */}
+          <div className="flex flex-col md:flex-row md:items-start pt-[72px]">
 
             {/* image panel — full width on mobile, 55% on desktop */}
             <ContextMenuBlock
-              className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[60vw] min-h-[320px] md:h-[calc(100vh-72px)] overflow-hidden"
+              className="relative flex items-center justify-center w-full md:w-[55%] md:shrink-0 h-[min(80svh,700px)] md:h-[calc(100vh-72px)] md:sticky md:top-[72px] overflow-hidden"
             >
+              <BackButton href={backHref} className="top-4 left-4 md:top-5 md:left-6" />
               {/* blurred background — same image, heavily blurred */}
               <Image
                 src={wallpaper.fileUrl}
@@ -139,24 +137,12 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
                 aria-hidden
               />
               <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-              <div
-                className="relative w-full h-full flex items-center justify-center"
-                style={{ maxWidth: "85%", maxHeight: "90%" }}
-              >
-                <Image
-                  src={wallpaper.fileUrl}
-                  alt={wallpaper.title}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 55vw"
-                  className="object-contain rounded-xl"
-                  priority
-                />
-              </div>
+              <PhoneScreenPreview src={wallpaper.fileUrl} alt={wallpaper.title} width={wallpaper.width} height={wallpaper.height} />
             </ContextMenuBlock>
 
-            {/* details panel — md+: flex column + max height; inner scroll keeps actions visible */}
+            {/* details panel — at least a screen tall; the action bar sticks to the bottom of the screen */}
             <div
-              className="w-full md:w-[45%] md:shrink-0 md:flex md:h-[calc(100vh-72px)] md:min-h-0 md:flex-col md:overflow-hidden px-6 py-8 md:px-5 md:py-4 lg:px-8 lg:py-6 xl:px-10 xl:py-8 border-t md:border-t-0 md:border-l"
+              className="w-full md:w-[45%] md:shrink-0 flex flex-col md:min-h-[calc(100vh-72px)] px-6 pt-8 md:px-5 md:pt-6 lg:px-8 xl:px-10 xl:pt-8 border-t md:border-t-0 md:border-l"
               style={{ borderColor: "var(--border)" }}
             >
               <WallpaperDetails wallpaper={wallpaper} statsLayout="grid" category={category} extraCategories={extraCategories} />
@@ -169,6 +155,7 @@ export default async function WallpaperPage({ params }: WallpaperPageProps) {
         // landscape — full bleed image, details below
         <>
           <ContextMenuBlock className="relative w-full pt-[72px]" style={{ height: "85vh" }}>
+            <BackButton href={backHref} className="top-[88px] left-6 md:left-12" />
             <Image
               src={wallpaper.fileUrl}
               alt={wallpaper.title}

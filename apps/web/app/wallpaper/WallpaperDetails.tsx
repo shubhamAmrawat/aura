@@ -28,8 +28,8 @@ const WallpaperDetails = ({
 
   if (isPortrait) {
     return (
-      <div className="flex min-h-0 flex-col md:h-full">
-        <div className="flex min-h-0 flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-y-contain md:pr-1">
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-col gap-4">
           <div
             className="inline-block text-xs tracking-[0.3em] uppercase px-3 py-1 rounded-full w-fit"
             style={{ background: "var(--accent-muted)", color: "var(--accent)" }}
@@ -39,7 +39,7 @@ const WallpaperDetails = ({
 
           <div>
             <h1
-              className="text-xl font-bold leading-tight md:text-2xl mb-2 md:mb-3"
+              className="text-[26px] font-bold leading-[1.15] tracking-tight md:text-[28px] lg:text-[32px] mb-2 md:mb-3"
               style={{ color: "var(--text-primary)" }}
             >
               {wallpaper.title}
@@ -64,17 +64,21 @@ const WallpaperDetails = ({
 
           <ColorPalette palette={wallpaper.palette} />
           <WallpaperTags tags={wallpaper.tags} />
-          <AboutWallpaper wallpaper={wallpaper} category={category} extraCategories={extraCategories} />
+          <div className="pt-5 mt-1" style={{ borderTop: "1px solid var(--border)" }}>
+            <AboutWallpaper wallpaper={wallpaper} category={category} extraCategories={extraCategories} />
+            <div className="h-6" aria-hidden="true" />
+        </div>
+          <div className="h-6" aria-hidden="true" />
         </div>
 
         <div
-          className="mt-6 flex-shrink-0 border-t pt-4 md:mt-4 md:border-t md:pt-4"
+          className="sticky bottom-0 z-20 mt-auto -mx-6 px-6 md:-mx-5 md:px-5 lg:-mx-8 lg:px-8 xl:-mx-10 xl:px-10 pt-4 pb-[max(16px,env(safe-area-inset-bottom))] md:pb-6 flex-shrink-0 border-t"
           style={{
             borderColor: "var(--border)",
             background: "var(--bg-primary)",
           }}
         >
-          <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
             <div className="min-w-0 flex-1">
               <DownloadButton
                 wallpaperId={wallpaper.id}
@@ -90,8 +94,9 @@ const WallpaperDetails = ({
               initialCount={wallpaper.likeCount}
               showCount={true}
               size="md"
+              className="h-[52px] min-w-[52px] justify-center !px-3 sm:!px-4"
             />
-            <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" />
+            <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" className="h-[52px] w-[52px] justify-center" />
           </div>
         </div>
       </div>
@@ -123,14 +128,15 @@ const WallpaperDetails = ({
         </div>
 
         {/* download + like top right */}
-        <div className="flex items-center gap-4 flex-shrink-0 pt-1">
+        <div className="flex items-center gap-3 flex-shrink-0 pt-1">
           <LikeButton
             wallpaperId={wallpaper.id}
             initialCount={wallpaper.likeCount}
             showCount={true}
             size="md"
+            className="h-[52px] min-w-[52px] justify-center !px-4"
           />
-          <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" />
+          <BookmarkButton wallpaperId={wallpaper.id} size="md" variant="detail" className="h-[52px] w-[52px] justify-center" />
           <DownloadButton
             wallpaperId={wallpaper.id}
             fileUrl={wallpaper.fileUrl}

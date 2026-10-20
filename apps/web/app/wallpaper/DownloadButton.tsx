@@ -84,7 +84,7 @@ const DownloadButton = ({
     }
   };
 
-  const buttonClass = `flex items-center justify-center gap-3 px-8 py-4 rounded-full text-sm font-medium tracking-wider transition-opacity hover:opacity-80 disabled:opacity-70 ${
+  const buttonClass = `flex items-center justify-center gap-3 px-4 sm:px-8 py-4 rounded-full text-sm font-medium whitespace-nowrap sm:tracking-wider transition-opacity hover:opacity-80 disabled:opacity-70 ${
     fullWidth ? "w-full" : ""
   }`;
 
@@ -97,7 +97,7 @@ const DownloadButton = ({
         className={buttonClass}
         style={{ background: dominantColor, color: contrastColor, opacity: 0.7 }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <DownloadIcon />
           Download Free
         </div>
@@ -115,7 +115,7 @@ const DownloadButton = ({
         className={buttonClass}
         style={{ background: dominantColor, color: contrastColor }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <LockIcon color={contrastColor} />
           Sign in to Download
         </div>
@@ -134,7 +134,7 @@ const DownloadButton = ({
       style={{ background: dominantColor, color: contrastColor }}
     >
       {downloading ? (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div
             className="w-4 h-4 rounded-full border-2 animate-spin"
             style={{
@@ -145,7 +145,7 @@ const DownloadButton = ({
           Downloading…
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <DownloadIcon />
           Download Free
         </div>

@@ -12,6 +12,7 @@ interface LikeButtonProps {
   initialCount?: number;
   showCount?: boolean;
   size?: "sm" | "md";
+  className?: string;
 }
 
 const LikeButton = ({
@@ -19,6 +20,7 @@ const LikeButton = ({
   initialCount = 0,
   showCount = false,
   size = "md",
+  className = "",
 }: LikeButtonProps) => {
   const { user, likedIds, toggleLikedId } = useAuth();
   const router = useRouter();
@@ -73,12 +75,10 @@ const LikeButton = ({
       onClick={handleLike}
       disabled={loading}
       aria-label={liked ? "Unlike wallpaper" : "Like wallpaper"}
-      className="relative flex items-center gap-2 rounded-full px-2 py-1.5 transition-all duration-200 disabled:opacity-50"
-      style={{
-        color: "#ef4444",
-        border: liked ? "1px solid rgba(239, 68, 68, 0.45)" : "1px solid rgba(239, 68, 68, 0.9)",
-        background: liked ? "rgba(239, 68, 68, 0.12)" : "transparent",
-      }}
+      className={`relative flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors duration-200 disabled:opacity-50 ${liked ? "" : "hover:bg-white/[0.08]"} ${className}`}
+      style={liked
+        ? { color: "#ef4444", border: "1px solid rgba(239,68,68,0.45)", background: "rgba(239,68,68,0.12)" }
+        : { color: "var(--text-primary)", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
       title={liked ? "Unlike" : "Like"}
     >
       {/* ripple */}
@@ -92,14 +92,13 @@ const LikeButton = ({
         />
       )}
 
-      <HeartIcon size={iconSize} strokeWidth={2} fill={liked ? "currentColor" : "none"} style={{
-          transition: "transform 0.2s ease, filter 0.2s ease",
+      <HeartIcon size={iconSize - 2} strokeWidth={1.8} fill={liked ? "currentColor" : "none"} style={{
+          transition: "transform 0.2s ease",
           transform: ripple ? "scale(0.85)" : "scale(1)",
-          filter: liked ? "drop-shadow(0 0 6px rgba(239,68,68,0.5))" : "none",
         }} aria-hidden="true" />
 
       {showCount && (
-        <span className="text-xs font-medium tabular-nums">{count}</span>
+        <span className="text-sm font-medium tabular-nums">{count}</span>
       )}
     </button>
   );

@@ -18,6 +18,7 @@ interface BookmarkButtonProps {
   wallpaperId: string;
   size?: "sm" | "md";
   variant?: "card" | "detail";
+  className?: string;
   onDropdownChange?: (open: boolean) => void;
 }
 
@@ -26,12 +27,18 @@ interface DropdownPos {
   left: number;
   right: number;
   alignRight: boolean;
+  /** open above the button (not enough room below it) */
+  up: boolean;
+  /** distance from the bottom of the screen when opening upwards */
+  bottom: number;
+  maxHeight: number;
 }
 
 const BookmarkButton = ({
   wallpaperId,
   size = "md",
   variant = "detail",
+  className = "",
   onDropdownChange,
 }: BookmarkButtonProps) => {
   const { user, savedIds, toggleSavedId } = useAuth();
@@ -50,6 +57,9 @@ const BookmarkButton = ({
   const [newIsPublic, setNewIsPublic] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<DropdownPos>({
     top: 0,
+    up: false,
+    bottom: 0,
+    maxHeight: 400,
     left: 0,
     right: 0,
     alignRight: false,
@@ -91,11 +101,18 @@ const BookmarkButton = ({
   const computePos = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom - 16;
+    const above = rect.top - 16;
+    // The panel is ~320px tall: open upwards when it would not fit underneath (e.g. a bar pinned to the bottom).
+    const up = below < 320 && above > below;
     setDropdownPos({
       top: rect.bottom + 8,
       left: rect.left,
       right: window.innerWidth - rect.right,
       alignRight: window.innerWidth - rect.left < 264,
+      up,
+      bottom: window.innerHeight - rect.top + 8,
+      maxHeight: Math.max(200, (up ? above : below) - 8),
     });
   }, []);
 
@@ -231,9 +248,10 @@ const BookmarkButton = ({
 
             {/* dropdown panel */}
             <div
-              className="fixed z-50 w-64 rounded-2xl p-4"
+              className="fixed z-50 w-64 rounded-2xl p-4 overflow-y-auto"
               style={{
-                top: dropdownPos.top,
+                ...(dropdownPos.up ? { bottom: dropdownPos.bottom } : { top: dropdownPos.top }),
+                maxHeight: dropdownPos.maxHeight,
                 ...(dropdownPos.alignRight
                   ? { right: dropdownPos.right }
                   : { left: dropdownPos.left }),
@@ -448,19 +466,14 @@ const BookmarkButton = ({
       <button
         ref={buttonRef}
         onClick={handleClick}
-        className="flex items-center gap-2 rounded-full px-2 py-1.5 transition-all duration-200 hover:opacity-90"
-        style={{
-          color: "var(--accent)",
-          border: isSaved
-            ? "1px solid color-mix(in srgb, var(--accent) 45%, transparent)"
-            : "1px solid color-mix(in srgb, var(--accent) 92%, transparent)",
-          background: isSaved
-            ? "color-mix(in srgb, var(--accent) 14%, transparent)"
-            : "transparent",
-        }}
-        title="Save to collection"
+        className={`flex items-center gap-2 rounded-full px-2 py-1.5 transition-colors duration-200 ${isSaved ? "" : "hover:bg-white/[0.08]"} ${className}`}
+        style={isSaved
+          ? { color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 35%, transparent)", background: "color-mix(in srgb, var(--accent) 12%, transparent)" }
+          : { color: "var(--text-primary)", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)" }}
+        title={isSaved ? "Saved — change collections" : "Save to collection"}
+        aria-label={isSaved ? "Saved — change collections" : "Save to collection"}
       >
-        <BookmarkIcon size={iconSize} strokeWidth={2} fill={isSaved ? "currentColor" : "none"} aria-hidden="true" />
+        <BookmarkIcon size={iconSize - 1} strokeWidth={1.8} fill={isSaved ? "currentColor" : "none"} aria-hidden="true" />
       </button>
       {dropdown}
     </>
