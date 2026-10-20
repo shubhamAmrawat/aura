@@ -29,7 +29,7 @@ import {
   uploadCoverDirect,
   uploadCoverToSignedUrl,
 } from "../../lib/profileApi";
-import { ensureCameraPermission, ensureMediaLibraryPermission } from "../../lib/permissions";
+import { ensureCameraPermission } from "../../lib/permissions";
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
@@ -201,11 +201,7 @@ export default function EditProfile() {
       return true;
     }
 
-    const granted = await ensureMediaLibraryPermission();
-    if (!granted) {
-      showToast("Photo permission is required to pick from gallery.", { type: "error" });
-      return false;
-    }
+    // The system photo picker needs no permission: the user picks one photo and only that is shared.
     return true;
   };
 

@@ -8,9 +8,13 @@ export async function ensureCameraPermission(): Promise<boolean> {
   return requested.granted;
 }
 
+/**
+ * Permission to SAVE wallpapers to the gallery (write-only). Aurora never reads the user's photos:
+ * on Android 13+ saving needs no permission at all; on Android 9 and older it asks for storage.
+ */
 export async function ensureMediaLibraryPermission(): Promise<boolean> {
-  const current = await MediaLibrary.getPermissionsAsync();
+  const current = await MediaLibrary.getPermissionsAsync(true);
   if (current.granted) return true;
-  const requested = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
+  const requested = await MediaLibrary.requestPermissionsAsync(true);
   return requested.granted;
 }

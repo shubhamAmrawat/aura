@@ -95,6 +95,8 @@ const WallpaperChanger = () => {
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [batteryOk, setBatteryOk] = useState(true);
   const [leaveAction, setLeaveAction] = useState<any>(null);
+  /** Set when the switch was turned on before a source was chosen: picking one finishes turning it on. */
+  const pendingEnableRef = useRef(false);
 
   const toDraft = (s: ChangerState): Draft => ({ source: s.source, pool: s.pool, intervalHours: s.intervalHours, target: s.target });
 
@@ -141,20 +143,30 @@ const WallpaperChanger = () => {
   // ─── Draft edits ───
   const pickSource = async (source: ChangerSource) => {
     setPickerOpen(false);
-    if (draft && sameSource(draft.source, source)) return;
+    const wantsEnable = pendingEnableRef.current;
+    pendingEnableRef.current = false;
+    if (!draft) return;
+    if (sameSource(draft.source, source)) {
+      if (wantsEnable) await enable(draft);
+      return;
+    }
     setBusy("source");
+    let nextDraft: Draft | null = null;
     try {
       const pool = await fetchPool(source, screen);
       if (pool.length === 0) {
         showToast(`No ${screen === "mobile" ? "phone " : ""}wallpapers in “${source.name}” yet.`, { type: "error", position: "top" });
         return;
       }
-      setDraft((d) => (d ? { ...d, source, pool } : d));
+      nextDraft = { ...draft, source, pool };
+      setDraft(nextDraft);
     } catch {
       showToast("Couldn't load those wallpapers. Check your connection and try again.", { type: "error", position: "top" });
     } finally {
       setBusy(null);
     }
+    // The switch was turned on before a source existed: finish turning it on now.
+    if (nextDraft && wantsEnable) await enable(nextDraft);
   };
   /** Quick picks are stored as-is (15 min included); the custom stepper stays within 2–24 h. */
   const setHours = (h: number, exact = false) => setDraft((d) => (d ? { ...d, intervalHours: exact ? h : clampHours(h) } : d));
@@ -165,12 +177,18 @@ const WallpaperChanger = () => {
     setCustom(!PRESET_HOURS.includes(saved.intervalHours));
   };
 
-  /** Apply the draft. Returns the new saved state. */
-  const save = async (): Promise<ChangerState | null> => {
-    if (!saved || !draft) return null;
+  /**
+   * Apply the draft. Returns the new saved state. If the changer is on and the source changed,
+   * the wallpaper changes right away to one from the new source.
+   */
+  const save = async (d: Draft | null = draft, opts: { quiet?: boolean } = {}): Promise<ChangerState | null> => {
+    if (!saved || !d) return null;
+    const draft = d;
     setBusy("save");
+    let result: ChangerState | null = null;
+    let sourceChanged = false;
     try {
-      const sourceChanged = !sameSource(saved.source, draft.source);
+      sourceChanged = !sameSource(saved.source, draft.source);
       const next: ChangerState = {
         ...saved,
         source: draft.source,
@@ -183,14 +201,19 @@ const WallpaperChanger = () => {
       await saveState(next);
       if (next.enabled && next.intervalHours !== saved.intervalHours) await scheduleChanger(next.intervalHours);
       setSaved(next);
-      showToast("Wallpaper changer settings saved.", { type: "success", position: "top" });
-      return next;
+      result = next;
     } catch {
       showToast("Couldn't save. Try again.", { type: "error", position: "top" });
       return null;
     } finally {
       setBusy(null);
     }
+    if (result.enabled && sourceChanged) {
+      await changeNow(); // its toast says the wallpaper changed
+    } else if (!opts.quiet) {
+      showToast("Wallpaper changer settings saved.", { type: "success", position: "top" });
+    }
+    return result;
   };
 
   // ─── Immediate actions ───
@@ -221,16 +244,24 @@ const WallpaperChanger = () => {
       return;
     }
     if (!draft.source) {
+      pendingEnableRef.current = true;
       setPickerOpen(true);
       showToast("First choose where the wallpapers come from.", { type: "info", position: "top" });
       return;
     }
+    await enable(draft);
+  };
+
+  /** Turn the changer on with this draft (saving it first if it differs from what's saved). */
+  const enable = async (d: Draft) => {
+    if (!saved || !d.source) return;
     if (!AuroraWallpaper) {
       showToast("Update the app to use the wallpaper changer.", { type: "error", position: "top" });
       return;
     }
+    const isDirty = !sameSource(saved.source, d.source) || saved.intervalHours !== d.intervalHours || saved.target !== d.target;
     // Turning on also saves any edits.
-    const base = dirty ? await save() : saved;
+    const base = isDirty ? await save(d, { quiet: true }) : saved;
     if (!base) return;
     setBusy("toggle");
     try {
@@ -249,11 +280,16 @@ const WallpaperChanger = () => {
   // ─── Background permission ───
   const askBackgroundPermission = async () => {
     try {
-      // Android's own "Let app always run in background?" dialog.
-      await IntentLauncher.startActivityAsync("android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", { data: `package:${PACKAGE}` });
+      // Aurora's own app-info page; battery usage is one tap from there (Battery › Unrestricted).
+      // Google Play doesn't allow a wallpaper app to show the direct "ignore battery optimisation" dialog.
+      await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS, { data: `package:${PACKAGE}` });
     } catch {
-      openAppSettings();
-      return;
+      try {
+        await IntentLauncher.startActivityAsync("android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS");
+      } catch {
+        showToast("Couldn't open settings. Open Settings › Apps › Aurora › Battery.", { type: "error", position: "top" });
+        return;
+      }
     }
     const ok = isBatteryUnrestricted();
     setBatteryOk(ok);
@@ -475,7 +511,10 @@ const WallpaperChanger = () => {
 
       <SourcePicker
         visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
+        onClose={() => {
+          pendingEnableRef.current = false;
+          setPickerOpen(false);
+        }}
         onPick={(s) => void pickSource(s)}
         current={draft.source}
         signedIn={!!user}
@@ -493,11 +532,12 @@ const WallpaperChanger = () => {
           wallpaper will change on schedule. Aurora only wakes up briefly, once per change.
         </Text>
         <View style={styles.permSteps}>
-          <Text style={styles.permStep}>1. Tap Allow below.</Text>
-          <Text style={styles.permStep}>2. In the box Android shows, choose Allow.</Text>
+          <Text style={styles.permStep}>1. Tap Open settings below.</Text>
+          <Text style={styles.permStep}>2. Tap Battery (or App battery usage).</Text>
+          <Text style={styles.permStep}>3. Choose Unrestricted, then come back.</Text>
         </View>
         <Pressable onPress={() => void askBackgroundPermission()} style={({ pressed }) => [styles.barPrimary, styles.permBtn, pressed && { opacity: 0.85 }]}>
-          <Text style={styles.barPrimaryText}>Allow</Text>
+          <Text style={styles.barPrimaryText}>Open settings</Text>
         </Pressable>
         <Pressable onPress={() => setPermissionOpen(false)} style={styles.permLater} hitSlop={6}>
           <Text style={styles.permLaterText}>Not now</Text>

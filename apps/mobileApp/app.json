@@ -22,9 +22,7 @@
       [
         "expo-media-library",
         {
-          "granularPermissions": [
-            "photo"
-          ]
+          "granularPermissions": []
         }
       ]
     ],
@@ -47,7 +45,17 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "navigationBarColor": "#111111",
-      "backgroundColor": "#111111"
+      "backgroundColor": "#111111",
+      "blockedPermissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+      ]
     },
     "extra": {
       "router": {},
