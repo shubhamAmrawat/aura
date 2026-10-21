@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   searchFlex: { flex: 1, flexDirection: "row" },
   container: {
     flex: 1,
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.bgPrimary,
   },
   searchHeader: {
     flexDirection: "row",
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   suggestRowPressed: {
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.bgElevated,
     opacity: 0.85,
   },
   suggestText: {

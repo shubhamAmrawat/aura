@@ -182,7 +182,7 @@ const Library = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgSecondary },
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
   segment: {
     flexDirection: "row",
     marginHorizontal: INSET,

@@ -14,7 +14,7 @@ const TabLayout = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: Colors.bgSecondary,
+          backgroundColor: Colors.bgPrimary,
           borderTopColor: Colors.border,
           borderTopWidth: 1,
         },

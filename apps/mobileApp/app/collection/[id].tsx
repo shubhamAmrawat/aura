@@ -286,7 +286,7 @@ const CollectionScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgSecondary },
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
   about: { paddingHorizontal: 16, paddingTop: 2, gap: 6 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   meta: { color: Colors.textMuted, fontSize: 13 },

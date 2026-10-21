@@ -634,7 +634,7 @@ function SourcePicker({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgSecondary },
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
   content: { paddingHorizontal: 16, paddingTop: 6, gap: 22 },
   hero: {
     flexDirection: "row",

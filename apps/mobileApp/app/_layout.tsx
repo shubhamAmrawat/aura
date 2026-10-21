@@ -16,7 +16,7 @@ import { Colors } from "../constants/colors";
 import SplashScreen from "../components/SplashScreen";
 import ErrorScreen from "../components/ErrorScreen";
 
-SystemUI.setBackgroundColorAsync(Colors.bgSecondary);
+SystemUI.setBackgroundColorAsync(Colors.bgPrimary);
 
 /** A screen that crashes while rendering shows this instead of a blank screen. */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
@@ -99,7 +99,7 @@ function AppGate() {
       screenOptions={{
         headerShown: false,
         animation: "fade_from_bottom",
-        contentStyle: { backgroundColor: Colors.bgSecondary },
+        contentStyle: { backgroundColor: Colors.bgPrimary },
       }}
     />
   );

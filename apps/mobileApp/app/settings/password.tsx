@@ -172,7 +172,7 @@ const ChangePassword = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgSecondary },
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
   content: { paddingHorizontal: 16, paddingTop: 6, gap: 14 },
   body: { color: Colors.textSecondary, fontSize: 14, lineHeight: 20 },
   strong: { color: Colors.textPrimary, fontWeight: "700" },

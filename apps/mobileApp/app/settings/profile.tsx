@@ -623,7 +623,7 @@ export default function EditProfile() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.bgSecondary },
+  container: { flex: 1, backgroundColor: Colors.bgPrimary },
   scrollContent: {
     paddingHorizontal: 14,
     paddingTop: 12,
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     height: 92,
     borderRadius: 46,
     borderWidth: 3,
-    borderColor: Colors.bgSecondary,
+    borderColor: Colors.bgPrimary,
     backgroundColor: Colors.bgPrimary,
   },
   avatarOverlay: {

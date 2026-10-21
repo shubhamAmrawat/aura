@@ -46,7 +46,7 @@ const Header = ({ title = "AURORA", logo = true, titleFontSize = 24, showBackBut
 }
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.bgSecondary,
+    backgroundColor: Colors.bgPrimary,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
