@@ -421,7 +421,7 @@
 
     // ─── Render ───────────────────────────────────────────────────────────────────
     return (
-      <View style={{ flex: 1, backgroundColor: "#0A0A0A" }}>
+      <View style={{ flex: 1, backgroundColor: Colors.bgPrimary }}>
 
         {/* Dynamic gradient — tinted by the wallpaper's dominant color.
             Fades from the dominant color at the top to pure dark at the bottom.
@@ -429,8 +429,8 @@
         <LinearGradient
           colors={[
             hexToRgba(dominantColor, 0.86),
-            hexToRgba("#0A0A0A", 0.72),
-            "#0A0A0A",
+            hexToRgba(Colors.bgPrimary, 0.72),
+            Colors.bgPrimary,
           ]}
           locations={[0, 0.48, 1]}
           style={StyleSheet.absoluteFillObject}

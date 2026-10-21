@@ -40,7 +40,7 @@ const WallpaperCard = ({ wallpaper, onPress, onLongPress, selecting = false, sel
           // small 600px thumbnail in grids; the detail screen loads the full image
           source={wallpaper.thumbUrl || wallpaper.fileUrl}
           recyclingKey={wallpaper.id}
-          style={[styles.wallpaperImage, { aspectRatio, backgroundColor: wallpaper.dominantColor || "#1A1A1A" }]}
+          style={[styles.wallpaperImage, { aspectRatio, backgroundColor: wallpaper.dominantColor || Colors.bgElevated }]}
           placeholder={wallpaper.blurhash ? { blurhash: wallpaper.blurhash } : null}
           contentFit="cover"
           placeholderContentFit="cover"

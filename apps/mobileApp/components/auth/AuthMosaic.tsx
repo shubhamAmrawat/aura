@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native'
 import { Image } from 'expo-image'
 import { useLayoutInfo } from '../../hooks/useLayout'
+import { Colors } from '../../constants'
 
 // Bundled 320px tiles (93 KB in total) so the wall is there the moment the screen opens.
 const TILES = [
@@ -104,6 +105,6 @@ const styles = StyleSheet.create({
   tile: {
     width: '100%',
     borderRadius: 16,
-    backgroundColor: '#15151B',
+    backgroundColor: Colors.bgElevated,
   },
 })

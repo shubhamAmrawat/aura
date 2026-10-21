@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Sentry } from "../lib/sentry";
+import { Colors } from "../constants";
 
-const BG = "#111111";
+const BG = Colors.bgPrimary;
 const ACCENT = "#81EE4E";
 
 /**

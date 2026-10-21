@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: "rgba(17,17,17,0.97)",
+    backgroundColor: Colors.bgBar,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
   },

@@ -66,7 +66,7 @@ export default function AuthShell({ tagline, leading, onLeadingPress, children, 
       <AuthMosaic />
       {/* light tint at the very top so the status bar and ✕ stay readable */}
       <LinearGradient
-        colors={['rgba(7,7,10,0.45)', 'rgba(7,7,10,0)']}
+        colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
         locations={[0, 0.16]}
         style={StyleSheet.absoluteFill}
       />
@@ -87,7 +87,7 @@ export default function AuthShell({ tagline, leading, onLeadingPress, children, 
             {/* The wall fades to solid dark just above the logo, wherever the logo ends up
                 (the card's height differs per screen), so the logo never sits on a picture. */}
             <View pointerEvents="none" style={styles.backdrop}>
-              <LinearGradient colors={['rgba(7,7,10,0)', 'rgba(7,7,10,0.7)', '#07070A']} locations={[0, 0.55, 1]} style={styles.backdropFade} />
+              <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)', Colors.bgPrimary]} locations={[0, 0.55, 1]} style={styles.backdropFade} />
               <View style={styles.backdropSolid} />
             </View>
             {!keyboardOpen && (
@@ -131,7 +131,7 @@ export default function AuthShell({ tagline, leading, onLeadingPress, children, 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#07070A',
+    backgroundColor: Colors.bgPrimary,
   },
   flex: {
     flex: 1,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     // overlap the fade by 2px: where the two meet on a fractional pixel, a hairline gap
     // would otherwise let the wallpaper wall show through as a bright line
     marginTop: -2,
-    backgroundColor: '#07070A',
+    backgroundColor: Colors.bgPrimary,
   },
   columnTablet: {
     maxWidth: 460,
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: '#111115',
+    backgroundColor: Colors.bgSecondary,
   },
   cardBody: {
     paddingHorizontal: 20,
@@ -210,6 +210,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(10,10,14,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
 })
