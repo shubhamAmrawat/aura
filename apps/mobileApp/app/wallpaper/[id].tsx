@@ -172,8 +172,9 @@
       setActiveIndex(0);
       setWallpaper(seedWallpaper);
       setSimilarWallpapers([]);
-      fetchWallpaper();
-      fetchSimilarWallpapers();
+      // A failed load keeps what the grid passed in (detail) / shows no carousel (similar).
+      fetchWallpaper().catch(() => undefined);
+      fetchSimilarWallpapers().catch(() => undefined);
     }, [id, screen, seedWallpaper]);
 
     // Similar wallpapers only carry creatorId: load the creator's name when one is swiped to.

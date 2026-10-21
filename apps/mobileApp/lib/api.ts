@@ -102,9 +102,22 @@ export async function request<T>(
     ...options,
     headers,
   });
-  if(!response.ok){ 
-    const error = await response.json();
-    throw new Error(error.error || "Request failed");
-  } 
+  if (!response.ok) throw new Error(await errorMessage(response));
   return response.json();
+}
+
+/**
+ * The API's `{ error }` message, or a readable fallback. Error bodies aren't always JSON: a
+ * timeout from Cloudflare/Render (502/503/504) returns an HTML page or nothing at all.
+ */
+export async function errorMessage(response: Response): Promise<string> {
+  const text = await response.text().catch(() => "");
+  try {
+    const data = JSON.parse(text) as { error?: string };
+    if (data?.error) return data.error;
+  } catch {
+    // not JSON
+  }
+  if (response.status >= 500) return "Aurora's server is busy right now. Please try again in a moment.";
+  return "Request failed";
 }

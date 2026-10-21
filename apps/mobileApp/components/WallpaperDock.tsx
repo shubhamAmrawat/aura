@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
-import { BlurView } from "expo-blur"
+import FrostedView from "./FrostedView"
 import { Pressable, StyleSheet, Text } from "react-native"
 import { Colors } from "../constants"
 import { downloadWallpaper } from "../lib/downloadWallpaper"
@@ -94,7 +94,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions }:
 
   return (
     <>
-      <BlurView
+      <FrostedView
         intensity={60}
         tint="dark"
         style={[
@@ -130,9 +130,9 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions }:
           <Ionicons name="information-circle-outline" size={24} color={Colors.textPrimary} />
           <Text style={styles.label}>Details</Text>
         </Pressable>
-      </BlurView>
+      </FrostedView>
 
-      {/* Apply sheet renders outside BlurView so it's not clipped */}
+      {/* Apply sheet renders outside the dock so it's not clipped */}
       <ApplySheet
         visible={showApplySheet}
         onClose={() => setShowApplySheet(false)}

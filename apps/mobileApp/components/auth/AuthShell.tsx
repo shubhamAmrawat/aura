@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { LinearGradient } from 'expo-linear-gradient'
-import { BlurView } from 'expo-blur'
+import FrostedView from '../FrostedView'
 import AuthMosaic from './AuthMosaic'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -121,7 +121,7 @@ export default function AuthShell({ tagline, leading, onLeadingPress, children, 
         accessibilityLabel={leading === 'close' ? 'Close' : 'Back'}
         style={({ pressed }) => [styles.leading, { top: insets.top + 10, opacity: pressed ? 0.7 : 1 }]}
       >
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        <FrostedView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
         <Ionicons name={leading === 'close' ? 'close' : 'chevron-back'} size={22} color={Colors.textPrimary} />
       </Pressable>
     </View>

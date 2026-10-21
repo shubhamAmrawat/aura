@@ -1,4 +1,4 @@
-import { request, User } from "./api";
+import { errorMessage, request, User } from "./api";
 import { getToken } from "./tokenStorage";
 
 export type UpdateProfilePayload = {
@@ -33,11 +33,8 @@ async function authFetch(path: string, options: RequestInit = {}): Promise<Respo
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json()) as { error?: string };
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
-  }
-  return data as T;
+  if (!response.ok) throw new Error(await errorMessage(response));
+  return (await response.json()) as T;
 }
 
 export async function updateProfile(
