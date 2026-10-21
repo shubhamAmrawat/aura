@@ -24,6 +24,15 @@
         {
           "granularPermissions": []
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
       ]
     ],
     "splash": {
@@ -44,7 +53,6 @@
       "launchMode": "singleTask",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "navigationBarColor": "#111111",
       "backgroundColor": "#111111",
       "blockedPermissions": [
         "android.permission.READ_MEDIA_IMAGES",
