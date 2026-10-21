@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { ReactNode } from "react";
-import { User } from "./api";
+import { ApiError, User } from "./api";
 import { deleteToken, getToken, saveToken } from "./tokenStorage";
 import { getMe } from "./authApi";
 import { signOutOfGoogle } from "./googleAuth";
@@ -33,8 +33,10 @@ export function AuthProvider({children}:{children:ReactNode}){
             setUser(user);
           }
         }
-      } catch{
-        await deleteToken(); 
+      } catch (e) {
+        // Only a rejected token signs you out. Offline or a busy server (e.g. a 504) keeps it,
+        // so the next launch signs you back in.
+        if (e instanceof ApiError && (e.status === 401 || e.status === 403)) await deleteToken();
       }finally{
         setLoaded(true);
       }

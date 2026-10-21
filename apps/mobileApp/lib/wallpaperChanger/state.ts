@@ -12,7 +12,8 @@ export type ChangerSource =
   | { kind: "collection"; id: string; name: string }
   | { kind: "category"; slug: string; name: string };
 
-export type PoolItem = { id: string; fileUrl: string; title: string };
+/** `thumbUrl`: small preview for the changer screen (older saved lists don't have it). */
+export type PoolItem = { id: string; fileUrl: string; title: string; thumbUrl?: string | null };
 
 export type ChangerState = {
   enabled: boolean;
@@ -26,12 +27,14 @@ export type ChangerState = {
   /** Shuffled ids still to show in this round; refilled when empty. */
   queue: string[];
   lastChangedAt: number | null;
+  /** When the background schedule was last (re)started; its runs come every interval after this. */
+  scheduledAt?: number | null;
   lastWallpaperId: string | null;
   lastError: string | null;
   lastErrorAt: number | null;
 };
 
-export const MIN_HOURS = 2;
+export const MIN_HOURS = 1;
 export const MAX_HOURS = 24;
 
 /**
@@ -41,7 +44,7 @@ export const MAX_HOURS = 24;
 export const SHOW_15_MIN_OPTION = true;
 export const TEST_INTERVAL_HOURS = 0.25;
 
-/** Quick picks shown on the changer screen (in hours). */
+/** Quick picks shown on the changer screen (in hours). Custom covers MIN_HOURS–MAX_HOURS. */
 export const PRESET_HOURS: readonly number[] = SHOW_15_MIN_OPTION ? [TEST_INTERVAL_HOURS, 6, 12, 24] : [6, 12, 24];
 
 /** "Every 15 min", "Every 6 h", "Daily". */

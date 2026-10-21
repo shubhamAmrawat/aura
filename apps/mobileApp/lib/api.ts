@@ -102,8 +102,18 @@ export async function request<T>(
     ...options,
     headers,
   });
-  if (!response.ok) throw new Error(await errorMessage(response));
+  if (!response.ok) throw new ApiError(await errorMessage(response), response.status);
   return response.json();
+}
+
+/** An error response from the API, with its HTTP status (network failures stay plain Errors). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
 }
 
 /**

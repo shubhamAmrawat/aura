@@ -1,6 +1,6 @@
 // Sentry first, so errors during startup are reported too.
 import { navigationIntegration, Sentry } from "../lib/sentry";
-import { syncChangerOnLaunch } from "../lib/wallpaperChanger/task";
+import { stopChangerIfSignedOut, syncChangerOnLaunch } from "../lib/wallpaperChanger/task";
 import { Stack, useNavigationContainerRef, type ErrorBoundaryProps } from "expo-router";
 import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -48,12 +48,17 @@ const RootLayout = () => {
 };
 
 function AppGate() {
-  const { loaded } = useAuth();
+  const { loaded, user } = useAuth();
+  const signedIn = !!user;
 
   // Wallpaper changer: refresh its cached wallpaper list (the background job can't call the API).
   useEffect(() => {
     if (loaded) syncChangerOnLaunch().catch(() => undefined);
   }, [loaded]);
+  // It's a signed-in feature: signing out (or opening the app signed out) turns it off.
+  useEffect(() => {
+    if (loaded) stopChangerIfSignedOut(signedIn).catch(() => undefined);
+  }, [loaded, signedIn]);
   const { showToast } = useToast();
   const { deviceType, screen } = useScreenFilter();
 

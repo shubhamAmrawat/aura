@@ -18,7 +18,7 @@ const fitsScreen = (w: Pick<WallpaperTile, "width" | "height">, screen: ChangerS
 const toPool = (items: WallpaperTile[], screen: ChangerState["screen"], blocked: Set<string> = new Set()): PoolItem[] =>
   items
     .filter((w) => w.fileUrl && fitsScreen(w, screen) && !(w.creatorId && blocked.has(w.creatorId)))
-    .map((w) => ({ id: w.id, fileUrl: w.fileUrl, title: w.title ?? "" }));
+    .map((w) => ({ id: w.id, fileUrl: w.fileUrl, title: w.title ?? "", thumbUrl: w.thumbUrl ?? null }));
 
 /** The source's current wallpapers from the API (phone-shaped on phones). Throws on network/auth errors. */
 export async function fetchPool(source: ChangerSource, screen: ChangerState["screen"]): Promise<PoolItem[]> {

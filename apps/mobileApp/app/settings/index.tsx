@@ -36,10 +36,14 @@ const Settings = () => {
   // Status for the Wallpaper changer row ("Every 6 h" / "Off"); refreshed when returning here.
   useFocusEffect(
     useCallback(() => {
+      if (!user) {
+        setChanger("Sign in");
+        return;
+      }
       loadState()
         .then((s) => setChanger(s.enabled ? intervalLabel(s.intervalHours) : "Off"))
         .catch(() => setChanger(""));
-    }, [])
+    }, [user])
   );
 
   // Status for the Interests row ("Space, Ocean +1" / "None yet"); refreshed when returning here.

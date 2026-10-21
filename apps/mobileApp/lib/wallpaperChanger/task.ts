@@ -1,6 +1,7 @@
 import AuroraWallpaper from "../../modules/aurora-wallpaper";
 import { fetchPool } from "./engine";
 import { loadState, saveState } from "./state";
+import { getToken } from "../tokenStorage";
 
 /**
  * Scheduling for the wallpaper changer. The background job itself is native
@@ -40,4 +41,15 @@ export async function syncChangerOnLaunch() {
   } catch {
     // offline or signed out: keep the saved list
   }
+}
+
+/** The changer is for signed-in users: turn it off (and stop the background job) when signed out. */
+export async function stopChangerIfSignedOut(signedIn: boolean) {
+  if (signedIn) return;
+  // Still holding a token = signed in but the profile didn't load (offline / server busy): keep it on.
+  if (await getToken()) return;
+  const s = await loadState();
+  if (!s.enabled) return;
+  await unscheduleChanger();
+  await saveState({ ...(await loadState()), enabled: false });
 }
