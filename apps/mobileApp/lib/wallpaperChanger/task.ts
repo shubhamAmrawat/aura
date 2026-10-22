@@ -4,9 +4,9 @@ import { loadState, saveState } from "./state";
 import { getToken } from "../tokenStorage";
 
 /**
- * Scheduling for the wallpaper changer. The background job itself is native
- * (modules/aurora-wallpaper/android/.../ChangerWorker.kt) so no JavaScript has to run in the
- * background: Android (WorkManager) starts it about every `intervalHours`, with network.
+ * Scheduling for the wallpaper changer. It runs fully native (modules/aurora-wallpaper/android:
+ * ChangerScheduler / ChangerCore): an alarm that may fire while the phone is idle sets the next
+ * wallpaper (downloaded in advance), then sets the following alarm one interval later.
  */
 
 const requireNative = () => {
@@ -14,23 +14,23 @@ const requireNative = () => {
   return AuroraWallpaper;
 };
 
-/** Start (or restart) the schedule. The first background change comes after one interval. */
-export async function scheduleChanger(intervalHours: number) {
-  await requireNative().schedule(Math.round(intervalHours * 60));
+/** Start (or restart) the schedule: the next change is one interval from now. Returns its time (ms). */
+export async function scheduleChanger(intervalHours: number): Promise<number> {
+  return await requireNative().schedule(Math.round(intervalHours * 60));
 }
 
 export async function unscheduleChanger() {
   await AuroraWallpaper?.cancel();
 }
 
-/** Dev test: one background change in about a minute, through the same native job. */
+/** Dev test: the scheduled change in about a minute, through the real alarm. */
 export async function scheduleTestRunInOneMinute() {
   await requireNative().scheduleTestRun(60);
 }
 
 /**
- * On app start: refresh the cached wallpaper list (the native job can't call the API), and make
- * sure the schedule exists (e.g. after an app update). Quiet on failure.
+ * On app start: refresh the cached wallpaper list (the native side can't call the API), and make
+ * sure the next change is scheduled (e.g. after a reboot or update). Quiet on failure.
  */
 export async function syncChangerOnLaunch() {
   const s = await loadState();
@@ -41,6 +41,7 @@ export async function syncChangerOnLaunch() {
   } catch {
     // offline or signed out: keep the saved list
   }
+  await AuroraWallpaper?.ensureScheduled();
 }
 
 /** The changer is for signed-in users: turn it off (and stop the background job) when signed out. */

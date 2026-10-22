@@ -27,8 +27,10 @@ export type ChangerState = {
   /** Shuffled ids still to show in this round; refilled when empty. */
   queue: string[];
   lastChangedAt: number | null;
-  /** When the background schedule was last (re)started; its runs come every interval after this. */
-  scheduledAt?: number | null;
+  /** When the next scheduled change is due (set by the native side). */
+  nextAt?: number | null;
+  /** Id of the next wallpaper, already downloaded by the native side. */
+  prefetchId?: string | null;
   lastWallpaperId: string | null;
   lastError: string | null;
   lastErrorAt: number | null;

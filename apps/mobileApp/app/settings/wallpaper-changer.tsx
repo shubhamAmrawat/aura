@@ -77,18 +77,10 @@ const thumb = (p: PoolItem) => p.thumbUrl || p.fileUrl;
 const shortLabel = (h: number) => (h < 1 ? `${Math.round(h * 60)} min` : h === 24 ? "Daily" : `${h} h`);
 const clock = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-/**
- * When the next background change should land. Android runs the job every interval after the
- * schedule started, and the job skips a run that comes less than half an interval after the last
- * change (e.g. right after Shuffle now). Older saved settings have no start time: fall back to
- * last change + interval.
- */
-function nextChangeAt(s: ChangerState, now: number): number | null {
-  const I = s.intervalHours * 3600_000;
-  if (!s.scheduledAt) return s.lastChangedAt ? s.lastChangedAt + I : null;
-  let t = s.scheduledAt + Math.max(1, Math.ceil((now - s.scheduledAt) / I)) * I;
-  while (s.lastChangedAt && t - s.lastChangedAt < I / 2) t += I;
-  return t;
+/** When the next scheduled change is due: the native side saves it each time it sets the alarm. */
+function nextChangeAt(s: ChangerState): number | null {
+  if (s.nextAt) return s.nextAt;
+  return s.lastChangedAt ? s.lastChangedAt + s.intervalHours * 3600_000 : null;
 }
 
 function inAbout(ms: number) {
@@ -221,7 +213,7 @@ const WallpaperChanger = () => {
     setBusy("toggle");
     try {
       await scheduleChanger(s.intervalHours);
-      await persist({ enabled: true, scheduledAt: Date.now() });
+      await persist({ enabled: true });
     } catch {
       setBusy(null);
       showToast("Couldn't start the schedule. Try again.", { type: "error", position: "top" });
@@ -259,7 +251,8 @@ const WallpaperChanger = () => {
 
   const restoreSource = async (prev: { source: ChangerSource | null; pool: PoolItem[] }) => {
     try {
-      await persist({ source: prev.source, pool: prev.pool, queue: [], lastError: null, lastErrorAt: null });
+      const next = await persist({ source: prev.source, pool: prev.pool, queue: [], lastError: null, lastErrorAt: null });
+      if (next.enabled) await AuroraWallpaper?.ensureScheduled(); // fetch the next one from this source
       await reload();
       showToast(prev.source ? `Back to ${prev.source.name}.` : "Undone.", { type: "success", position: "top" });
     } catch {
@@ -329,7 +322,7 @@ const WallpaperChanger = () => {
       const next = await persist({ intervalHours: h });
       if (next.enabled) {
         await scheduleChanger(h);
-        await persist({ scheduledAt: Date.now() });
+        await reload(); // picks up the new next-change time
       }
       setSaved((v) => ({ ...v, interval: v.interval + 1 }));
     } catch {
@@ -493,7 +486,7 @@ const WallpaperChanger = () => {
   let progress = 0;
   let nextLabel = "Off";
   let nextSub = "Turn on Auto to start";
-  const nextAt = state.enabled ? nextChangeAt(state, now) : null;
+  const nextAt = state.enabled ? nextChangeAt(state) : null;
   if (state.enabled) {
     if (nextAt) {
       progress = 1 - (nextAt - now) / intervalMs;

@@ -1,4 +1,3 @@
-import { File, Paths } from "expo-file-system";
 import AuroraWallpaper from "../../modules/aurora-wallpaper";
 import { WallpaperTile } from "../api";
 import { getCollection } from "../collectionsApi";
@@ -35,94 +34,31 @@ export async function fetchPool(source: ChangerSource, screen: ChangerState["scr
   return toPool(items, screen, blocked);
 }
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j]!, a[i]!];
-  }
-  return a;
-}
-
-/** Next wallpaper: walk a shuffled round, no repeats until every one has been shown. */
-function pickNext(state: ChangerState): { item: PoolItem; queue: string[] } | null {
-  const byId = new Map(state.pool.map((p) => [p.id, p]));
-  let queue = state.queue.filter((id) => byId.has(id));
-  if (queue.length === 0) {
-    queue = shuffle([...byId.keys()]);
-    // don't start the new round with the wallpaper that's on screen now
-    if (queue.length > 1 && queue[0] === state.lastWallpaperId) queue.push(queue.shift()!);
-  }
-  const id = queue.shift();
-  const item = id ? byId.get(id) : undefined;
-  return item ? { item, queue } : null;
-}
-
-async function download(url: string): Promise<File> {
-  const dest = new File(Paths.cache, `changer_${Date.now()}.img`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Download failed (${res.status})`);
-  dest.write(new Uint8Array(await res.arrayBuffer()));
-  return dest;
-}
-
-export type ChangeResult = { ok: true; title: string } | { ok: false; error: string; skipped?: boolean };
+export type ChangeResult = { ok: true; title: string } | { ok: false; error: string };
 
 /**
- * Sets the next wallpaper from the chosen source. Used by "Change now" and the background task.
- * `scheduled`: a background run, which is skipped when the last change was less than half an
- * interval ago (e.g. right after "Change now").
+ * "Shuffle now" (and the first change after turning on): refresh the source's list, then the
+ * native side sets the next wallpaper in the round, records it and, when the changer is on,
+ * restarts the timer. Scheduled changes run natively without the app (ChangerScheduler).
  */
-export async function runChange(opts: { scheduled?: boolean } = {}): Promise<ChangeResult> {
-  let state = await loadState();
-  if (!state.source) return { ok: false, error: "Choose where wallpapers come from first.", skipped: true };
-  if (opts.scheduled) {
-    if (!state.enabled) return { ok: false, error: "The wallpaper changer is off.", skipped: true };
-    const halfInterval = (state.intervalHours * 3600 * 1000) / 2;
-    if (state.lastChangedAt && Date.now() - state.lastChangedAt < halfInterval) {
-      return { ok: false, error: "Changed recently.", skipped: true };
-    }
-  }
+export async function runChange(): Promise<ChangeResult> {
+  const state = await loadState();
+  if (!state.source) return { ok: false, error: "Choose where wallpapers come from first." };
+  if (!AuroraWallpaper) return { ok: false, error: "This version of the app can't change wallpapers. Please update the app." };
 
   // Refresh the source; if that fails (offline, signed out), keep using the saved list.
   try {
     const pool = await fetchPool(state.source, state.screen);
-    state = { ...state, pool };
+    if (pool.length > 0) await saveState({ ...(await loadState()), pool });
   } catch {
-    // keep state.pool
+    // keep the saved list
   }
 
-  const fail = async (error: string): Promise<ChangeResult> => {
-    await saveState({ ...state, lastError: error, lastErrorAt: Date.now() });
-    return { ok: false, error };
-  };
-
-  if (state.pool.length === 0) return fail(`No ${state.screen === "mobile" ? "phone " : ""}wallpapers in “${state.source?.name ?? "this source"}”.`);
-  const next = pickNext(state);
-  if (!next) return fail("Couldn't pick a wallpaper.");
-
-  let tmp: File | null = null;
   try {
-    if (!AuroraWallpaper) throw new Error("This version of the app can't change wallpapers in the background. Please update the app.");
-    tmp = await download(next.item.fileUrl);
-    await AuroraWallpaper.setFromFile(tmp.uri, state.target);
-    await saveState({
-      ...state,
-      queue: next.queue,
-      lastChangedAt: Date.now(),
-      lastWallpaperId: next.item.id,
-      lastError: null,
-      lastErrorAt: null,
-    });
-    return { ok: true, title: next.item.title };
+    const res = await AuroraWallpaper.changeNow();
+    return res.ok ? { ok: true, title: res.title } : { ok: false, error: res.error || "Couldn't change the wallpaper." };
   } catch (e) {
-    Sentry.captureException(e, { tags: { feature: "wallpaper-changer", scheduled: String(!!opts.scheduled) } });
-    return fail(e instanceof Error ? e.message : "Couldn't change the wallpaper.");
-  } finally {
-    try {
-      tmp?.delete();
-    } catch {
-      // cache files are cleaned up by the system anyway
-    }
+    Sentry.captureException(e, { tags: { feature: "wallpaper-changer" } });
+    return { ok: false, error: e instanceof Error ? e.message : "Couldn't change the wallpaper." };
   }
 }

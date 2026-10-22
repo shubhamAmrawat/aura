@@ -3,36 +3,19 @@ package expo.modules.aurorawallpaper
 import android.content.Context
 import android.net.Uri
 import android.os.PowerManager
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * Wallpaper changer native side: set a wallpaper from a file (no Activity needed), and
- * schedule the native background job (ChangerWorker). The manual Apply flow keeps using
+ * run the wallpaper changer (ChangerCore / ChangerScheduler). The manual Apply flow keeps using
  * react-native-manage-wallpaper.
  */
 class AuroraWallpaperModule : Module() {
-  companion object {
-    private const val PERIODIC = "aurora-wallpaper-changer"
-    private const val TEST = "aurora-wallpaper-changer-test"
-  }
-
   private val context: Context
     get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
-
-  private val networkConstraint: Constraints
-    get() = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
 
   override fun definition() = ModuleDefinition {
     Name("AuroraWallpaper")
@@ -44,30 +27,32 @@ class AuroraWallpaperModule : Module() {
       true
     }
 
-    /** Runs ChangerWorker about every `intervalMinutes` (Android's minimum is 15). First run after one interval. */
+    /** Turn the changer on, or apply a new interval: next change one interval from now. Returns its time (ms). */
     AsyncFunction("schedule") { intervalMinutes: Int ->
-      val minutes = intervalMinutes.coerceAtLeast(15).toLong()
-      val request = PeriodicWorkRequestBuilder<ChangerWorker>(minutes, TimeUnit.MINUTES)
-        .setConstraints(networkConstraint)
-        .setInitialDelay(minutes, TimeUnit.MINUTES)
-        .build()
-      WorkManager.getInstance(context).enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, request)
-      true
+      ChangerScheduler.start(context, intervalMinutes.coerceAtLeast(15).toLong()).toDouble()
     }
 
     AsyncFunction("cancel") {
-      WorkManager.getInstance(context).cancelUniqueWork(PERIODIC)
+      ChangerScheduler.stop(context)
       true
     }
 
-    /** Dev test: one background change in `delaySeconds`, through the same native worker. */
+    /** "Shuffle now": the next wallpaper in the round (restarts the timer when the changer is on). */
+    AsyncFunction("changeNow") {
+      val result = ChangerCore.change(context, ChangerCore.NORMAL)
+      if (result.ok) ChangerScheduler.enqueuePrefetch(context)
+      mapOf("ok" to result.ok, "title" to (result.title ?: ""), "error" to (result.error ?: ""))
+    }
+
+    /** On app start: make sure the next change is scheduled (and move off the old repeating job). */
+    AsyncFunction("ensureScheduled") {
+      ChangerScheduler.ensure(context)
+      true
+    }
+
+    /** Dev test: the scheduled change, through the real alarm, in `delaySeconds`. */
     AsyncFunction("scheduleTestRun") { delaySeconds: Int ->
-      val request = OneTimeWorkRequestBuilder<ChangerWorker>()
-        .setConstraints(networkConstraint)
-        .setInitialDelay(delaySeconds.toLong(), TimeUnit.SECONDS)
-        .setInputData(Data.Builder().putBoolean(ChangerWorker.KEY_TEST, true).build())
-        .build()
-      WorkManager.getInstance(context).enqueueUniqueWork(TEST, ExistingWorkPolicy.REPLACE, request)
+      ChangerScheduler.setAlarm(context, System.currentTimeMillis() + delaySeconds * 1000L)
       true
     }
 
