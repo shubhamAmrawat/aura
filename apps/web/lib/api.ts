@@ -233,6 +233,42 @@ export async function getTrendingWallpapers(params?: {
   return { data: json.data, hasMore: Boolean(json.hasMore) };
 }
 
+/**
+ * Personalized recommendation feed (content-based, vector similarity, user profile)
+ */
+export async function getPersonalizedFeed(params?: {
+  limit?: number;
+  offset?: number;
+  device?: Device;
+  guestIds?: string[];
+  authToken?: string;
+}): Promise<{ data: Wallpaper[]; hasMore: boolean; profile?: unknown }> {
+  const url = new URL(`${getApiUrl()}/api/wallpapers/feed`);
+  if (params?.limit) url.searchParams.set("limit", String(params.limit));
+  if (params?.offset) url.searchParams.set("offset", String(params.offset));
+  if (params?.guestIds && params.guestIds.length > 0) {
+    url.searchParams.set("guestIds", params.guestIds.join(","));
+  }
+  const screen = screenFor(params?.device);
+  if (screen) url.searchParams.set("screen", screen);
+
+  const headers: Record<string, string> = {};
+  if (params?.authToken) {
+    headers["Authorization"] = `Bearer ${params.authToken}`;
+    headers["Cookie"] = `aura_token=${params.authToken}`;
+  }
+
+  const json = await fetchJsonOrThrow<{
+    data: Wallpaper[];
+    hasMore?: boolean;
+    profile?: unknown;
+  }>(url.toString(), {
+    cache: "no-store",
+    headers,
+  });
+  return { data: json.data, hasMore: Boolean(json.hasMore), profile: json.profile };
+}
+
 /** Type-ahead terms for the search box (client side). */
 export async function getAutocomplete(q: string, device?: Device, signal?: AbortSignal): Promise<string[]> {
   const url = new URL(`${getApiUrl()}/api/search/autocomplete`);

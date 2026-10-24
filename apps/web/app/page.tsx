@@ -2,13 +2,17 @@ import Hero from "./components/Hero";
 import LatestWallpapersInfinite from "./components/LatestWallpapersInfinite";
 import Link from "next/link";
 import { Wallpaper } from "@aura/types";
-import { getWallpapersPage, getFeaturedWallpapers, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
+import { getPersonalizedFeed, getFeaturedWallpapers, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
 import { getDevice } from "@/lib/device.server";
+import { cookies } from "next/headers";
 
 export default async function HomePage() {
   const device = await getDevice();
+  const cookieStore = await cookies();
+  const token = cookieStore.get("aura_token")?.value;
+
   const [wallpapersResult, featuredResult] = await Promise.allSettled([
-    getWallpapersPage({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0, device }),
+    getPersonalizedFeed({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0, device, authToken: token }),
     getFeaturedWallpapers(),
   ]);
 

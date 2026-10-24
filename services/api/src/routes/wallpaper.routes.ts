@@ -2,11 +2,13 @@ import { Router } from "express";
 import { optionalAuth, requireAuth } from "../middleware/auth";
 import { requireAdminSecret } from "../middleware/adminSecret";
 import * as wallpapers from "../controllers/wallpaper.controller";
+import * as recommendations from "../controllers/recommendation.controller";
 
 export const wallpaperRoutes = Router();
 
 // Static paths are registered before "/:id" so they win.
 wallpaperRoutes.get("/", wallpapers.list);
+wallpaperRoutes.get("/feed", optionalAuth, recommendations.getFeed);
 wallpaperRoutes.post("/upload-url", requireAuth, wallpapers.uploadUrl);
 wallpaperRoutes.post("/upload/prepare", requireAuth, wallpapers.prepareUpload);
 wallpaperRoutes.post("/upload/discard", requireAuth, wallpapers.discardUpload);
