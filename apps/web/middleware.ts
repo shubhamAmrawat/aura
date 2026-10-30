@@ -89,7 +89,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Apply to all routes except Next.js internals and static assets
-    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)",
+    // Apply to all routes except Next.js internals, static assets and /.well-known
+    // (Android checks /.well-known/assetlinks.json to open Aurora links in the app).
+    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|\\.well-known/).*)",
   ],
 };

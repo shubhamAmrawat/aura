@@ -1,0 +1,17 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.shubhzx09.aurorawalls",
+      "sha256_cert_fingerprints": [
+        "2B:E6:83:A2:7C:6E:A0:26:CB:D4:AE:57:C3:95:34:30:25:40:45:4D:9C:BA:CB:9C:11:C8:53:C4:F2:C0:FE:6C",
+        "5A:98:D4:AD:8C:1C:E6:4A:A8:E3:BF:DA:2A:C3:83:42:82:D1:9E:15:2E:40:47:FD:4A:09:70:58:42:35:07:C7",
+        "A4:EE:51:C5:28:2F:C6:B9:7B:F9:99:38:61:6B:A2:17:7E:B3:B7:20:FB:06:81:E1:85:10:A6:12:A4:E5:2E:DB",
+        "92:0E:C8:3A:31:14:30:9C:43:0C:E3:03:18:C2:42:08:BF:1F:36:10:0C:21:B4:83:A4:4F:C5:89:4D:31:EA:D5"
+      ]
+    }
+  }
+]
