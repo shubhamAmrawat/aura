@@ -11,7 +11,7 @@ import MasonryFeed from "../../components/MasonryFeed";
 import Sheet from "../../components/Sheet";
 import { Colors } from "../../constants";
 import { useInsets } from "../../hooks/useInsets";
-import { WallpaperTile } from "../../lib/api";
+import { ApiError, WallpaperTile } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { CollectionDetails, getCollection } from "../../lib/collectionsApi";
 import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
@@ -33,6 +33,8 @@ const CollectionScreen = () => {
   const { deleteCollection, removeFromCollection } = useCollectionActions();
 
   const [fetched, setFetched] = useState<CollectionDetails["collection"] | null>(null);
+  /** Opened from a link to a collection that's private (someone else's) or was deleted. */
+  const [unavailable, setUnavailable] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -45,9 +47,18 @@ const CollectionScreen = () => {
   const loadedRevision = useRef(revisionRef.current);
   const fetchPage = useCallback(async () => {
     loadedRevision.current = revisionRef.current;
-    const res = await getCollection(id);
-    setFetched(res.collection);
-    return { data: res.wallpapers, hasMore: false };
+    try {
+      const res = await getCollection(id);
+      setFetched(res.collection);
+      setUnavailable(false);
+      return { data: res.wallpapers, hasMore: false };
+    } catch (e) {
+      if (e instanceof ApiError && [400, 401, 403, 404].includes(e.status)) {
+        setUnavailable(true);
+        return { data: [], hasMore: false };
+      }
+      throw e;
+    }
   }, [id]);
   const feed = useFeed(fetchPage, id, 1000);
   const { reload } = feed;
@@ -229,8 +240,12 @@ const CollectionScreen = () => {
       <MasonryFeed
         feed={visibleFeed}
         header={header}
-        emptyIcon="albums-outline"
-        emptyText="Nothing here yet. Open a wallpaper and tap the bookmark, or long-press any wallpaper in a grid."
+        emptyIcon={unavailable ? "lock-closed-outline" : "albums-outline"}
+        emptyText={
+          unavailable
+            ? "This collection is private or no longer exists."
+            : "Nothing here yet. Open a wallpaper and tap the bookmark, or long-press any wallpaper in a grid."
+        }
         selectedIds={selected}
         onItemPress={selected ? toggleSelected : undefined}
         onItemLongPress={isOwner ? (selected ? toggleSelected : startSelecting) : undefined}

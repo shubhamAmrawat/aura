@@ -23,6 +23,10 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return <ErrorScreen error={error} retry={retry} />;
 }
 
+// A link that opens a screen directly (e.g. a shared wallpaper) still has Home underneath,
+// so Back goes to Home instead of closing the app.
+export const unstable_settings = { initialRouteName: "(tabs)" };
+
 const RootLayout = () => {
   const navigationRef = useNavigationContainerRef();
   useEffect(() => {

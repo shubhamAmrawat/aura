@@ -51,6 +51,22 @@
       },
       "package": "com.shubhzx09.aurorawalls",
       "launchMode": "singleTask",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "www.aurora-walls.com", "pathPrefix": "/wallpaper/" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "pathPrefix": "/category/" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "pathPrefix": "/collection/" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "path": "/trending" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "path": "/latest" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "path": "/categories" },
+            { "scheme": "https", "host": "www.aurora-walls.com", "path": "/search" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "backgroundColor": "#111111",
