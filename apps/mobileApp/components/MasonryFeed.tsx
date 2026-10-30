@@ -1,4 +1,5 @@
 import { ReactElement, useCallback } from "react";
+import { useTabBarSpace } from "../lib/TabBarSpace";
 import * as Haptics from "expo-haptics";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { FlashList } from "@shopify/flash-list";
@@ -49,6 +50,7 @@ const MasonryFeed = ({
   selectedIds,
 }: Props) => {
   const { numofCols, cardGap, screenPadding } = useLayoutInfo();
+  const tabBarSpace = useTabBarSpace();
   const { openSaveSheet } = useCollectionActions();
   const quickSave = useCallback(
     (w: WallpaperTile) => {
@@ -89,7 +91,7 @@ const MasonryFeed = ({
       masonry
       numColumns={numofCols}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: inset, paddingBottom: cardGap * 2 }}
+      contentContainerStyle={{ paddingHorizontal: inset, paddingBottom: cardGap * 2 + tabBarSpace }}
       ListHeaderComponent={
         <View style={{ marginHorizontal: -inset, paddingBottom: cardGap }}>{header ?? null}</View>
       }

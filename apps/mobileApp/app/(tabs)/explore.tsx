@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, BackHandler, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useInsets } from "../../hooks/useInsets";
 import SearchBar from "../../components/searchBar";
 import AvatarButton from "../../components/AvatarButton";
@@ -58,6 +58,15 @@ const Explore = () => {
     setSuggestions([]);
     setActiveQuery(t);
   }, []);
+
+  // Opened with a search already chosen (home's mood chips): run it, then clear the param so
+  // tapping the same mood again later searches again.
+  const { q: qParam } = useLocalSearchParams<{ q?: string }>();
+  useEffect(() => {
+    if (!qParam) return;
+    runSearch(qParam);
+    router.setParams({ q: undefined });
+  }, [qParam, runSearch]);
 
   const clear = useCallback(() => {
     setQuery("");

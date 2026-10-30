@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     top: 78,
   },
   wrapperBottom: {
-    bottom: 80,
+    bottom: 112, // above the floating tab bar
   },
   shadow: {
     width: "100%",

@@ -1,8 +1,11 @@
 import { router } from "expo-router";
 import { WallpaperTile } from "./api";
 
-/** Open the detail screen, passing what the tile already has so it renders instantly. */
-export function openWallpaper(w: WallpaperTile) {
+/**
+ * Open the detail screen, passing what the tile already has so it renders instantly.
+ * `apply`: open the "Set as wallpaper" sheet straight away (home's Set wallpaper buttons).
+ */
+export function openWallpaper(w: WallpaperTile, opts: { apply?: boolean } = {}) {
   router.push({
     pathname: "/wallpaper/[id]",
     params: {
@@ -14,6 +17,7 @@ export function openWallpaper(w: WallpaperTile) {
       title: w.title ?? "",
       w: String(w.width ?? 0),
       h: String(w.height ?? 0),
+      ...(opts.apply ? { apply: "1" } : {}),
     },
   });
 }

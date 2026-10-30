@@ -19,13 +19,15 @@ interface DockProps {
   wallpaper: Wallpaper
   /** Extra buttons shown before Download (the detail screen's Like and lock-screen Preview). */
   leadingActions?: ReactNode
+  /** Open the "Set as wallpaper" sheet as soon as the screen opens (home's Set wallpaper buttons). */
+  openApplyOnMount?: boolean
 }
 
 
-const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions }: DockProps) => {
+const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions, openApplyOnMount }: DockProps) => {
   const [downloading, setDownloading] = useState(false)
   const [applying, setApplying] = useState(false)
-  const [showApplySheet, setShowApplySheet] = useState(false)
+  const [showApplySheet, setShowApplySheet] = useState(!!openApplyOnMount)
   const [cropTarget, setCropTarget] = useState<WallpaperTarget | null>(null)
   const [showDetailsSheet, setShowDetailsSheet] = useState(false)
   const { showToast } = useToast()

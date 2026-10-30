@@ -11,6 +11,7 @@ import { Colors } from "../constants";
 import SectionTitle from "./SectionTitle";
 import SkeletonBlock from "./SkeletonBlock";
 import { useVisibleWallpapers } from "../lib/BlocksContext";
+import { useTabBarSpace } from "../lib/TabBarSpace";
 
 const NO_ITEMS: WallpaperTile[] = [];
 
@@ -34,6 +35,7 @@ type Props = { screen: ScreenFilter; onSearch: (term: string) => void };
 /** Explore when nothing is searched: popular searches, grouped category tiles, then search previews (loaded as they scroll in). */
 const ExploreDiscover = ({ screen, onSearch }: Props) => {
   const { width } = useLayoutInfo();
+  const tabBarSpace = useTabBarSpace();
   const [categories, setCategories] = useState<Category[] | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
 
@@ -98,7 +100,7 @@ const ExploreDiscover = ({ screen, onSearch }: Props) => {
       windowSize={5}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 }}
+      contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 + tabBarSpace }}
       renderItem={({ item }) => {
         if (item.type === "terms") {
           return (

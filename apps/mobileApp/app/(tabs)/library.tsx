@@ -14,6 +14,7 @@ import { useAuth } from "../../lib/AuthContext";
 import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
 import { getLikedWallpapers } from "../../lib/wallpaperApi";
 import { useFeed } from "../../lib/useFeed";
+import { useTabBarSpace } from "../../lib/TabBarSpace";
 
 type Section = "liked" | "collections";
 const GAP = 12;
@@ -21,6 +22,7 @@ const INSET = 16;
 
 /** Library tab: wallpapers you liked, and your collections (same collections as the website). */
 const Library = () => {
+  const tabBarSpace = useTabBarSpace();
   const { user } = useAuth();
   const [section, setSection] = useState<Section>("liked");
   const { width } = useWindowDimensions();
@@ -122,7 +124,7 @@ const Library = () => {
           keyExtractor={(c) => c.id}
           numColumns={2}
           columnWrapperStyle={{ gap: GAP }}
-          contentContainerStyle={styles.grid}
+          contentContainerStyle={[styles.grid, { paddingBottom: 32 + tabBarSpace }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefreshCollections} tintColor={Colors.accent} colors={[Colors.accent]} />}
           ListHeaderComponent={
             collections.length === 0 ? (

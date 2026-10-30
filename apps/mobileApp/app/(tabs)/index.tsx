@@ -1,7 +1,5 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import AvatarButton from "../../components/AvatarButton";
-import Header from "../../components/Header";
 import HomeSections from "../../components/HomeSections";
 import MasonryFeed from "../../components/MasonryFeed";
 import { Colors } from "../../constants";
@@ -20,10 +18,6 @@ const Home = () => {
 
   return (
     <View style={styles.container}>
-      <Header
-        logo
-        rightElement={<AvatarButton />}
-      />
       <MasonryFeed
         feed={feed}
         header={<HomeSections screen={screen} refreshToken={refreshToken} />}

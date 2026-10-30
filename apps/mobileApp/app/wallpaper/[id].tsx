@@ -36,6 +36,7 @@
       thumbUrl: paramThumbUrl,
       title: paramTitle,
       w, h,
+      apply: applyParam,
     } = useLocalSearchParams<{
       id: string;
       dominantColor: string;
@@ -46,6 +47,7 @@
       w: string;
       h: string;
       screen?: "mobile" | "tablet";
+      apply?: string;
     }>();
     const { screen } = useScreenFilter();
     const { showToast } = useToast();
@@ -503,6 +505,7 @@
             bottomOffset={bottomPadding + 16}
             screenWidth={width}
             wallpaper={dockWallpaper}
+            openApplyOnMount={applyParam === "1"}
             leadingActions={
               <>
                 <DockAction

@@ -21,6 +21,13 @@ export async function getFeaturedWallpapers(screen: ScreenFilter): Promise<Wallp
   return res.data ?? [];
 }
 
+export type DailyWallpaper = WallpaperTile & { categoryName?: string | null };
+
+/** Wallpaper of the day: the same pick for everyone today (IST), never repeated within a cycle. */
+export async function getDailyWallpaper(screen: ScreenFilter): Promise<{ day: string; wallpaper: DailyWallpaper | null }> {
+  return request<{ day: string; wallpaper: DailyWallpaper | null }>(`/api/wallpapers/daily?screen=${screen}`);
+}
+
 /** Wallpapers the logged-in user has liked, newest first. */
 export async function getLikedWallpapers(): Promise<WallpaperTile[]> {
   const res = await request<{ data: WallpaperTile[] }>("/api/likes");

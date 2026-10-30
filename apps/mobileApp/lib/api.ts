@@ -68,6 +68,8 @@ export type Wallpaper = {
 export type WallpaperTile = Pick<Wallpaper, "id" | "title" | "fileUrl" | "blurhash" | "dominantColor" | "width" | "height"> & {
   thumbUrl?: string | null
   creatorId?: string | null
+  /** Featured and wallpaper-of-the-day only: the creator's @username (null for admin uploads). */
+  creatorUsername?: string | null
 }
 export type Category = {
   id: string

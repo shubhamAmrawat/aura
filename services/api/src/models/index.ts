@@ -7,3 +7,4 @@ export * from "./auth.model";
 export * from "./admin.model";
 export * from "./creator.model";
 export * from "./moderation.model";
+export * from "./daily.model";
