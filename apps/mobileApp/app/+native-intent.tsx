@@ -67,7 +67,9 @@ function fromNotification(path: string): string {
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
-    if (path.startsWith("aurora://")) return fromNotification(path);
+    // Only links built by our notifications (they carry _n=, or are aurora://update). Everything else,
+    // e.g. the dev client's own aurora://expo-development-client/… launch link, is left to Expo Router.
+    if (/^aurora:\/\/update(\?|$)/.test(path) || (path.startsWith("aurora://") && /[?&]_n=/.test(path))) return fromNotification(path);
     const url = new URL(path, "aurora://app");
     const isWebsite = (url.protocol === "https:" || url.protocol === "http:") && WEB_HOSTS.has(url.hostname);
     if (isWebsite) return webPathToAppRoute(url.pathname, url.searchParams) ?? "/";
