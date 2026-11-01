@@ -7,6 +7,7 @@ import { deleteFile, generateUploadUrl, getFileBytes, keyFromPublicUrl, uploadFi
 import { extractImageMetadataFromBuffer } from "../utils/imageMetadata";
 import { heavyImageWork, renderThumb, thumbKeyFor } from "./wallpaperThumb.service";
 import { screenApplication } from "./creatorAi.service";
+import { alertAdmins } from "./notificationTriggers.service";
 
 /** Rules of the creator program — the web and app show the same numbers. */
 export const CREATOR_RULES = {
@@ -219,6 +220,19 @@ export async function submit(userId: string, input: { sampleIds: string[]; about
   void clearDrafts(userId);
   // AI pre-screen in the background; the admin queue shows "Scoring…" until it's done.
   void runScreen(app.id);
+  void db
+    .select({ username: users.username })
+    .from(users)
+    .where(eq(users.id, userId))
+    .then(([u]) =>
+      alertAdmins("application", {
+        title: "New creator application",
+        body: u?.username ? `@${u.username} applied to become a creator.` : "Someone applied to become a creator.",
+        url: "https://www.aurora-walls.com/admin/creator-applications",
+        dedupeKey: `alert:application:${app.id}`,
+      })
+    )
+    .catch(() => undefined);
   return getStatus(userId);
 }
 

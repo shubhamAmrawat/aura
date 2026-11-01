@@ -93,6 +93,10 @@ export function typeLabel(type: string): { label: string; color: string } {
     case "update":
     case "announcement":
       return { label: "Aurora", color: "#93C5FD" };
+    case "admin_report":
+    case "admin_application":
+    case "admin_delivery":
+      return { label: "Admin", color: "#F87171" };
     case "upload_live":
     case "upload_rejected":
     case "milestone":

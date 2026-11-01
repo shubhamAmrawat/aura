@@ -55,6 +55,8 @@ object RichNotifications {
 
     val notificationId = (payload.optString("nid").ifEmpty { System.currentTimeMillis().toString() }).hashCode()
     val url = payload.optString("url").takeIf { it.isNotEmpty() && it != "null" }
+    // delivery id: the app reports taps with it (open tracking)
+    val deliveryId = payload.optString("did").takeIf { it.isNotEmpty() && it != "null" }
     val image = payload.optString("image").takeIf { it.startsWith("https://") }?.let { download(it) }
 
     val builder = NotificationCompat.Builder(context, channelId)
@@ -63,7 +65,7 @@ object RichNotifications {
       .setContentTitle(title)
       .setAutoCancel(true)
       .setPriority(if (channelId == "drops") NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-      .setContentIntent(open(context, url, notificationId, 0))
+      .setContentIntent(open(context, url, notificationId, 0, deliveryId, "tap"))
     if (!text.isNullOrEmpty()) builder.setContentText(text)
 
     if (image != null) {
@@ -81,7 +83,7 @@ object RichNotifications {
         val b = buttons.optJSONObject(i) ?: continue
         val label = b.optString("label").takeIf { it.isNotEmpty() } ?: continue
         val target = b.optString("url").takeIf { it.isNotEmpty() } ?: continue
-        builder.addAction(0, label, open(context, target, notificationId, i + 1))
+        builder.addAction(0, label, open(context, target, notificationId, i + 1, deliveryId, b.optString("id").ifEmpty { "button" }))
       }
     }
 
@@ -90,7 +92,7 @@ object RichNotifications {
   }
 
   /** aurora://path for app paths (with the notification id, so the app can clear it), https as is. */
-  private fun open(context: Context, url: String?, notificationId: Int, slot: Int): PendingIntent {
+  private fun open(context: Context, url: String?, notificationId: Int, slot: Int, deliveryId: String?, action: String): PendingIntent {
     val intent = when {
       url != null && url.startsWith("https://") -> Intent(Intent.ACTION_VIEW, Uri.parse(url))
       else -> {
@@ -100,7 +102,8 @@ object RichNotifications {
           else -> url.trimStart('/')
         }
         val sep = if (path.contains('?')) "&" else "?"
-        Intent(Intent.ACTION_VIEW, Uri.parse("aurora://$path$sep$NOTIFICATION_PARAM=$notificationId")).setPackage(context.packageName)
+        val tracking = if (deliveryId != null) "&_d=${Uri.encode(deliveryId)}&_a=${Uri.encode(action)}" else ""
+        Intent(Intent.ACTION_VIEW, Uri.parse("aurora://$path$sep$NOTIFICATION_PARAM=$notificationId$tracking")).setPackage(context.packageName)
       }
     }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     // unique request code per notification + button, so the extras don't overwrite each other

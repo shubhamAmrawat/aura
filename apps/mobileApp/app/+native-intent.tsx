@@ -1,6 +1,7 @@
 import { DeviceEventEmitter } from "react-native";
 import AuroraNotify from "../modules/aurora-notify";
 import { UPDATE_REQUESTED } from "../lib/appUpdate";
+import { reportOpened } from "../lib/notifications";
 
 /**
  * Android App Links: www.aurora-walls.com links open in the app (see android.intentFilters in
@@ -57,11 +58,17 @@ function fromNotification(path: string): string {
       }
     }
   }
+  // open tracking: which delivery was tapped, and which button
+  const d = params.find((p) => p.startsWith("_d="));
+  if (d) {
+    const a = params.find((p) => p.startsWith("_a="));
+    void reportOpened(decodeURIComponent(d.slice(3)), a ? decodeURIComponent(a.slice(3)) : "tap");
+  }
   if (route === "/update") {
     setTimeout(() => DeviceEventEmitter.emit(UPDATE_REQUESTED), 600);
     return "/";
   }
-  const kept = params.filter((p) => !p.startsWith("_n="));
+  const kept = params.filter((p) => !/^_(n|d|a)=/.test(p));
   return route + (kept.length ? `?${kept.join("&")}` : "");
 }
 

@@ -725,13 +725,88 @@ export const deleteDrop = (id: string) => adminCall<{ message: string }>("DELETE
 // ─── Notifications ──────────────────────────────────────────
 
 export type AppVersions = { latest: string | null; min: string | null };
+
+export type NotificationRules = {
+  quietStart: string;
+  quietEnd: string;
+  dailyCap: number;
+  auto: { drop: boolean; daily: boolean; upload_live: boolean; upload_rejected: boolean; milestone: boolean; creator: boolean; report: boolean };
+  alerts: { report: boolean; application: boolean; deliveryProblems: boolean };
+};
+
 export type AdminNotificationsOverview = {
-  devices: { total: number; signedIn: number; daily: number; drops: number; updates: number };
-  recent: { id: string; type: string; title: string; body: string | null; pushed: number; createdAt: string }[];
+  devices: { total: number; signedIn: number; daily: number; drops: number; updates: number; browsers: number };
   versions: AppVersions;
+  rules: NotificationRules;
+  webPush: boolean;
+};
+
+export type NotifyAudience = {
+  kind: "everyone" | "signedIn" | "signedOut" | "creators" | "users" | "devices";
+  userIds?: string[];
+  targets?: string[];
+  screen?: "mobile" | "tablet" | null;
+  versionBelow?: string | null;
+  activeDays?: number | null;
+  includeWeb?: boolean;
+};
+
+export type NotifyAction = { id: string; label: string; url: string };
+export type NotifyMessage = {
+  type: "announcement" | "update" | "drop";
+  title: string;
+  body?: string | null;
+  imageUrl?: string | null;
+  url?: string | null;
+  actions: NotifyAction[];
+};
+
+export type CampaignStatus = "scheduled" | "held" | "sending" | "sent" | "cancelled";
+export type CampaignRow = {
+  id: string;
+  kind: "manual" | "auto" | "test";
+  type: string;
+  title: string;
+  body: string | null;
+  audience: NotifyAudience | { kind: "admins" };
+  status: CampaignStatus;
+  scheduledFor: string;
+  createdAt: string;
+  finishedAt: string | null;
+  targeted: number;
+  sent: number;
+  delivered: number;
+  failed: number;
+  capped: number;
+  opened: number;
+};
+export type CampaignDetail = {
+  campaign: CampaignRow & { imageUrl: string | null; url: string | null; actions: NotifyAction[] };
+  taps: { action: string | null; n: number }[];
+  failures: { channel: "app" | "web"; error: string | null; deviceName: string | null; username: string | null }[];
+};
+
+export type NotifyUser = { id: string; username: string; displayName: string; email: string; avatarUrl: string | null; phones: number; browsers: number };
+export type NotifyPrefs = Partial<Record<"drops" | "daily" | "updates" | "uploads" | "milestones" | "account", boolean>>;
+export type UserNotifications = {
+  user: { id: string; username: string; displayName: string; email: string; avatarUrl: string | null };
+  phones: { token: string; deviceName: string | null; osVersion: string | null; appVersion: string | null; screen: string; prefs: NotifyPrefs; lastSeenAt: string; disabledAt: string | null }[];
+  browsers: { endpoint: string; userAgent: string | null; prefs: NotifyPrefs; lastSeenAt: string; disabledAt: string | null }[];
+  history: { id: string; title: string; type: string; kind: string; channel: "app" | "web"; target: string; status: string; error: string | null; createdAt: string; sentAt: string | null; openedAt: string | null }[];
 };
 
 export const getNotificationsOverview = () => adminGet<AdminNotificationsOverview>("/notifications");
-export const sendBroadcast = (body: { type: "announcement" | "update"; title: string; body?: string; url?: string }) =>
-  adminCall<{ id: string | null; pushed: number }>("POST", "/notifications/broadcast", body);
+export const previewAudience = (audience: NotifyAudience, type: NotifyMessage["type"]) =>
+  adminCall<{ phones: number; browsers: number; people: number }>("POST", "/notifications/preview", { audience, type });
+export const sendNotification = (body: { message: NotifyMessage; audience: NotifyAudience; scheduledFor: string | null; respectQuiet: boolean }) =>
+  adminCall<CampaignDetail>("POST", "/notifications/send", body);
+export const sendTestNotification = (message: NotifyMessage) => adminCall<CampaignDetail>("POST", "/notifications/test", { message });
+export const listCampaigns = (filter: "all" | "manual" | "auto" | "scheduled", offset = 0) =>
+  adminGet<{ data: CampaignRow[]; hasMore: boolean }>(`/notifications/campaigns?filter=${filter}&limit=30&offset=${offset}`);
+export const getCampaign = (id: string) => adminGet<CampaignDetail>(`/notifications/campaigns/${id}`);
+export const cancelCampaign = (id: string) => adminCall<CampaignDetail>("POST", `/notifications/campaigns/${id}/cancel`);
+export const searchNotifyUsers = (q: string) => adminGet<{ data: NotifyUser[] }>(`/notifications/users?q=${encodeURIComponent(q)}`).then((r) => r.data);
+export const getUserNotifications = (id: string) => adminGet<UserNotifications>(`/notifications/users/${id}`);
+export const removeNotifyTarget = (target: string) => adminCall<{ ok: true }>("POST", "/notifications/devices/remove", { target });
+export const saveNotificationRules = (rules: NotificationRules) => adminCall<{ rules: NotificationRules }>("PUT", "/notifications/rules", rules);
 export const saveAppVersions = (v: AppVersions) => adminCall<{ versions: AppVersions }>("PUT", "/app-versions", v);

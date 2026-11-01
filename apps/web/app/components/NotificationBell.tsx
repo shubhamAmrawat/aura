@@ -7,11 +7,12 @@ import { useAuth } from "@/lib/authContext";
 import { useDevice } from "@/lib/useDevice";
 import { screenFor } from "@/lib/device";
 import { getInbox, getUnreadCount, markSeen, timeAgo, typeLabel, webHref, type NotificationItem } from "@/lib/notificationsApi";
+import { dismissPrompt, enableWebPush, promptDismissed, syncWebPush, webPushState, type WebPushState } from "@/lib/webPush";
 
 const POLL_MS = 90_000;
 
-/** Navbar bell: unread count, and a panel with the latest notifications. */
-export default function NotificationBell() {
+/** Navbar bell: unread count, and a panel with the latest notifications (+ turning on browser notifications). */
+export default function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
   const { user, loaded } = useAuth();
   const { device } = useDevice();
   const screen = screenFor(device);
@@ -22,6 +23,25 @@ export default function NotificationBell() {
   const [seenBefore, setSeenBefore] = useState<number>(0);
   const [error, setError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const [push, setPush] = useState<WebPushState>("unsupported");
+  const [pushBusy, setPushBusy] = useState(false);
+
+  // Browser notifications: what this browser can do, and keep the subscription linked to the account.
+  useEffect(() => {
+    if (!loaded) return;
+    void webPushState().then(setPush).catch(() => undefined);
+    void syncWebPush();
+  }, [loaded, signedIn]);
+
+  const turnOnPush = async () => {
+    setPushBusy(true);
+    try {
+      const ok = await enableWebPush();
+      setPush(ok ? "on" : await webPushState());
+    } finally {
+      setPushBusy(false);
+    }
+  };
 
   const refreshCount = useCallback(() => {
     if (!loaded) return;
@@ -90,12 +110,37 @@ export default function NotificationBell() {
         <div
           role="dialog"
           aria-label="Notifications"
-          className="absolute right-0 top-12 z-50 w-[min(400px,calc(100vw-24px))] overflow-hidden rounded-2xl"
+          className={`absolute ${align === "left" ? "left-0" : "right-0"} top-12 z-50 w-[min(400px,calc(100vw-24px))] overflow-hidden rounded-2xl`}
           style={{ background: "var(--bg-elevated)", border: "1px solid var(--border-hover)", boxShadow: "0 24px 64px rgba(0,0,0,0.6)" }}
         >
           <div className="flex items-center px-4 pb-2 pt-4">
             <p className="flex-1 text-[26px] leading-none" style={{ fontFamily: "var(--font-serif)", color: "var(--text-primary)" }}>Notifications</p>
           </div>
+
+          {push === "off" && !promptDismissed() && (
+            <div className="mx-3 mb-2 flex flex-col gap-2.5 rounded-xl p-3" style={{ background: "var(--bg-secondary)" }}>
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
+                  <BellIcon size={15} strokeWidth={2.4} aria-hidden />
+                </span>
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Get notified in this browser</span>
+                  <span className="text-[12.5px] leading-snug" style={{ color: "var(--text-secondary)" }}>New drops and your uploads, even when Aurora isn&apos;t open. Turn off any time.</span>
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" disabled={pushBusy} onClick={() => void turnOnPush()} className="h-9 flex-1 rounded-full text-[13px] font-extrabold disabled:opacity-50" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>
+                  {pushBusy ? "Turning on…" : "Turn on"}
+                </button>
+                <button type="button" onClick={() => { dismissPrompt(); setPush("unavailable"); }} className="h-9 rounded-full px-4 text-[13px] font-semibold" style={{ color: "var(--text-secondary)" }}>
+                  Not now
+                </button>
+              </div>
+            </div>
+          )}
+          {push === "denied" && (
+            <p className="mx-4 mb-2 text-[12px]" style={{ color: "var(--text-muted)" }}>Browser notifications are blocked for this site. Allow them in the address bar&apos;s site settings to turn them on.</p>
+          )}
 
           <div className="max-h-[60vh] overflow-y-auto">
             {error && <p className="px-4 py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>Couldn&apos;t load notifications.</p>}

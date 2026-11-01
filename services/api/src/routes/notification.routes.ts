@@ -12,6 +12,11 @@ notificationRoutes.post("/devices", optionalAuth, n.registerDevice);
 notificationRoutes.get("/devices/prefs", n.getPrefs);
 notificationRoutes.put("/devices/prefs", n.setPrefs);
 notificationRoutes.post("/devices/disable", n.disableDevice);
+notificationRoutes.post("/opened", n.opened);
+notificationRoutes.get("/web/key", n.webKey);
+notificationRoutes.post("/web/subscribe", optionalAuth, n.webSubscribe);
+notificationRoutes.post("/web/unsubscribe", n.webUnsubscribe);
+notificationRoutes.put("/web/prefs", n.webPrefs);
 notificationRoutes.post("/tick", requireAdminSecret, n.tick);
 
 export const appRoutes = Router();

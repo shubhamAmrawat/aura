@@ -17,6 +17,8 @@ import {
 import { useToast } from "@/lib/toast";
 import { Modal, StatusBadge, Toggle, inputStyle } from "../_components/ui";
 import { XIcon } from "lucide-react";
+import UserNotificationsPanel from "../notifications/UserNotificationsPanel";
+import { useAuth } from "@/lib/authContext";
 
 const PAGE = 50;
 const fmt = (n: number) => new Intl.NumberFormat("en-IN").format(n);
@@ -275,6 +277,7 @@ function UserDrawer({ id, onClose, onChanged, onDeleted }: {
   onDeleted: (id: string) => void;
 }) {
   const { toast } = useToast();
+  const { user: me } = useAuth();
   const [u, setU] = useState<AdminUserDetail | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -442,6 +445,8 @@ function UserDrawer({ id, onClose, onChanged, onDeleted }: {
                   </div>
                 </section>
               )}
+
+              <UserNotificationsPanel userId={u.id} isSelf={u.id === me?.id} />
 
               <section className="flex flex-col gap-2">
                 <h3 className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Recent downloads</h3>

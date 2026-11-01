@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Linking } from "react-native";
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
-import { configureNotifications, registerForPush } from "./notifications";
+import { configureNotifications, registerForPush, reportOpened } from "./notifications";
 import type { ScreenFilter } from "./wallpaperApi";
 
 /** Where a notification url goes in the app (used if expo-notifications drew the notification). */
@@ -31,9 +31,11 @@ export function usePushSetup(loaded: boolean, userId: string | null, screen: Scr
   useEffect(() => {
     const handle = (r: Notifications.NotificationResponse | null) => {
       if (!r) return;
-      const data = r.notification.request.content.data as { url?: string | null; actions?: Record<string, string> } | undefined;
+      const data = r.notification.request.content.data as { url?: string | null; actions?: Record<string, string>; did?: string } | undefined;
       const action = r.actionIdentifier;
-      const target = action && action !== Notifications.DEFAULT_ACTION_IDENTIFIER ? data?.actions?.[action] : data?.url;
+      const isButton = !!action && action !== Notifications.DEFAULT_ACTION_IDENTIFIER;
+      const target = isButton ? data?.actions?.[action] : data?.url;
+      if (data?.did) void reportOpened(data.did, isButton ? action : "tap");
       openNotificationUrl(target ?? null);
       void Notifications.clearLastNotificationResponseAsync().catch(() => undefined);
     };

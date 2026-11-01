@@ -1,181 +1,38 @@
-import { and, desc, eq, gt, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../config/db";
-import { notifications, notificationSeen, pushDevices, type NotificationAction, type NotificationPrefs } from "../models";
-import { sendExpoPush, type ExpoMessage } from "../integrations/expoPush";
+import { notifications, notificationSeen, pushDevices, webPushSubscriptions, type NotificationPrefs } from "../models";
+import { PREF_DEFAULTS } from "./notify/engine";
 import type { ScreenFilter } from "../utils/screenFilter";
 
 /**
- * Notifications: an inbox row per event (personal or broadcast) and an app push to the phones
- * that want that type. Every send is best-effort: a failed push never fails the action that
- * caused it, and dedupeKey makes sure one event is only ever sent once.
+ * Notifications: phones and browsers (with their switches), and the inbox. Sending lives in
+ * notify/engine.ts.
  */
-
-export type NotificationType =
-  | "drop"
-  | "daily"
-  | "update"
-  | "announcement"
-  | "upload_live"
-  | "upload_rejected"
-  | "milestone"
-  | "creator_approved"
-  | "creator_rejected"
-  | "report_reviewed";
-
-type PrefKey = keyof NotificationPrefs;
-
-const PREF: Record<NotificationType, PrefKey> = {
-  drop: "drops",
-  daily: "daily",
-  update: "updates",
-  announcement: "updates",
-  upload_live: "uploads",
-  upload_rejected: "uploads",
-  milestone: "milestones",
-  creator_approved: "account",
-  creator_rejected: "account",
-  report_reviewed: "account",
-};
-
-/** Off unless the user turns it on: the daily pick. Everything else is on by default. */
-export const PREF_DEFAULTS: Required<NotificationPrefs> = { drops: true, daily: false, updates: true, uploads: true, milestones: true, account: true };
-
-/** Android channel per type (the app creates these channels with the same ids). */
-const CHANNEL: Record<NotificationType, string> = {
-  drop: "drops",
-  daily: "daily",
-  update: "updates",
-  announcement: "updates",
-  upload_live: "uploads",
-  upload_rejected: "uploads",
-  milestone: "uploads",
-  creator_approved: "account",
-  creator_rejected: "account",
-  report_reviewed: "account",
-};
-
-/** Push lifetime: stale drops / daily picks shouldn't arrive days later. */
-const TTL: Partial<Record<NotificationType, number>> = { drop: 24 * 3600, daily: 12 * 3600 };
-
-export type NewNotification = {
-  type: NotificationType;
-  title: string;
-  body?: string | null;
-  imageUrl?: string | null;
-  /** path (same on app and website), https link, or null = open the inbox */
-  url?: string | null;
-  /** button ids must match the app's category for this type */
-  actions?: NotificationAction[];
-  dedupeKey?: string;
-  /** broadcasts: only phones of this shape */
-  screen?: ScreenFilter | null;
-};
-
-async function insertRow(userId: string | null, n: NewNotification) {
-  const [row] = await db
-    .insert(notifications)
-    .values({
-      userId,
-      type: n.type,
-      title: n.title,
-      body: n.body ?? null,
-      imageUrl: n.imageUrl ?? null,
-      url: n.url ?? null,
-      actions: n.actions ?? [],
-      screen: n.screen ?? null,
-      dedupeKey: n.dedupeKey ?? null,
-    })
-    .onConflictDoNothing({ target: notifications.dedupeKey })
-    .returning();
-  return row ?? null; // null = this event was already sent
-}
-
-const prefOn = (type: NotificationType) => {
-  const key = PREF[type];
-  return sql`coalesce((${pushDevices.prefs} ->> ${key})::boolean, ${PREF_DEFAULTS[key]})`;
-};
-
-async function pushRow(row: typeof notifications.$inferSelect, audience: SQL | undefined) {
-  const type = row.type as NotificationType;
-  const devices = await db
-    .select({ token: pushDevices.token })
-    .from(pushDevices)
-    .where(and(isNull(pushDevices.disabledAt), prefOn(type), audience));
-  if (!devices.length) return;
-
-  const actions = row.actions ?? [];
-  const image = row.imageUrl && /^https:\/\//.test(row.imageUrl) ? row.imageUrl : null;
-  // `rich`: the app's native module draws it (big picture + these buttons, each a deep link).
-  // Kept as a data-only push (no richContent), so Android never shows it without the buttons.
-  const data = {
-    rich: true,
-    nid: row.id,
-    type,
-    url: row.url,
-    image,
-    buttons: actions.map((a) => ({ id: a.id, label: a.label, url: a.url })),
-    actions: Object.fromEntries(actions.map((a) => [a.id, a.url])),
-  };
-  const messages: ExpoMessage[] = devices.map((d) => ({
-    to: d.token,
-    title: row.title,
-    ...(row.body ? { body: row.body } : {}),
-    data,
-    channelId: CHANNEL[type],
-    ...(actions.length ? { categoryId: type } : {}),
-    priority: "high",
-    sound: "default",
-    ...(TTL[type] ? { ttl: TTL[type] } : {}),
-  }));
-
-  const { sent, deadTokens } = await sendExpoPush(messages);
-  if (deadTokens.length) {
-    await db.update(pushDevices).set({ disabledAt: new Date() }).where(inArray(pushDevices.token, deadTokens));
-  }
-  await db.update(notifications).set({ pushed: sent }).where(eq(notifications.id, row.id));
-}
-
-/** A personal notification: inbox row + push to the user's phones. Never throws. */
-export async function notifyUser(userId: string, n: NewNotification) {
-  try {
-    const row = await insertRow(userId, n);
-    if (row) await pushRow(row, eq(pushDevices.userId, userId));
-  } catch (e) {
-    console.error(`[notify] ${n.type} for user failed:`, e instanceof Error ? e.message : e);
-  }
-}
-
-/** A broadcast: one inbox row everyone sees + push to every phone that wants it. Never throws. */
-export async function broadcast(n: NewNotification) {
-  try {
-    const row = await insertRow(null, n);
-    if (!row) return null;
-    await pushRow(row, n.screen ? eq(pushDevices.screen, n.screen) : undefined);
-    const [after] = await db.select({ pushed: notifications.pushed }).from(notifications).where(eq(notifications.id, row.id));
-    return { id: row.id, pushed: after?.pushed ?? 0 };
-  } catch (e) {
-    console.error(`[notify] broadcast ${n.type} failed:`, e instanceof Error ? e.message : e);
-    return null;
-  }
-}
-
-/** Was this event already sent? */
-export async function alreadySent(dedupeKey: string) {
-  const [row] = await db.select({ id: notifications.id }).from(notifications).where(eq(notifications.dedupeKey, dedupeKey)).limit(1);
-  return !!row;
-}
 
 // ─── devices ────────────────────────────────────────────────
 
-export async function registerDevice(input: { token: string; userId: string | null; screen: ScreenFilter; platform: string; appVersion: string | null }) {
+export async function registerDevice(input: {
+  token: string;
+  userId: string | null;
+  screen: ScreenFilter;
+  platform: string;
+  appVersion: string | null;
+  deviceName: string | null;
+  osVersion: string | null;
+}) {
   const now = new Date();
+  const fields = {
+    userId: input.userId,
+    screen: input.screen,
+    platform: input.platform,
+    appVersion: input.appVersion,
+    deviceName: input.deviceName,
+    osVersion: input.osVersion,
+  };
   await db
     .insert(pushDevices)
-    .values({ token: input.token, userId: input.userId, screen: input.screen, platform: input.platform, appVersion: input.appVersion })
-    .onConflictDoUpdate({
-      target: pushDevices.token,
-      set: { userId: input.userId, screen: input.screen, platform: input.platform, appVersion: input.appVersion, lastSeenAt: now, disabledAt: null },
-    });
+    .values({ token: input.token, ...fields })
+    .onConflictDoUpdate({ target: pushDevices.token, set: { ...fields, lastSeenAt: now, disabledAt: null } });
   return getDevicePrefs(input.token);
 }
 
@@ -268,25 +125,44 @@ export async function markSeen(userId: string) {
   return { seenAt: now };
 }
 
-/** Admin: how many phones can get push, and per type how many want it. */
+/** Admin: how many phones and browsers can get push, and how many want each Aurora-wide type. */
 export async function deviceStats() {
-  const [row] = await db
+  const on = (col: typeof pushDevices.prefs, key: keyof NotificationPrefs) => sql`coalesce((${col} ->> ${key})::boolean, ${PREF_DEFAULTS[key]})`;
+  const [app] = await db
     .select({
-      total: sql<number>`count(*) filter (where ${pushDevices.disabledAt} is null)::int`,
-      signedIn: sql<number>`count(*) filter (where ${pushDevices.disabledAt} is null and ${pushDevices.userId} is not null)::int`,
-      daily: sql<number>`count(*) filter (where ${pushDevices.disabledAt} is null and ${prefOn("daily")})::int`,
-      drops: sql<number>`count(*) filter (where ${pushDevices.disabledAt} is null and ${prefOn("drop")})::int`,
-      updates: sql<number>`count(*) filter (where ${pushDevices.disabledAt} is null and ${prefOn("update")})::int`,
+      total: sql<number>`count(*)::int`,
+      signedIn: sql<number>`count(*) filter (where ${pushDevices.userId} is not null)::int`,
+      daily: sql<number>`count(*) filter (where ${on(pushDevices.prefs, "daily")})::int`,
+      drops: sql<number>`count(*) filter (where ${on(pushDevices.prefs, "drops")})::int`,
+      updates: sql<number>`count(*) filter (where ${on(pushDevices.prefs, "updates")})::int`,
     })
-    .from(pushDevices);
-  return row ?? { total: 0, signedIn: 0, daily: 0, drops: 0, updates: 0 };
+    .from(pushDevices)
+    .where(isNull(pushDevices.disabledAt));
+  const [web] = await db.select({ total: sql<number>`count(*)::int` }).from(webPushSubscriptions).where(isNull(webPushSubscriptions.disabledAt));
+  return { ...(app ?? { total: 0, signedIn: 0, daily: 0, drops: 0, updates: 0 }), browsers: web?.total ?? 0 };
 }
 
-export async function recentBroadcasts(limit = 20) {
-  return db
-    .select({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body, pushed: notifications.pushed, createdAt: notifications.createdAt })
-    .from(notifications)
-    .where(isNull(notifications.userId))
-    .orderBy(desc(notifications.createdAt))
-    .limit(limit);
+// ─── website (Web Push) subscriptions ───────────────────────
+
+export async function subscribeWeb(input: { endpoint: string; p256dh: string; auth: string; userId: string | null; userAgent: string | null }) {
+  const now = new Date();
+  const fields = { p256dh: input.p256dh, auth: input.auth, userId: input.userId, userAgent: input.userAgent };
+  await db
+    .insert(webPushSubscriptions)
+    .values({ endpoint: input.endpoint, ...fields })
+    .onConflictDoUpdate({ target: webPushSubscriptions.endpoint, set: { ...fields, lastSeenAt: now, disabledAt: null } });
+  return { ok: true };
+}
+
+export async function unsubscribeWeb(endpoint: string) {
+  await db.update(webPushSubscriptions).set({ disabledAt: new Date() }).where(eq(webPushSubscriptions.endpoint, endpoint));
+  return { ok: true };
+}
+
+export async function setWebPrefs(endpoint: string, prefs: NotificationPrefs) {
+  await db
+    .update(webPushSubscriptions)
+    .set({ prefs: sql`${webPushSubscriptions.prefs} || ${JSON.stringify(prefs)}::jsonb` })
+    .where(eq(webPushSubscriptions.endpoint, endpoint));
+  return { ok: true };
 }

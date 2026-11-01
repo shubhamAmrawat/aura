@@ -3,6 +3,7 @@ import { db } from "../config/db";
 import { contentReports, userBlocks, users, wallpapers, type ReportReason } from "../models";
 import { ApiError } from "../utils/ApiError";
 import type { ClientSource } from "./wallpaper.service";
+import { alertAdmins } from "./notificationTriggers.service";
 
 // ─── Reports ─────────────────────────────────────────────
 
@@ -88,6 +89,12 @@ export async function createReport(input: {
       source: input.source,
     })
     .returning({ id: contentReports.id });
+  void alertAdmins("report", {
+    title: `New report: ${targetLabel ?? (input.targetType === "wallpaper" ? "a wallpaper" : "a user")}`,
+    body: `${input.reason.replace(/_/g, " ")}${input.details ? ` · ${input.details.slice(0, 80)}` : ""}`,
+    url: "https://www.aurora-walls.com/admin/reports",
+    dedupeKey: `alert:report:${row!.id}`,
+  });
   return { id: row!.id };
 }
 

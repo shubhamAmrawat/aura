@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import Logo from "@/app/components/Logo";
 import AvatarImage from "@/app/components/AvatarImage";
+import NotificationBell from "@/app/components/NotificationBell";
 import { CREATOR_APPS_CHANGED, getCreatorApplicationCounts, getReportCounts, REPORTS_CHANGED } from "@/lib/adminApi";
 import { BellIcon, ClockIcon, FlagIcon, GiftIcon, ImageIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, ShapesIcon, SparklesIcon, SquareCheckBigIcon, StarIcon, UploadIcon, UserCheckIcon, UsersIcon, type LucideIcon } from "lucide-react";
 
@@ -153,6 +154,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <span className="text-[10px] uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color: "var(--accent)", border: "1px solid rgba(129,238,78,0.35)" }}>
             Admin
           </span>
+          <span className="ml-auto">
+            <NotificationBell align="left" />
+          </span>
         </div>
         {nav}
         <div className="mt-auto flex items-center gap-2.5 px-2">
@@ -192,6 +196,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <Logo height={20} href="/admin" />
             <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--accent)" }}>Admin</span>
           </div>
+          <span className="ml-auto mr-1">
+            <NotificationBell />
+          </span>
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="p-2 rounded-lg hover:bg-white/5"

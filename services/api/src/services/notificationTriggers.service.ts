@@ -1,10 +1,61 @@
 import { and, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { db } from "../config/db";
-import { collections, contentReports, wallpapers } from "../models";
+import { collections, contentReports, notificationCampaigns, wallpapers, type NotificationAction } from "../models";
 import { thumbUrlSql } from "./wallpaperThumb.service";
-import { broadcast, notifyUser, alreadySent } from "./notification.service";
+import { alreadySent, checkReceipts, createCampaign, processQueue, runDueCampaigns, type NotificationType } from "./notify/engine";
+import { getRules, type AutoKey } from "./notify/rules";
 import { getSpotlight } from "./drop.service";
 import { getDailyWallpaper, todayInIndia } from "./daily.service";
+
+type Auto = {
+  type: NotificationType;
+  title: string;
+  body?: string | null;
+  imageUrl?: string | null;
+  url?: string | null;
+  actions?: NotificationAction[];
+  dedupeKey: string;
+};
+
+const AUTO_OF: Partial<Record<NotificationType, AutoKey>> = {
+  drop: "drop", daily: "daily", upload_live: "upload_live", upload_rejected: "upload_rejected", milestone: "milestone",
+  creator_approved: "creator", creator_rejected: "creator", report_reviewed: "report",
+};
+
+/** An automatic notification to one person (if that automatic notification is switched on). Never throws. */
+async function notifyUser(userId: string, n: Auto) {
+  try {
+    const key = AUTO_OF[n.type];
+    if (key && !(await getRules()).auto[key]) return;
+    await createCampaign({ kind: "auto", ...n, audience: { kind: "users", userIds: [userId] } });
+  } catch (e) {
+    console.error(`[notify] ${n.type} failed:`, e instanceof Error ? e.message : e);
+  }
+}
+
+/** An automatic notification to everyone (phones + browsers that want it). Never throws. */
+async function broadcast(n: Auto & { screen?: "mobile" | "tablet" | null }) {
+  try {
+    const key = AUTO_OF[n.type];
+    if (key && !(await getRules()).auto[key]) return null;
+    const { screen, ...rest } = n;
+    return await createCampaign({ kind: "auto", ...rest, audience: { kind: "everyone", screen: screen ?? null, includeWeb: !screen } });
+  } catch (e) {
+    console.error(`[notify] broadcast ${n.type} failed:`, e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/** Alerts to every admin (app + browsers), if that alert is switched on. Never throws. */
+export async function alertAdmins(kind: "report" | "application" | "deliveryProblems", n: Omit<Auto, "type">) {
+  try {
+    if (!(await getRules()).alerts[kind]) return;
+    const type: NotificationType = kind === "report" ? "admin_report" : kind === "application" ? "admin_application" : "admin_delivery";
+    await createCampaign({ kind: "auto", type, ...n, audience: { kind: "admins" } });
+  } catch (e) {
+    console.error(`[notify] admin alert failed:`, e instanceof Error ? e.message : e);
+  }
+}
 
 /**
  * What each event sends. URLs are paths that exist on both the app and the website
@@ -185,15 +236,41 @@ async function sendDailyPick() {
   }
 }
 
+/** After receipts: tell admins when more than 10% of a send failed (once per campaign). */
+async function deliveryProblemAlerts(ids: string[]) {
+  if (!ids.length) return;
+  const rows = await db
+    .select({ id: notificationCampaigns.id, title: notificationCampaigns.title, sent: notificationCampaigns.sent, failed: notificationCampaigns.failed, type: notificationCampaigns.type })
+    .from(notificationCampaigns)
+    .where(inArray(notificationCampaigns.id, ids));
+  for (const c of rows) {
+    if (c.type.startsWith("admin_") || c.sent + c.failed < 10 || c.failed / (c.sent + c.failed) <= 0.1) continue;
+    await alertAdmins("deliveryProblems", {
+      title: `Delivery problems: “${c.title.slice(0, 50)}”`,
+      body: `${c.failed} of ${c.sent + c.failed} pushes failed.`,
+      url: `${SITE}/admin/notifications?campaign=${c.id}`,
+      dedupeKey: `alert:delivery:${c.id}`,
+    });
+  }
+}
+
 let ticking = false;
 
 /** Runs every few minutes (and from the GitHub Actions cron, since the server sleeps when idle). */
 export async function runNotificationTick() {
   if (ticking) return { skipped: true };
   ticking = true;
+  const step = async (name: string, fn: () => Promise<unknown>) =>
+    fn().catch((e) => console.error(`[notify] ${name} failed:`, e instanceof Error ? e.message : e));
   try {
-    await announceLiveDrops().catch((e) => console.error("[notify] drops tick failed:", e instanceof Error ? e.message : e));
-    await sendDailyPick().catch((e) => console.error("[notify] daily tick failed:", e instanceof Error ? e.message : e));
+    await step("drops", announceLiveDrops);
+    await step("daily", sendDailyPick);
+    await step("due campaigns", runDueCampaigns);
+    await step("queue", () => processQueue());
+    await step("receipts", async () => {
+      const r = await checkReceipts();
+      if ("campaigns" in r && r.campaigns) await deliveryProblemAlerts(r.campaigns);
+    });
     return { skipped: false };
   } finally {
     ticking = false;

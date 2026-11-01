@@ -3,7 +3,9 @@ import { authUserId } from "../utils/request";
 import { parseOrThrow } from "../utils/validate";
 import { isExpoPushToken } from "../integrations/expoPush";
 import { ApiError } from "../utils/ApiError";
-import { DevicePrefsBody, InboxQuery, RegisterDeviceBody, TokenBody, TokenQuery } from "../validators/notification.schema";
+import { DevicePrefsBody, InboxQuery, OpenedBody, RegisterDeviceBody, TokenBody, TokenQuery, WebEndpointBody, WebPrefsBody, WebSubscribeBody } from "../validators/notification.schema";
+import { markOpened } from "../services/notify/engine";
+import { vapidPublicKey } from "../integrations/webPush";
 import * as notify from "../services/notification.service";
 import { runNotificationTick } from "../services/notificationTriggers.service";
 import { getAppVersions } from "../services/appConfig.service";
@@ -29,7 +31,17 @@ export const seen = route("Failed to update notifications", async (req, res) => 
 export const registerDevice = route("Failed to register device", async (req, res) => {
   const b = parseOrThrow(RegisterDeviceBody, req.body);
   if (!isExpoPushToken(b.token)) throw new ApiError(400, "Invalid token");
-  res.json(await notify.registerDevice({ token: b.token, userId: req.userId ?? null, screen: b.screen, platform: b.platform, appVersion: b.appVersion ?? null }));
+  res.json(
+    await notify.registerDevice({
+      token: b.token,
+      userId: req.userId ?? null,
+      screen: b.screen,
+      platform: b.platform,
+      appVersion: b.appVersion ?? null,
+      deviceName: b.deviceName ?? null,
+      osVersion: b.osVersion ?? null,
+    })
+  );
 });
 
 /** GET /api/notifications/devices/prefs?token= */
@@ -60,4 +72,41 @@ export const tick = route("Tick failed", async (_req, res) => {
 export const appConfig = route("Failed to load config", async (_req, res) => {
   res.setHeader("Cache-Control", "public, max-age=300");
   res.json({ versions: await getAppVersions() });
+});
+
+/** POST /api/notifications/opened { d, a } — a push (or one of its buttons) was tapped */
+export const opened = route("Failed", async (req, res) => {
+  const { d, a } = parseOrThrow(OpenedBody, req.body);
+  res.json(await markOpened(d, a ?? null));
+});
+
+/** GET /api/notifications/web/key — the VAPID public key (null = website notifications are off) */
+export const webKey = route("Failed", async (_req, res) => {
+  res.json({ key: vapidPublicKey() });
+});
+
+/** POST /api/notifications/web/subscribe — the browser's PushSubscription (linked to the account when signed in) */
+export const webSubscribe = route("Failed to turn on notifications", async (req, res) => {
+  const b = parseOrThrow(WebSubscribeBody, req.body);
+  res.json(
+    await notify.subscribeWeb({
+      endpoint: b.endpoint,
+      p256dh: b.keys.p256dh,
+      auth: b.keys.auth,
+      userId: req.userId ?? null,
+      userAgent: (req.get("user-agent") ?? "").slice(0, 200) || null,
+    })
+  );
+});
+
+/** POST /api/notifications/web/unsubscribe { endpoint } */
+export const webUnsubscribe = route("Failed", async (req, res) => {
+  const { endpoint } = parseOrThrow(WebEndpointBody, req.body);
+  res.json(await notify.unsubscribeWeb(endpoint));
+});
+
+/** PUT /api/notifications/web/prefs { endpoint, prefs } */
+export const webPrefs = route("Failed to save", async (req, res) => {
+  const { endpoint, prefs } = parseOrThrow(WebPrefsBody, req.body);
+  res.json(await notify.setWebPrefs(endpoint, prefs));
 });

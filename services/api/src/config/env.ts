@@ -14,6 +14,10 @@ const EnvSchema = z.object({
   ADMIN_SECRET: z.string().optional(),
   /** Optional: Expo access token, only needed if "enhanced push security" is on in Expo */
   EXPO_ACCESS_TOKEN: z.string().optional(),
+  /** Website notifications (Web Push). Generate with `npx web-push generate-vapid-keys`. */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().optional(),
 
   // Cloudflare R2
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),

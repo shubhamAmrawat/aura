@@ -50,7 +50,16 @@ adminRoutes.delete("/drops/:id", drops.remove);
 
 // Notifications: broadcast, phones, app versions
 adminRoutes.get("/notifications", notificationsAdmin.overview);
-adminRoutes.post("/notifications/broadcast", notificationsAdmin.send);
+adminRoutes.post("/notifications/preview", notificationsAdmin.preview);
+adminRoutes.post("/notifications/send", notificationsAdmin.send);
+adminRoutes.post("/notifications/test", notificationsAdmin.test);
+adminRoutes.get("/notifications/campaigns", notificationsAdmin.campaigns);
+adminRoutes.get("/notifications/campaigns/:id", notificationsAdmin.campaign);
+adminRoutes.post("/notifications/campaigns/:id/cancel", notificationsAdmin.cancel);
+adminRoutes.get("/notifications/users", notificationsAdmin.searchUsers);
+adminRoutes.get("/notifications/users/:id", notificationsAdmin.user);
+adminRoutes.post("/notifications/devices/remove", notificationsAdmin.removeDevice);
+adminRoutes.put("/notifications/rules", notificationsAdmin.rules);
 adminRoutes.put("/app-versions", notificationsAdmin.versions);
 
 // Bulk upload (Phase 4)

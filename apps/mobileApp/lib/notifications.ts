@@ -101,7 +101,14 @@ export async function registerForPush(screen: ScreenFilter): Promise<string | nu
   const { data: token } = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
   await request("/api/notifications/devices", {
     method: "POST",
-    body: JSON.stringify({ token, screen, platform: "android", appVersion: Constants.expoConfig?.version ?? null }),
+    body: JSON.stringify({
+      token,
+      screen,
+      platform: "android",
+      appVersion: Constants.expoConfig?.version ?? null,
+      deviceName: Constants.deviceName?.slice(0, 60) ?? null,
+      osVersion: `Android ${Platform.Version}`,
+    }),
   });
   await SecureStore.setItemAsync(TOKEN_KEY, token).catch(() => undefined);
   return token;
@@ -117,6 +124,12 @@ export async function setPrefs(prefs: Partial<NotificationPrefs>): Promise<{ pre
   const token = await getSavedPushToken();
   if (!token) throw new Error("Turn on notifications first.");
   return request("/api/notifications/devices/prefs", { method: "PUT", body: JSON.stringify({ token, prefs }) });
+}
+
+/** A notification (or one of its buttons) was tapped: counted in admin › Notifications › Campaigns. */
+export async function reportOpened(deliveryId: string, action: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(deliveryId)) return;
+  await request("/api/notifications/opened", { method: "POST", body: JSON.stringify({ d: deliveryId, a: action.slice(0, 40) }) }).catch(() => undefined);
 }
 
 // ─── inbox ──────────────────────────────────────────────────
