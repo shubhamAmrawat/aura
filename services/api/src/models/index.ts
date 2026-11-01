@@ -8,3 +8,4 @@ export * from "./admin.model";
 export * from "./creator.model";
 export * from "./moderation.model";
 export * from "./daily.model";
+export * from "./notification.model";

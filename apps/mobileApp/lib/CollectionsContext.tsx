@@ -1,6 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./ToastContext";
+import { askForNotificationsSoon } from "./notificationEvents";
 import { WallpaperTile } from "./api";
 import * as api from "./collectionsApi";
 import type { Collection } from "./collectionsApi";
@@ -212,6 +213,7 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
         try {
           await api.addToCollection(collectionId, w.id);
           bump(collectionId);
+          askForNotificationsSoon();
         } catch (e) {
           if (!wasSaved)
             setSavedIds((s) => {

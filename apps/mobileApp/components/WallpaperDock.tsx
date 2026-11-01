@@ -12,6 +12,7 @@ import ApplySheet from "./ApplySheet"
 import DetailsSheet from "./DetailsSheet"
 import WallpaperCropSheet from "./WallpaperCropSheet"
 import { ensureMediaLibraryPermission } from "../lib/permissions"
+import { askForNotificationsSoon } from "../lib/notificationEvents"
 
 interface DockProps {
   bottomOffset: number
@@ -57,6 +58,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions, o
       }
       void trackWallpaperDownload(wallpaper.id)
       showToast("Successfully added to your Gallery", { type: "success", position: "top" })
+      askForNotificationsSoon()
     } finally {
       setDownloading(false)
     }
@@ -84,6 +86,7 @@ const WallpaperDock = ({ bottomOffset, screenWidth, wallpaper, leadingActions, o
         return
       }
       showToast(applySuccessMessages[cropTarget], { type: "success", position: "top" })
+      askForNotificationsSoon()
       setCropTarget(null)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

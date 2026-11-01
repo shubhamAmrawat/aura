@@ -12,6 +12,7 @@ import * as activity from "../controllers/admin/activity.controller";
 import * as creatorApps from "../controllers/admin/creatorApplications.controller";
 import * as reports from "../controllers/admin/reports.controller";
 import * as drops from "../controllers/admin/drops.controller";
+import * as notificationsAdmin from "../controllers/admin/notifications.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -46,6 +47,11 @@ adminRoutes.get("/drops/:id", drops.detail);
 adminRoutes.patch("/drops/:id", drops.update);
 adminRoutes.put("/drops/:id/wallpapers", drops.items);
 adminRoutes.delete("/drops/:id", drops.remove);
+
+// Notifications: broadcast, phones, app versions
+adminRoutes.get("/notifications", notificationsAdmin.overview);
+adminRoutes.post("/notifications/broadcast", notificationsAdmin.send);
+adminRoutes.put("/app-versions", notificationsAdmin.versions);
 
 // Bulk upload (Phase 4)
 adminRoutes.post("/uploads/urls", uploads.urls);

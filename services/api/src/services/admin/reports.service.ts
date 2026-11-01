@@ -7,6 +7,7 @@ import { logAdminAction } from "../../utils/audit";
 import { thumbUrlSql } from "../wallpaperThumb.service";
 import { deleteWallpaper } from "./wallpapers.service";
 import { disableUser } from "./users.service";
+import { notifyReportsReviewed } from "../notificationTriggers.service";
 
 const reporter = alias(users, "reporter");
 const reported = alias(users, "reported");
@@ -131,5 +132,6 @@ export async function resolve(
     targetId: id,
     details: { action: input.action, status: input.status, reason: report.reason, target: report.targetLabel, closed: closed.length },
   });
+  void notifyReportsReviewed(closed.map((c) => c.id), input.status);
   return { id, status: input.status, action: input.action, closedIds: closed.map((c) => c.id) };
 }

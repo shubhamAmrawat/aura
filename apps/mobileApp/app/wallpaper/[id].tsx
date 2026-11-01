@@ -37,6 +37,7 @@
       title: paramTitle,
       w, h,
       apply: applyParam,
+      save: saveParam,
     } = useLocalSearchParams<{
       id: string;
       dominantColor: string;
@@ -48,6 +49,7 @@
       h: string;
       screen?: "mobile" | "tablet";
       apply?: string;
+      save?: string;
     }>();
     const { screen } = useScreenFilter();
     const { showToast } = useToast();
@@ -304,6 +306,14 @@
       void Haptics.selectionAsync().catch(() => undefined);
       openSaveSheet(activeWallpaper);
     };
+
+    // Opened from a notification's Save button: show the save sheet once the wallpaper is loaded.
+    const savePromptShown = useRef(false);
+    useEffect(() => {
+      if (saveParam !== "1" || savePromptShown.current || !wallpaper?.fileUrl) return;
+      savePromptShown.current = true;
+      openSaveSheet(wallpaper);
+    }, [saveParam, wallpaper, openSaveSheet]);
 
     const handleToggleLike = async () => {
       if (!activeWallpaperId || likeLoading) return;

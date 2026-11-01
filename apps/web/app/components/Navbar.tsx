@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Logo from "@/app/components/Logo";
 import NavbarAuth from "@/app/components/NavbarAuth";
+import NotificationBell from "@/app/components/NotificationBell";
 import SearchBar, { DeviceSwitch } from "@/app/components/SearchBar";
 import type { Category } from "@/lib/api";
 import { groupCategories, popularCategories, visibleCategories } from "@/lib/categoryGroups";
@@ -184,6 +185,7 @@ const Navbar = ({ initialCategories = [] }: NavbarProps) => {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+          <NotificationBell />
           <NavbarAuth />
           <button
             type="button"

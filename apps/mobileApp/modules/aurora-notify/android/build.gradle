@@ -1,0 +1,28 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.auroranotify'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.auroranotify"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // AuroraMessagingService extends expo-notifications' FCM service (tokens keep working through it).
+  // Needs expo-notifications built from source (package.json › expo.autolinking.android.buildFromSource),
+  // otherwise Expo links it as a prebuilt package and there is no ':expo-notifications' project.
+  implementation project(':expo-notifications')
+  // Same version expo-notifications 0.32 uses.
+  implementation 'com.google.firebase:firebase-messaging:24.0.1'
+  implementation 'androidx.core:core-ktx:1.13.1'
+  // Google Play in-app updates.
+  implementation 'com.google.android.play:app-update:2.1.0'
+  implementation 'com.google.android.gms:play-services-tasks:18.1.0'
+}

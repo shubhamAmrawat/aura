@@ -6,6 +6,7 @@ import { logAdminAction } from "../../utils/audit";
 import { generateWallpaperTextEmbedding } from "../../integrations/openai";
 import { removeWallpaper } from "../wallpaperRemoval.service";
 import { thumbUrlSql } from "../wallpaperThumb.service";
+import { notifyUploadDecision } from "../notificationTriggers.service";
 
 /** Rejected uploads are kept this long (so a mistake can be undone), then purged. */
 export const REJECTED_RETENTION_DAYS = 30;
@@ -115,6 +116,7 @@ export async function approve(adminId: string, id: string) {
     );
   });
   ensureTextEmbedding(row);
+  void notifyUploadDecision(id, true);
   return { id, status: "approved" as const };
 }
 
@@ -134,6 +136,7 @@ export async function reject(adminId: string, id: string, reason: string) {
       tx
     );
   });
+  void notifyUploadDecision(id, false, reason);
   return { id, status: "rejected" as const };
 }
 

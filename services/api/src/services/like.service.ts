@@ -2,6 +2,7 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "../config/db";
 import { likes, wallpapers } from "../models";
 import { thumbUrlSql } from "./wallpaperThumb.service";
+import { notifyLikeMilestone } from "./notificationTriggers.service";
 
 /** Like if not liked, unlike if liked; keeps wallpapers.like_count in sync. */
 export async function toggleLike(userId: string, wallpaperId: string): Promise<boolean> {
@@ -18,10 +19,12 @@ export async function toggleLike(userId: string, wallpaperId: string): Promise<b
   }
 
   await db.insert(likes).values({ userId, wallpaperId });
-  await db
+  const [after] = await db
     .update(wallpapers)
     .set({ likeCount: sql`${wallpapers.likeCount} + 1` })
-    .where(eq(wallpapers.id, wallpaperId));
+    .where(eq(wallpapers.id, wallpaperId))
+    .returning({ likeCount: wallpapers.likeCount });
+  if (after) void notifyLikeMilestone(wallpaperId, after.likeCount);
   return true;
 }
 

@@ -1,3 +1,7 @@
+import { DeviceEventEmitter } from "react-native";
+import AuroraNotify from "../modules/aurora-notify";
+import { UPDATE_REQUESTED } from "../lib/appUpdate";
+
 /**
  * Android App Links: www.aurora-walls.com links open in the app (see android.intentFilters in
  * app.json and the website's /.well-known/assetlinks.json). Most website paths match app routes
@@ -33,8 +37,37 @@ export function webPathToAppRoute(pathname: string, search: URLSearchParams): st
   return null;
 }
 
+/**
+ * aurora://… from a notification (modules/aurora-notify): clears that notification (its id is
+ * the `_n` param) and opens the path. aurora://update starts the app update.
+ */
+function fromNotification(path: string): string {
+  const rest = path.slice("aurora://".length);
+  const q = rest.indexOf("?");
+  const route = "/" + (q < 0 ? rest : rest.slice(0, q)).replace(/^\/+/, "");
+  const params = q < 0 ? [] : rest.slice(q + 1).split("&").filter(Boolean);
+  const n = params.find((p) => p.startsWith("_n="));
+  if (n) {
+    const id = Number(n.slice(3));
+    if (Number.isFinite(id)) {
+      try {
+        AuroraNotify?.cancelNotification(id);
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+  if (route === "/update") {
+    setTimeout(() => DeviceEventEmitter.emit(UPDATE_REQUESTED), 600);
+    return "/";
+  }
+  const kept = params.filter((p) => !p.startsWith("_n="));
+  return route + (kept.length ? `?${kept.join("&")}` : "");
+}
+
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
+    if (path.startsWith("aurora://")) return fromNotification(path);
     const url = new URL(path, "aurora://app");
     const isWebsite = (url.protocol === "https:" || url.protocol === "http:") && WEB_HOSTS.has(url.hostname);
     if (isWebsite) return webPathToAppRoute(url.pathname, url.searchParams) ?? "/";

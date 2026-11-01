@@ -2,7 +2,7 @@
   "expo": {
     "name": "Aurora Walls",
     "slug": "aurora-walls",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -23,6 +23,14 @@
         "expo-media-library",
         {
           "granularPermissions": []
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#81EE4E",
+          "defaultChannel": "updates"
         }
       ],
       [
@@ -50,6 +58,7 @@
         "backgroundColor": "#0a0a0a"
       },
       "package": "com.shubhzx09.aurorawalls",
+      "googleServicesFile": "./google-services.json",
       "launchMode": "singleTask",
       "intentFilters": [
         {

@@ -1,0 +1,24 @@
+name: Notifications Tick
+
+# Wakes the API every 15 minutes so scheduled notifications go out on time even when Render
+# has put the server to sleep: "drop is live" and the 9:00 IST wallpaper of the day.
+# Needs the repository secret ADMIN_SECRET (the same value as the API's ADMIN_SECRET).
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /api/notifications/tick
+        env:
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+        run: |
+          if [ -z "$ADMIN_SECRET" ]; then echo "ADMIN_SECRET secret is not set"; exit 1; fi
+          # the first request may take ~1 min while the server wakes up
+          curl -sS --fail-with-body --max-time 120 --retry 2 --retry-delay 10 \
+            -X POST -H "X-Admin-Secret: $ADMIN_SECRET" \
+            https://api.aurawalls.site/api/notifications/tick

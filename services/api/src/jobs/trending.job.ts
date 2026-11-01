@@ -6,6 +6,10 @@ import { fillMissingThumbs } from "../services/wallpaperThumb.service";
 import { fillMissingPhashes } from "../services/duplicate.service";
 import { fillMissingDescriptions } from "../services/wallpaperDescription.service";
 import { purgeStaleDrafts } from "../services/admin/upload.service";
+import { runNotificationTick } from "../services/notificationTriggers.service";
+
+const NOTIFY_INTERVAL_MS = 5 * 60_000;
+let notifyIntervalId: ReturnType<typeof setInterval> | null = null;
 /**
  * Trending score formula:
  * 
@@ -123,9 +127,18 @@ export function startScheduler() {
   intervalId = setInterval(() => {
     void runJob();
   }, INTERVAL_MS);
+
+  // Notifications: drop just went live, daily pick at 9:00 IST. Also run shortly after start-up,
+  // because the server sleeps when idle (a GitHub Actions cron calls /api/notifications/tick too).
+  setTimeout(() => void runNotificationTick(), 20_000);
+  notifyIntervalId = setInterval(() => void runNotificationTick(), NOTIFY_INTERVAL_MS);
 }
 
 export function stopScheduler() {
+  if (notifyIntervalId) {
+    clearInterval(notifyIntervalId);
+    notifyIntervalId = null;
+  }
   if (intervalId) {
     clearInterval(intervalId);
     intervalId = null;

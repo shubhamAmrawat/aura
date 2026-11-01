@@ -12,6 +12,8 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   JWT_SECRET: z.string().min(1, "JWT_SECRET is required"),
   ADMIN_SECRET: z.string().optional(),
+  /** Optional: Expo access token, only needed if "enhanced push security" is on in Expo */
+  EXPO_ACCESS_TOKEN: z.string().optional(),
 
   // Cloudflare R2
   CLOUDFLARE_ACCOUNT_ID: z.string().optional(),

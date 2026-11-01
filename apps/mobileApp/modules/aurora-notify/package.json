@@ -1,0 +1,7 @@
+{
+  "name": "aurora-notify",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.ts",
+  "description": "Rich push notifications (big picture + deep-link buttons) and Google Play in-app updates."
+}

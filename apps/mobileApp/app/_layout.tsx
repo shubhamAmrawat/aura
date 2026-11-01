@@ -9,6 +9,9 @@ import { ToastProvider, useToast } from "../lib/ToastContext";
 import { CollectionsProvider } from "../lib/CollectionsContext";
 import { BlocksProvider } from "../lib/BlocksContext";
 import SaveSheetHost from "../components/SaveSheet";
+import NotificationPromptHost from "../components/NotificationPrompt";
+import UpdateSheetHost from "../components/UpdateSheet";
+import { usePushSetup } from "../lib/usePushSetup";
 import { ScreenFilterProvider, useScreenFilter } from "../lib/ScreenFilterContext";
 import * as SystemUI from "expo-system-ui";
 import * as SecureStore from "expo-secure-store";
@@ -65,6 +68,8 @@ function AppGate() {
   }, [loaded, signedIn]);
   const { showToast } = useToast();
   const { deviceType, screen } = useScreenFilter();
+  // Notifications: channels, this phone's push token linked to the account, taps.
+  usePushSetup(loaded, user?.id ?? null, screen);
 
   useEffect(() => {
     let isMounted = true;
@@ -104,13 +109,17 @@ function AppGate() {
   if (!loaded) return <SplashScreen />;
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: "fade_from_bottom",
-        contentStyle: { backgroundColor: Colors.bgPrimary },
-      }}
-    />
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade_from_bottom",
+          contentStyle: { backgroundColor: Colors.bgPrimary },
+        }}
+      />
+      <NotificationPromptHost />
+      <UpdateSheetHost />
+    </>
   );
 }
 

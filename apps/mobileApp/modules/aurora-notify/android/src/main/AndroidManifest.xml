@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!--
+      Receives Aurora's pushes before expo-notifications' own service (that one is declared with
+      priority -1 so an app can do exactly this). Aurora's pushes are drawn here with a big picture
+      and deep-link buttons; anything else is passed on to expo-notifications unchanged.
+    -->
+    <service
+      android:name="expo.modules.auroranotify.AuroraMessagingService"
+      android:exported="false">
+      <intent-filter android:priority="10">
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>

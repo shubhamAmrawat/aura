@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1039847048661",
+    "project_id": "aurora-walls-db92b",
+    "storage_bucket": "aurora-walls-db92b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039847048661:android:f5a9cdac0a4604ab04295c",
+        "android_client_info": {
+          "package_name": "com.shubhzx09.aurorawalls"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCGZULiJ_y9c1N1v8R3hTbQBmIq139ACY8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

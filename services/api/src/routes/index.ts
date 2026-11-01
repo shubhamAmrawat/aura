@@ -10,6 +10,7 @@ import { adminRoutes } from "./admin.routes";
 import { featuredRoutes } from "./featured.routes";
 import { creatorRoutes } from "./creator.routes";
 import { blockRoutes, reportRoutes } from "./moderation.routes";
+import { appRoutes, notificationRoutes } from "./notification.routes";
 
 /** Everything under /api. */
 export const apiRoutes = Router();
@@ -26,3 +27,5 @@ apiRoutes.use("/featured", featuredRoutes);
 apiRoutes.use("/creator", creatorRoutes);
 apiRoutes.use("/reports", reportRoutes);
 apiRoutes.use("/blocks", blockRoutes);
+apiRoutes.use("/notifications", notificationRoutes);
+apiRoutes.use("/app", appRoutes);

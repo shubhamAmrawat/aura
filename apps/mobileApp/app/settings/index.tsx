@@ -136,6 +136,7 @@ const Settings = () => {
 
         <SettingsSection title="Wallpaper">
           <SettingsRow icon="sync-outline" label="Wallpaper changer" value={changer} onPress={() => router.push("/settings/wallpaper-changer")} />
+          <SettingsRow icon="notifications-outline" label="Notifications" onPress={() => router.push("/settings/notifications")} divider />
         </SettingsSection>
 
         {user && user.hasPassword !== undefined ? (

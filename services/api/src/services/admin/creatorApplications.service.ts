@@ -6,6 +6,7 @@ import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { sendCreatorDecisionEmail } from "../../integrations/email";
 import { CREATOR_RULES, runScreen } from "../creatorApplication.service";
+import { notifyCreatorDecision } from "../notificationTriggers.service";
 
 export type ApplicationStatus = "pending" | "approved" | "rejected";
 
@@ -158,6 +159,7 @@ export async function approve(adminId: string, id: string, note: string | null) 
     );
   });
   void sendCreatorDecisionEmail(row.email, row.name, true, note);
+  void notifyCreatorDecision(row.app.userId, id, true, note);
   return detail(id);
 }
 
@@ -177,6 +179,7 @@ export async function reject(adminId: string, id: string, note: string) {
     );
   });
   void sendCreatorDecisionEmail(row.email, row.name, false, note);
+  void notifyCreatorDecision(row.app.userId, id, false, note);
   return detail(id);
 }
 

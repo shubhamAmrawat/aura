@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { DeviceEventEmitter } from "react-native";
 import { Category, WallpaperTile } from "../lib/api";
 import {
   DailyWallpaper,
@@ -24,6 +25,8 @@ import AvatarButton from "./AvatarButton";
 import SkeletonBlock from "./SkeletonBlock";
 import DropBanner from "./DropBanner";
 import { DropSpotlight, getDropSpotlight } from "../lib/drops";
+import { getUnread } from "../lib/notifications";
+import { NOTIFICATIONS_SEEN } from "../lib/notificationEvents";
 import { useVisibleWallpapers } from "../lib/BlocksContext";
 import { useAuth } from "../lib/AuthContext";
 import { useToast } from "../lib/ToastContext";
@@ -71,6 +74,25 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
   const featured = useVisibleWallpapers(featuredAll);
   const dailyVisible = useVisibleWallpapers(daily ? [daily.wallpaper] : []);
   const [index, setIndex] = useState(0);
+  const { user } = useAuth();
+  const [unread, setUnread] = useState(0);
+
+  // Bell badge: refreshed whenever Home comes back into view; cleared when the inbox opens.
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      getUnread(screen, !!user)
+        .then((n) => alive && setUnread(n))
+        .catch(() => undefined);
+      return () => {
+        alive = false;
+      };
+    }, [screen, user, refreshToken])
+  );
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(NOTIFICATIONS_SEEN, () => setUnread(0));
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -113,6 +135,20 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
           hitSlop={6}
         >
           <Ionicons name="search" size={18} color={Colors.textPrimary} />
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/notifications")}
+          style={({ pressed }) => [styles.roundBtn, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+          accessibilityLabel={unread ? `Notifications, ${unread} unread` : "Notifications"}
+          hitSlop={6}
+        >
+          <Ionicons name="notifications-outline" size={18} color={Colors.textPrimary} />
+          {unread > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unread > 9 ? "9+" : unread}</Text>
+            </View>
+          ) : null}
         </Pressable>
         <AvatarButton />
       </View>
@@ -391,6 +427,8 @@ const styles = StyleSheet.create({
   logo: { width: 104, height: 24 },
   topActions: { flexDirection: "row", alignItems: "center", gap: 10 },
   roundBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(0,0,0,0.38)", alignItems: "center", justifyContent: "center" },
+  badge: { position: "absolute", top: -2, right: -3, minWidth: 17, height: 17, paddingHorizontal: 4, borderRadius: 9, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#000" },
+  badgeText: { color: "#0A0A0A", fontSize: 10, fontWeight: "800" },
 
   // hero
   heroTopShade: { position: "absolute", left: 0, right: 0, top: 0, height: "24%" },

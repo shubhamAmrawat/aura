@@ -721,3 +721,17 @@ export const createDrop = (body: DropPatch & { title: string }) => adminCall<Adm
 export const updateDrop = (id: string, patch: DropPatch) => adminCall<AdminDrop>("PATCH", `/drops/${id}`, patch);
 export const setDropWallpapers = (id: string, ids: string[]) => adminCall<AdminDrop>("PUT", `/drops/${id}/wallpapers`, { ids });
 export const deleteDrop = (id: string) => adminCall<{ message: string }>("DELETE", `/drops/${id}`);
+
+// ─── Notifications ──────────────────────────────────────────
+
+export type AppVersions = { latest: string | null; min: string | null };
+export type AdminNotificationsOverview = {
+  devices: { total: number; signedIn: number; daily: number; drops: number; updates: number };
+  recent: { id: string; type: string; title: string; body: string | null; pushed: number; createdAt: string }[];
+  versions: AppVersions;
+};
+
+export const getNotificationsOverview = () => adminGet<AdminNotificationsOverview>("/notifications");
+export const sendBroadcast = (body: { type: "announcement" | "update"; title: string; body?: string; url?: string }) =>
+  adminCall<{ id: string | null; pushed: number }>("POST", "/notifications/broadcast", body);
+export const saveAppVersions = (v: AppVersions) => adminCall<{ versions: AppVersions }>("PUT", "/app-versions", v);

@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/authContext";
 import Logo from "@/app/components/Logo";
 import AvatarImage from "@/app/components/AvatarImage";
 import { CREATOR_APPS_CHANGED, getCreatorApplicationCounts, getReportCounts, REPORTS_CHANGED } from "@/lib/adminApi";
-import { ClockIcon, FlagIcon, GiftIcon, ImageIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, ShapesIcon, SparklesIcon, SquareCheckBigIcon, StarIcon, UploadIcon, UserCheckIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { BellIcon, ClockIcon, FlagIcon, GiftIcon, ImageIcon, LayoutDashboardIcon, LogOutIcon, MenuIcon, ShapesIcon, SparklesIcon, SquareCheckBigIcon, StarIcon, UploadIcon, UserCheckIcon, UsersIcon, type LucideIcon } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; soon?: boolean; badge?: "creatorApps" | "reports" };
 
@@ -28,6 +28,7 @@ const NAV: NavItem[] = [
   { href: "/admin/wallpapers", label: "Wallpapers", icon: icon(ImageIcon) },
   { href: "/admin/featured", label: "Featured", icon: icon(StarIcon) },
   { href: "/admin/drops", label: "Drops", icon: icon(GiftIcon) },
+  { href: "/admin/notifications", label: "Notifications", icon: icon(BellIcon) },
   { href: "/admin/upload", label: "Bulk upload", icon: icon(UploadIcon) },
   { href: "/admin/categories", label: "Categories", icon: icon(ShapesIcon) },
   { href: "/admin/users", label: "Users", icon: icon(UsersIcon) },
