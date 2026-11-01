@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import Constants from "expo-constants";
+import { useLocalSearchParams } from "expo-router";
 import * as IntentLauncher from "expo-intent-launcher";
 import Header from "../../components/Header";
 import SignInPrompt from "../../components/SignInPrompt";
@@ -135,6 +136,9 @@ async function withUpNext(s: ChangerState): Promise<ChangerState> {
 const WallpaperChanger = () => {
   const { user, loaded } = useAuth();
   const { collections } = useCollections();
+  /** Opened from a drop's "Auto-change from this drop": use it as the source and turn on. */
+  const { dropId, dropName } = useLocalSearchParams<{ dropId?: string; dropName?: string }>();
+  const dropHandledRef = useRef(false);
   const { screen } = useScreenFilter();
   const { showToast } = useToast();
   const { bottomPadding } = useInsets();
@@ -313,6 +317,14 @@ const WallpaperChanger = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (dropHandledRef.current || !dropId || !state || !loaded || !user) return;
+    dropHandledRef.current = true;
+    pendingEnableRef.current = true;
+    void pickSource({ kind: "collection", id: dropId, name: dropName || "Drop" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropId, dropName, state, loaded, user]);
 
   const applyInterval = async (h: number) => {
     const s = stateRef.current;

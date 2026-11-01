@@ -22,6 +22,8 @@ import { useInsets } from "../hooks/useInsets";
 import { Colors, Images } from "../constants";
 import AvatarButton from "./AvatarButton";
 import SkeletonBlock from "./SkeletonBlock";
+import DropBanner from "./DropBanner";
+import { DropSpotlight, getDropSpotlight } from "../lib/drops";
 import { useVisibleWallpapers } from "../lib/BlocksContext";
 import { useAuth } from "../lib/AuthContext";
 import { useToast } from "../lib/ToastContext";
@@ -65,6 +67,7 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
   const [featuredAll, setFeatured] = useState<WallpaperTile[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [daily, setDaily] = useState<{ day: string; wallpaper: DailyWallpaper } | null>(null);
+  const [drop, setDrop] = useState<DropSpotlight | null>(null);
   const featured = useVisibleWallpapers(featuredAll);
   const dailyVisible = useVisibleWallpapers(daily ? [daily.wallpaper] : []);
   const [index, setIndex] = useState(0);
@@ -76,7 +79,8 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
       getTrendingWallpapers({ limit: 6, screen }),
       getCategories(screen),
       getDailyWallpaper(screen),
-    ]).then(([f, t, c, d]) => {
+      getDropSpotlight(screen),
+    ]).then(([f, t, c, d, dr]) => {
       if (!alive) return;
       const feat = f.status === "fulfilled" ? f.value : [];
       const trend = t.status === "fulfilled" ? t.value.data : [];
@@ -84,6 +88,7 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
       setFeatured(feat.length > 0 ? feat : trend.slice(0, 5));
       if (c.status === "fulfilled") setCategories(c.value);
       setDaily(d.status === "fulfilled" && d.value.wallpaper ? { day: d.value.day, wallpaper: d.value.wallpaper } : null);
+      setDrop(dr.status === "fulfilled" ? dr.value : null);
       setIndex(0);
       setLoading(false);
     });
@@ -165,6 +170,9 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
       ) : (
         <View style={{ height: topPadding + 64 }}>{topBar}</View>
       )}
+
+      {/* ─── Live drop (e.g. Diwali Drops) ─── */}
+      {drop ? <DropBanner drop={drop} serif={serif} onOpen={tap} /> : null}
 
       {/* ─── Browse by mood ─── */}
       <Text style={styles.kickerTitle}>BROWSE BY MOOD</Text>

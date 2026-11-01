@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { Wallpaper } from "@aura/types";
 import { screenFor, type Device } from "./device";
+import type { DropSpotlight } from "./drops";
 
 /** Keep server initial fetch and client infinite scroll in sync. */
 export const WALLPAPERS_FEED_PAGE_SIZE = 24;
@@ -90,6 +91,22 @@ export async function getWallpapers(
 
 /** Paginated list for infinite scroll; uses `hasMore` from the API. */
 export const getWallpapersPage = getWallpapers;
+
+/**
+ * The live drop for the home banner (e.g. "Diwali Drops"), or null. Cached 2 minutes; tagged
+ * "featured" so an admin saving a drop refreshes it straight away (same hook as the hero).
+ */
+export async function getDropSpotlight(): Promise<DropSpotlight | null> {
+  try {
+    const { data } = await fetchJsonOrThrow<{ data: DropSpotlight | null }>(
+      `${getApiUrl()}/api/collections/spotlight?placement=web`,
+      { next: { revalidate: 120, tags: ["featured"] } }
+    );
+    return data;
+  } catch {
+    return null; // older API, or it's down: no banner
+  }
+}
 
 /**
  * Home page hero: admin-chosen order and count, wide (desktop) wallpapers only — phone wallpapers are featured in the app.

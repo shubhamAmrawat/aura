@@ -9,6 +9,9 @@ import {
   UPLOAD_TYPES,
   analyzeUpload,
   createAdminUpload,
+  createDrop,
+  listDrops,
+  type AdminDropSummary,
   discardUpload,
   getCategoryOptions,
   putFileToStorage,
@@ -18,6 +21,9 @@ import {
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import { StatusBadge, Toggle, inputStyle } from "../_components/ui";
+import { dropTitle } from "@/lib/drops";
+
+const NEW_DROP = "__new_drop__";
 import { readImageHeaderSize } from "@/lib/imageSize";
 import ExtraCategories from "../_components/ExtraCategories";
 import { UploadIcon, XIcon } from "lucide-react";
@@ -57,7 +63,7 @@ type Item = {
   ai?: { categoryId: string | null; extraIds: string[]; confidence: number; warnings: string[] };
   result?: { id: string; status: string; warnings: string[]; category: { name: string; auto: boolean } };
 };
-type Defaults = { categoryId: string; tagsText: string; isPremium: boolean; isAiGenerated: boolean; publish: boolean; aiText: boolean };
+type Defaults = { categoryId: string; tagsText: string; isPremium: boolean; isAiGenerated: boolean; publish: boolean; aiText: boolean; dropId: string };
 
 /** Files uploaded + analysed at the same time (the server also limits its own image work). */
 const CONCURRENCY = 3;
@@ -105,7 +111,11 @@ const NOT_EDITED = { title: false, description: false, category: false, tags: fa
 export default function BulkUploadPage() {
   const { toast } = useToast();
   const [categories, setCategories] = useState<CategoryOption[]>([]);
-  const [defaults, setDefaults] = useState<Defaults>({ categoryId: AUTO, tagsText: "", isPremium: false, isAiGenerated: false, publish: true, aiText: true });
+  const [defaults, setDefaults] = useState<Defaults>({ categoryId: AUTO, tagsText: "", isPremium: false, isAiGenerated: false, publish: true, aiText: true, dropId: "" });
+  const [drops, setDrops] = useState<AdminDropSummary[]>([]);
+  const [newDropOpen, setNewDropOpen] = useState(false);
+  const [newDropName, setNewDropName] = useState("");
+  const [creatingDrop, setCreatingDrop] = useState(false);
   const [items, setItems] = useState<Item[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -121,7 +131,26 @@ export default function BulkUploadPage() {
 
   useEffect(() => {
     getCategoryOptions().then(setCategories).catch(() => toast("Couldn't load categories", "error"));
+    listDrops().then((d) => setDrops(d.filter((x) => x.status !== "ended"))).catch(() => {});
   }, [toast]);
+
+  const addDrop = async () => {
+    const name = newDropName.trim();
+    if (!name) return;
+    setCreatingDrop(true);
+    try {
+      const { drop } = await createDrop({ title: dropTitle(name) });
+      setDrops((prev) => [{ id: drop.id, title: drop.title, startsAt: null, endsAt: null, publishedAt: null, showOnApp: drop.showOnApp, showOnWeb: drop.showOnWeb, createdAt: new Date().toISOString(), wallpaperCount: 0, coverThumbUrl: null, status: drop.status }, ...prev]);
+      setDefaults((d) => ({ ...d, dropId: drop.id }));
+      setNewDropOpen(false);
+      setNewDropName("");
+      toast(`Created ${drop.title} as a draft — publish it from Drops.`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't create the drop", "error");
+    } finally {
+      setCreatingDrop(false);
+    }
+  };
 
   // Free the preview blobs when leaving the page
   useEffect(() => () => itemsRef.current.forEach((i) => URL.revokeObjectURL(i.previewUrl)), []);
@@ -327,6 +356,7 @@ export default function BulkUploadPage() {
       title: it.title.trim(), description: it.description.trim() || null, tags: parseTags(it.tagsText), categoryId: it.categoryId,
       extraCategoryIds: it.extraCategoryIds.filter((c) => c !== it.categoryId),
       isPremium: d.isPremium, isAiGenerated: d.isAiGenerated, publish: d.publish,
+      dropId: d.dropId || null,
       // what's on screen is final — the AI's suggestions are already in the fields
       aiTitle: false, aiText: false,
     };
@@ -408,6 +438,36 @@ export default function BulkUploadPage() {
             <label className="flex flex-col gap-1">
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>Tags (comma separated)</span>
               <input aria-label="Default tags" value={defaults.tagsText} disabled={publishing} onChange={(e) => setDefaults((d) => ({ ...d, tagsText: e.target.value }))} placeholder="e.g. dark, 4k" className="rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs" style={{ color: defaults.dropId ? "#FFB66B" : "var(--text-muted)" }}>Add to drop</span>
+              <select
+                aria-label="Add to drop"
+                value={defaults.dropId}
+                disabled={publishing}
+                onChange={(e) => {
+                  if (e.target.value === NEW_DROP) { setNewDropOpen(true); return; }
+                  setDefaults((d) => ({ ...d, dropId: e.target.value }));
+                }}
+                className="rounded-lg px-3 py-2 text-sm"
+                style={defaults.dropId ? { ...inputStyle, borderColor: "rgba(255,154,60,0.6)" } : inputStyle}
+              >
+                <option value="">None</option>
+                {drops.map((d) => <option key={d.id} value={d.id}>{d.title} · {d.status === "draft" ? "Draft" : d.status === "scheduled" ? "Scheduled" : "Live"} · {d.wallpaperCount}</option>)}
+                <option value={NEW_DROP}>+ New drop…</option>
+              </select>
+              {newDropOpen && (
+                <form className="flex gap-2 mt-1" onSubmit={(e) => { e.preventDefault(); void addDrop(); }}>
+                  <input autoFocus aria-label="New drop name" value={newDropName} maxLength={50} onChange={(e) => setNewDropName(e.target.value)} placeholder="Diwali" className="flex-1 min-w-0 rounded-lg px-3 py-1.5 text-sm" style={inputStyle} />
+                  <button type="submit" disabled={creatingDrop || !newDropName.trim()} className="text-xs font-semibold px-3 rounded-lg disabled:opacity-40" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>{creatingDrop ? "…" : "Create"}</button>
+                  <button type="button" onClick={() => { setNewDropOpen(false); setNewDropName(""); }} className="text-xs px-2 rounded-lg hover:bg-white/5" style={{ color: "var(--text-secondary)" }}>Cancel</button>
+                </form>
+              )}
+              {defaults.dropId && !newDropOpen && (
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  Every file in this batch goes to the end of the drop{defaults.publish ? "" : " and shows there once approved"}. Reorder in Drops.
+                </span>
+              )}
             </label>
             <div className="flex flex-col">
               <Toggle label="AI title, description & tags" checked={defaults.aiText} disabled={publishing} onChange={(v) => setDefaults((d) => ({ ...d, aiText: v }))} />

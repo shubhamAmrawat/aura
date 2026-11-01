@@ -1,8 +1,9 @@
 import Hero from "./components/Hero";
 import LatestWallpapersInfinite from "./components/LatestWallpapersInfinite";
+import DropBanner from "./components/DropBanner";
 import Link from "next/link";
 import { Wallpaper } from "@aura/types";
-import { getPersonalizedFeed, getFeaturedWallpapers, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
+import { getPersonalizedFeed, getFeaturedWallpapers, getDropSpotlight, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
 import { getDevice } from "@/lib/device.server";
 import { cookies } from "next/headers";
 
@@ -11,10 +12,12 @@ export default async function HomePage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("aura_token")?.value;
 
-  const [wallpapersResult, featuredResult] = await Promise.allSettled([
+  const [wallpapersResult, featuredResult, dropResult] = await Promise.allSettled([
     getPersonalizedFeed({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0, device, authToken: token }),
     getFeaturedWallpapers(),
+    getDropSpotlight(),
   ]);
+  const drop = dropResult.status === "fulfilled" ? dropResult.value : null;
 
   const wallpapers: Wallpaper[] =
     wallpapersResult.status === "fulfilled" ? wallpapersResult.value.data : [];
@@ -29,6 +32,12 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen w-full" style={{ background: "var(--bg-primary)" }}>
       <Hero wallpapers={featuredWallpapers} />
+
+      {drop && (
+        <section aria-label={drop.title} className="w-full px-4 sm:px-8 md:px-12 pt-8">
+          <DropBanner drop={drop} />
+        </section>
+      )}
 
       {hasApiIssue && (
         <div className="w-full px-6 md:px-12 pt-6">

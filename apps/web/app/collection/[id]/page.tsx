@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/authContext";
 import { getCollection, deleteCollection, updateCollection, removeFromCollection } from "@/lib/collectionsApi";
 import { useToast } from "@/lib/toast";
 import WallpaperCard from "@/app/components/WallpaperCard";
+import DropHero, { type DropInfo } from "@/app/components/DropHero";
 import type { Wallpaper } from "@aura/types";
 import { BookmarkIcon, CheckIcon, XIcon } from "lucide-react";
 
@@ -49,6 +50,9 @@ interface CollectionData {
   coverWallpaperId: string | null;
   createdAt: string;
   wallpaperCount: number;
+  /** set for an admin's drop (e.g. "Diwali Drops") */
+  kind?: "user" | "drop";
+  drop?: DropInfo;
 }
 
 export default function CollectionPage() {
@@ -79,7 +83,7 @@ export default function CollectionPage() {
       .then(({ collection: col, wallpapers: walls }) => {
         setCollection(col);
         setWallpapers(walls);
-        setIsOwner(!!user && user.id === col.userId);
+        setIsOwner(!!user && !col.drop && user.id === col.userId);
         setEditTitle(col.title);
         setEditDescription(col.description ?? "");
         setEditIsPublic(col.isPublic);
@@ -169,6 +173,14 @@ export default function CollectionPage() {
       <div className="max-w-6xl mx-auto px-8 py-8">
 
         {/* ── Header ── */}
+        {collection.drop ? (
+          <>
+            <Link href="/" className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-60 mb-4" style={{ color: "var(--text-muted)" }}>
+              ← Home
+            </Link>
+            <DropHero title={collection.title} description={collection.description} count={collection.wallpaperCount} drop={collection.drop} />
+          </>
+        ) : (
         <header className="mb-8">
           <Link
             href="/profile"
@@ -224,6 +236,7 @@ export default function CollectionPage() {
             </div>
           )}
         </header>
+        )}
 
         {/* ── Edit form ── */}
         {editing && (

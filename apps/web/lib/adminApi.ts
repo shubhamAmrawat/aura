@@ -302,6 +302,8 @@ export type AdminUploadPayload = {
   aiTitle: boolean;
   /** AI fills the description and adds tags */
   aiText: boolean;
+  /** add to the end of this drop */
+  dropId?: string | null;
 };
 export type AdminUploadResult = {
   wallpaper: { id: string; title: string; fileUrl: string; status: string; width: number; height: number; isMobile: boolean; dominantColor: string };
@@ -654,3 +656,68 @@ export const getReports = (status: ReportStatus, offset = 0) =>
 export const getReportCounts = () => adminGet<ReportCounts>("/reports/counts");
 export const resolveReport = (id: string, body: { status: "actioned" | "dismissed"; action: ReportAction; note?: string | null }) =>
   adminCall<{ id: string; status: string; action: ReportAction; closedIds: string[] }>("POST", `/reports/${id}/resolve`, body);
+
+// ─── Drops ──────────────────────────────────────────────────
+
+export type DropStatus = "draft" | "scheduled" | "live" | "ended";
+
+export type AdminDropSummary = {
+  id: string;
+  title: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  publishedAt: string | null;
+  showOnApp: boolean;
+  showOnWeb: boolean;
+  createdAt: string;
+  wallpaperCount: number;
+  coverThumbUrl: string | null;
+  status: DropStatus;
+};
+
+export type AdminDropItem = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  thumbUrl: string | null;
+  blurhash: string | null;
+  dominantColor: string;
+  width: number;
+  height: number;
+  isMobile: boolean;
+  status: AdminWallpaper["status"];
+};
+
+export type AdminDrop = {
+  drop: {
+    id: string;
+    title: string;
+    description: string | null;
+    startsAt: string | null;
+    endsAt: string | null;
+    publishedAt: string | null;
+    showOnApp: boolean;
+    showOnWeb: boolean;
+    status: DropStatus;
+    accentColor: string;
+  };
+  wallpapers: AdminDropItem[];
+};
+
+export type DropPatch = Partial<{
+  title: string;
+  description: string | null;
+  /** ISO date-time; null = open-ended */
+  startsAt: string | null;
+  endsAt: string | null;
+  showOnApp: boolean;
+  showOnWeb: boolean;
+  published: boolean;
+}>;
+
+export const listDrops = () => adminGet<{ data: AdminDropSummary[] }>("/drops").then((r) => r.data);
+export const getDrop = (id: string) => adminGet<AdminDrop>(`/drops/${id}`);
+export const createDrop = (body: DropPatch & { title: string }) => adminCall<AdminDrop>("POST", "/drops", body);
+export const updateDrop = (id: string, patch: DropPatch) => adminCall<AdminDrop>("PATCH", `/drops/${id}`, patch);
+export const setDropWallpapers = (id: string, ids: string[]) => adminCall<AdminDrop>("PUT", `/drops/${id}/wallpapers`, { ids });
+export const deleteDrop = (id: string) => adminCall<{ message: string }>("DELETE", `/drops/${id}`);

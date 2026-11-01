@@ -1,3 +1,5 @@
+import type { DropInfo } from "./drops";
+import type { ScreenFilter } from "./wallpaperApi";
 import { request, WallpaperTile } from "./api";
 
 /** A user's collection as listed in Library. */
@@ -17,7 +19,8 @@ export type Collection = {
 export type CollectionCheck = { id: string; title: string; isPublic: boolean; hasWallpaper: boolean };
 
 export type CollectionDetails = {
-  collection: Omit<Collection, "coverUrl" | "coverThumbUrl"> & { userId: string };
+  /** `drop` is set for an admin's drop (e.g. "Diwali Drops"); drops have no userId. */
+  collection: Omit<Collection, "coverUrl" | "coverThumbUrl"> & { userId?: string; kind?: "user" | "drop"; drop?: DropInfo };
   wallpapers: WallpaperTile[];
 };
 
@@ -26,8 +29,9 @@ export async function getMyCollections(): Promise<Collection[]> {
   return res.data ?? [];
 }
 
-export function getCollection(id: string): Promise<CollectionDetails> {
-  return request<CollectionDetails>(`/api/collections/${id}`);
+/** `screen` only applies to drops (their wallpapers of that shape). */
+export function getCollection(id: string, screen?: ScreenFilter): Promise<CollectionDetails> {
+  return request<CollectionDetails>(`/api/collections/${id}${screen ? `?screen=${screen}` : ""}`);
 }
 
 export async function getCollectionsForWallpaper(wallpaperId: string): Promise<CollectionCheck[]> {

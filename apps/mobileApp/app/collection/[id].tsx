@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, BackHandler, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
@@ -7,6 +7,7 @@ import ActionSheet, { SheetAction } from "../../components/ActionSheet";
 import CollectionForm from "../../components/CollectionForm";
 import ConfirmModal from "../../components/ConfirmModal";
 import Header from "../../components/Header";
+import DropHero from "../../components/DropHero";
 import MasonryFeed from "../../components/MasonryFeed";
 import Sheet from "../../components/Sheet";
 import { Colors } from "../../constants";
@@ -17,6 +18,8 @@ import { CollectionDetails, getCollection } from "../../lib/collectionsApi";
 import { useCollectionActions, useCollections } from "../../lib/CollectionsContext";
 import { useToast } from "../../lib/ToastContext";
 import { useFeed } from "../../lib/useFeed";
+import { useScreenFilter } from "../../lib/ScreenFilterContext";
+import { dropUrl } from "../../lib/drops";
 
 const UNDO_WINDOW = 4000;
 
@@ -30,6 +33,7 @@ const CollectionScreen = () => {
   const { showToast, hideToast } = useToast();
   const { bottomPadding } = useInsets();
   const { collections, revisions } = useCollections();
+  const { screen } = useScreenFilter();
   const { deleteCollection, removeFromCollection } = useCollectionActions();
 
   const [fetched, setFetched] = useState<CollectionDetails["collection"] | null>(null);
@@ -48,7 +52,7 @@ const CollectionScreen = () => {
   const fetchPage = useCallback(async () => {
     loadedRevision.current = revisionRef.current;
     try {
-      const res = await getCollection(id);
+      const res = await getCollection(id, screen);
       setFetched(res.collection);
       setUnavailable(false);
       return { data: res.wallpapers, hasMore: false };
@@ -59,8 +63,8 @@ const CollectionScreen = () => {
       }
       throw e;
     }
-  }, [id]);
-  const feed = useFeed(fetchPage, id, 1000);
+  }, [id, screen]);
+  const feed = useFeed(fetchPage, `${id}:${screen}`, 1000);
   const { reload } = feed;
   useFocusEffect(
     useCallback(() => {
@@ -72,7 +76,8 @@ const CollectionScreen = () => {
   // so edits show up immediately.
   const stored = collections?.find((c) => c.id === id);
   const info = fetched ? { ...fetched, ...(stored ? { title: stored.title, description: stored.description, isPublic: stored.isPublic } : {}) } : null;
-  const isOwner = !!user && !!fetched && fetched.userId === user.id;
+  const drop = fetched?.drop ?? null;
+  const isOwner = !!user && !!fetched && !drop && fetched.userId === user.id;
 
   const items = useMemo(() => (hidden.size ? feed.items.filter((w) => !hidden.has(w.id)) : feed.items), [feed.items, hidden]);
   const visibleFeed = useMemo(() => ({ ...feed, items }), [feed, items]);
@@ -195,7 +200,14 @@ const CollectionScreen = () => {
     { key: "delete", label: "Delete collection", icon: "trash-outline", destructive: true, onPress: () => setConfirmDelete(true) },
   ];
 
-  const header = info ? (
+  const shareDrop = () => {
+    if (!info) return;
+    void Share.share({ message: `${info.title} on Aurora: ${dropUrl(id)}` }).catch(() => undefined);
+  };
+
+  const header = info && drop ? (
+    <DropHero id={id} title={info.title} description={info.description} count={count} drop={drop} />
+  ) : info ? (
     <View style={styles.about}>
       <View style={styles.metaRow}>
         <Ionicons name={info.isPublic ? "globe-outline" : "lock-closed-outline"} size={13} color={Colors.textMuted} />
@@ -223,12 +235,16 @@ const CollectionScreen = () => {
         />
       ) : (
         <Header
-          title={info?.title ?? title ?? ""}
+          title={drop ? "" : info?.title ?? title ?? ""}
           logo={false}
           titleFontSize={20}
           showBackButton
           rightElement={
-            isOwner ? (
+            drop ? (
+              <Pressable onPress={shareDrop} hitSlop={10} accessibilityLabel="Share drop" style={styles.iconBtn}>
+                <Ionicons name="share-social-outline" size={22} color={Colors.textPrimary} />
+              </Pressable>
+            ) : isOwner ? (
               <Pressable onPress={() => setMenuOpen(true)} hitSlop={10} accessibilityLabel="Collection options" style={styles.iconBtn}>
                 <Ionicons name="ellipsis-horizontal" size={24} color={Colors.textPrimary} />
               </Pressable>
