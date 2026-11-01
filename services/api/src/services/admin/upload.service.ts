@@ -11,6 +11,7 @@ import { CATEGORY_AI_MODEL } from "../categoryAi.service";
 import { analyzeUpload, embedWallpaper, type UploadAnalysis } from "../uploadAi.service";
 import { normalizeExtraCategories, setExtraCategories } from "../wallpaperCategories.service";
 import { findImageDuplicate } from "../duplicate.service";
+import { appendToDrop, assertDropExists } from "../drop.service";
 import type { ImageMetadata } from "../../utils/imageMetadata";
 import type { ModerationResult } from "../../integrations/sightengine";
 import type { AdminUploadInput, UploadAnalyzeInput } from "../../validators/admin.schema";
@@ -218,6 +219,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
   const cats = await categoryRows();
   const chosen = auto ? null : cats.find((c) => c.id === input.categoryId);
   if (!auto && !chosen) throw new ApiError(400, "Category not found");
+  const drop = input.dropId ? await assertDropExists(input.dropId) : null;
 
   if (!(await getDraft(adminId, input.key))) await analyzeAdminUpload(adminId, { ...input, title: input.title });
   const draft = (await getDraft(adminId, input.key))!;
@@ -298,6 +300,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         createdAt: wallpapers.createdAt,
       });
     if (extras.length) await setExtraCategories(row!.id, extras, tx);
+    if (drop) await appendToDrop(drop.id, row!.id, tx);
     await tx.delete(uploadDrafts).where(eq(uploadDrafts.key, input.key));
     await logAdminAction(
       {
@@ -305,7 +308,7 @@ export async function createAdminUpload(adminId: string, input: AdminUploadInput
         action: "wallpaper.upload",
         targetType: "wallpaper",
         targetId: row!.id,
-        details: { title, published: input.publish, moderation: moderation.status, category: category.name, extraCategories: extras.length, autoCategory: auto, warnings: warnings.length },
+        details: { title, published: input.publish, moderation: moderation.status, category: category.name, extraCategories: extras.length, autoCategory: auto, warnings: warnings.length, ...(drop ? { drop: drop.title } : {}) },
       },
       tx
     );

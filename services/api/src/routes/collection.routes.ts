@@ -6,6 +6,7 @@ export const collectionRoutes = Router();
 
 // Public (registered first; static paths before "/:id")
 collectionRoutes.get("/public", collections.listPublic);
+collectionRoutes.get("/spotlight", collections.spotlight);
 collectionRoutes.get("/saved-ids", requireAuth, collections.savedIds);
 collectionRoutes.get("/:id", optionalAuth, collections.getOne);
 

@@ -1,9 +1,13 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
-import { visibleCategorySql } from "../utils/screenFilter";
+import { visibleCategorySql, type ScreenFilter } from "../utils/screenFilter";
 import { db } from "../config/db";
 import { collections, collectionWallpapers, wallpapers } from "../models";
 import { ApiError } from "../utils/ApiError";
 import { thumbUrlSql } from "./wallpaperThumb.service";
+import { listDropItems, publicDropInfo } from "./drop.service";
+
+/** User collections only — drops (kind = "drop") are managed by admins, see drop.service. */
+const userKind = eq(collections.kind, "user");
 
 export function listPublicCollections() {
   return db
@@ -18,7 +22,7 @@ export function listPublicCollections() {
     })
     .from(collections)
     .leftJoin(collectionWallpapers, eq(collections.id, collectionWallpapers.collectionId))
-    .where(eq(collections.isPublic, true))
+    .where(and(eq(collections.isPublic, true), userKind))
     .groupBy(collections.id)
     .orderBy(desc(collections.createdAt));
 }
@@ -29,14 +33,23 @@ export async function listSavedWallpaperIds(userId: string) {
     .selectDistinct({ wallpaperId: collectionWallpapers.wallpaperId })
     .from(collectionWallpapers)
     .innerJoin(collections, eq(collectionWallpapers.collectionId, collections.id))
-    .where(eq(collections.userId, userId));
+    .where(and(eq(collections.userId, userId), userKind));
   return rows.map((r) => r.wallpaperId);
 }
 
 /** A collection + its wallpapers. Private collections are visible to the owner only. */
-export async function getCollection(id: string, viewerId: string | undefined) {
+export async function getCollection(id: string, viewerId: string | undefined, screen: ScreenFilter | null = null) {
   const [collection] = await db.select().from(collections).where(eq(collections.id, id)).limit(1);
   if (!collection) throw new ApiError(404, "Collection not found");
+
+  // Drops: public once published and started (drafts/scheduled → 404), wallpapers in the admin's order
+  if (collection.kind === "drop") {
+    const drop = await publicDropInfo(collection, screen);
+    if (!drop) throw new ApiError(404, "Collection not found");
+    const items = await listDropItems(id, screen);
+    const { userId: _u, publishedAt: _p, showOnApp: _a, showOnWeb: _w, ...rest } = collection;
+    return { collection: { ...rest, wallpaperCount: items.length, drop }, wallpapers: items };
+  }
 
   if (!collection.isPublic) {
     if (!viewerId || viewerId !== collection.userId) {
@@ -85,7 +98,7 @@ export function listUserCollections(userId: string) {
     })
     .from(collections)
     .leftJoin(collectionWallpapers, eq(collections.id, collectionWallpapers.collectionId))
-    .where(eq(collections.userId, userId))
+    .where(and(eq(collections.userId, userId), userKind))
     .groupBy(collections.id)
     .orderBy(desc(collections.createdAt));
 }
@@ -108,7 +121,7 @@ async function findOwnedCollection(userId: string, id: string) {
   const [row] = await db
     .select()
     .from(collections)
-    .where(and(eq(collections.id, id), eq(collections.userId, userId)))
+    .where(and(eq(collections.id, id), eq(collections.userId, userId), userKind))
     .limit(1);
   if (!row) throw new ApiError(404, "Collection not found");
   return row;
@@ -192,6 +205,6 @@ export function checkWallpaperInCollections(userId: string, wallpaperId: string)
       `,
     })
     .from(collections)
-    .where(eq(collections.userId, userId))
+    .where(and(eq(collections.userId, userId), userKind))
     .orderBy(desc(collections.createdAt));
 }

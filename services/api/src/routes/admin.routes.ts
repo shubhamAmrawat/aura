@@ -11,6 +11,7 @@ import * as usersCtl from "../controllers/admin/users.controller";
 import * as activity from "../controllers/admin/activity.controller";
 import * as creatorApps from "../controllers/admin/creatorApplications.controller";
 import * as reports from "../controllers/admin/reports.controller";
+import * as drops from "../controllers/admin/drops.controller";
 
 /** Everything under /api/admin — admin login required for every route. */
 export const adminRoutes = Router();
@@ -37,6 +38,14 @@ adminRoutes.delete("/wallpapers/:id", wallpapers.remove);
 adminRoutes.get("/featured", featured.get);
 adminRoutes.put("/featured/order", featured.order);
 adminRoutes.put("/featured/limit", featured.limit);
+
+// Drops (editorial collections shown as a home banner)
+adminRoutes.get("/drops", drops.list);
+adminRoutes.post("/drops", drops.create);
+adminRoutes.get("/drops/:id", drops.detail);
+adminRoutes.patch("/drops/:id", drops.update);
+adminRoutes.put("/drops/:id/wallpapers", drops.items);
+adminRoutes.delete("/drops/:id", drops.remove);
 
 // Bulk upload (Phase 4)
 adminRoutes.post("/uploads/urls", uploads.urls);

@@ -1,8 +1,17 @@
 import { route } from "../utils/asyncRoute";
-import { authUserId, param } from "../utils/request";
+import { authUserId, param, queryParam } from "../utils/request";
 import { parseOrThrow } from "../utils/validate";
 import { AddWallpaperBody, CreateCollectionBody, UpdateCollectionBody } from "../validators/collection.schema";
 import * as collectionService from "../services/collection.service";
+import * as dropService from "../services/drop.service";
+import { parseScreenFilter } from "../utils/screenFilter";
+import { SpotlightQuery } from "../validators/drop.schema";
+
+/** GET /api/collections/spotlight?placement=app|web&screen= — the live drop for the home banner (data: null if none) */
+export const spotlight = route("Failed to fetch drop", async (req, res) => {
+  const { placement } = parseOrThrow(SpotlightQuery, req.query);
+  res.json({ data: await dropService.getSpotlight(placement, parseScreenFilter(queryParam(req, "screen"))) });
+});
 
 export const listPublic = route("Failed to fetch public collections", async (_req, res) => {
   res.json({ data: await collectionService.listPublicCollections() });
@@ -14,7 +23,7 @@ export const savedIds = route("Failed to fetch saved wallpaper IDs", async (req,
 
 /** Public collections: anyone. Private: owner only (via optionalAuth). */
 export const getOne = route("Failed to fetch collection", async (req, res) => {
-  res.json(await collectionService.getCollection(param(req, "id"), req.userId));
+  res.json(await collectionService.getCollection(param(req, "id"), req.userId, parseScreenFilter(queryParam(req, "screen"))));
 });
 
 export const listMine = route("Failed to fetch collections", async (req, res) => {

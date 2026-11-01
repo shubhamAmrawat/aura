@@ -210,6 +210,8 @@ export const AdminUploadBody = z
     aiTitle: z.boolean({ message: "aiTitle must be true or false" }).default(false),
     /** true = the AI fills an empty description and adds its tags to the given ones */
     aiText: z.boolean({ message: "aiText must be true or false" }).default(true),
+    /** add the wallpaper to the end of this drop (shows there once approved) */
+    dropId: z.string().regex(UUID, "Invalid drop").nullable().optional(),
   })
   .strict();
 export type AdminUploadInput = z.output<typeof AdminUploadBody>;
