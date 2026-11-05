@@ -229,6 +229,7 @@ export async function prepareTemplate(id: string) {
   let dropLink: string | null = null;
   let wallpaperLink: string | null = null;
   let image: string | null = t.imageSource === "custom" ? t.imageUrl : null;
+  let expiresAt: Date | null = null;
 
   if (usesDrop) {
     const d = await getSpotlight("app", "mobile").catch(() => null);
@@ -237,6 +238,7 @@ export async function prepareTemplate(id: string) {
       if (d.endsAt) values.ends = fmtDate(new Date(d.endsAt));
       if (needs.has("drop") || needs.has("ends")) values.count = String(d.wallpaperCount);
       dropLink = `/collection/${d.id}`;
+      if (d.endsAt) expiresAt = new Date(d.endsAt);
       const first = d.preview[0];
       if (t.imageSource === "drop" && first) image = first.thumbUrl ?? first.fileUrl;
     } else problems.push("There's no live drop right now, so {drop} and its link can't be filled in.");
@@ -284,6 +286,8 @@ export async function prepareTemplate(id: string) {
     },
     audience,
     cooldownDays: t.cooldownDays,
+    /** when the drop it's about ends (suggested expiry) */
+    expiresAt,
     values,
     /** placeholders the admin fills in (e.g. festival) */
     missing,

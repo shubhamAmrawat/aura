@@ -30,7 +30,7 @@ export type NotificationType =
   | "drop" | "daily" | "update" | "announcement"
   | "upload_live" | "upload_rejected" | "milestone"
   | "creator_approved" | "creator_rejected" | "report_reviewed"
-  | "admin_report" | "admin_application" | "admin_delivery";
+  | "admin_report" | "admin_application" | "admin_delivery" | "admin_signup";
 
 type PrefKey = keyof NotificationPrefs;
 
@@ -38,7 +38,7 @@ export const PREF: Record<NotificationType, PrefKey> = {
   drop: "drops", daily: "daily", update: "updates", announcement: "updates",
   upload_live: "uploads", upload_rejected: "uploads", milestone: "milestones",
   creator_approved: "account", creator_rejected: "account", report_reviewed: "account",
-  admin_report: "account", admin_application: "account", admin_delivery: "account",
+  admin_report: "account", admin_application: "account", admin_delivery: "account", admin_signup: "account",
 };
 
 export const PREF_DEFAULTS: Required<NotificationPrefs> = { drops: true, daily: false, updates: true, uploads: true, milestones: true, account: true };
@@ -48,14 +48,14 @@ const CHANNEL: Record<NotificationType, string> = {
   drop: "drops_v2", daily: "daily", update: "updates_v2", announcement: "announcements",
   upload_live: "uploads_v2", upload_rejected: "uploads_v2", milestone: "milestones",
   creator_approved: "account_v2", creator_rejected: "account_v2", report_reviewed: "account_v2",
-  admin_report: "account_v2", admin_application: "account_v2", admin_delivery: "account_v2",
+  admin_report: "account_v2", admin_application: "account_v2", admin_delivery: "account_v2", admin_signup: "account_v2",
 };
 /** Apps before 1.0.4 only have the old channels. */
 const LEGACY_CHANNEL: Record<NotificationType, string> = {
   drop: "drops", daily: "daily", update: "updates", announcement: "updates",
   upload_live: "uploads", upload_rejected: "uploads", milestone: "uploads",
   creator_approved: "account", creator_rejected: "account", report_reviewed: "account",
-  admin_report: "account", admin_application: "account", admin_delivery: "account",
+  admin_report: "account", admin_application: "account", admin_delivery: "account", admin_signup: "account",
 };
 const channelFor = (type: NotificationType, appVersion: string | null) =>
   (older(appVersion, "1.0.4") ? LEGACY_CHANNEL : CHANNEL)[type] ?? "updates";
@@ -85,6 +85,8 @@ export type NewCampaign = {
   /** made from this template: skip people who got it in the last cooldownDays */
   templateId?: string | null;
   cooldownDays?: number;
+  /** not pushed after this (e.g. when the drop it's about ends); inbox items show "Ended" */
+  expiresAt?: Date | null;
 };
 
 type Campaign = typeof notificationCampaigns.$inferSelect;
@@ -109,10 +111,15 @@ export async function createCampaign(input: NewCampaign, opts: { wait?: boolean 
       createdBy: input.createdBy ?? null,
       templateId: input.templateId ?? null,
       cooldownDays: input.cooldownDays ?? 0,
+      expiresAt: input.expiresAt ?? null,
     })
     .onConflictDoNothing({ target: notificationCampaigns.dedupeKey })
     .returning();
   if (!row) return null;
+  if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) {
+    await db.update(notificationCampaigns).set({ status: "cancelled", finishedAt: new Date() }).where(eq(notificationCampaigns.id, row.id));
+    return { ...row, status: "cancelled" as const };
+  }
   if (row.scheduledFor.getTime() <= Date.now() + 1000) {
     const run = startCampaign(row).catch((e) => console.error("[notify] campaign failed:", e instanceof Error ? e.message : e));
     if (opts.wait) await run;
@@ -239,6 +246,14 @@ const isDirect = (c: { kind: string; audience: CampaignAudience }) => c.kind ===
 /** Due now: hold for quiet hours, or resolve the audience and send. */
 async function startCampaign(c: Campaign) {
   const type = c.type as NotificationType;
+  // e.g. held through quiet hours past the end of its drop: don't send it at all
+  if (c.expiresAt && c.expiresAt.getTime() <= Date.now()) {
+    await db
+      .update(notificationCampaigns)
+      .set({ status: "cancelled", finishedAt: new Date() })
+      .where(and(eq(notificationCampaigns.id, c.id), inArray(notificationCampaigns.status, ["scheduled", "held"])));
+    return;
+  }
   const rules = await getRules();
   if (c.respectQuiet && !URGENT.has(type) && c.kind !== "test" && isQuiet(rules)) {
     await db
@@ -269,7 +284,7 @@ async function startCampaign(c: Campaign) {
 /** Inbox rows: one shared row for "everyone"; otherwise one per person reached (tests: none). */
 async function writeInbox(c: Campaign, targets: Target[]) {
   if (c.kind === "test") return;
-  const base = { type: c.type, title: personalize(c.title), body: c.body ? personalize(c.body) : null, imageUrl: c.imageUrl, url: c.url, actions: c.actions, campaignId: c.id };
+  const base = { type: c.type, title: personalize(c.title), body: c.body ? personalize(c.body) : null, imageUrl: c.imageUrl, url: c.url, actions: c.actions, campaignId: c.id, expiresAt: c.expiresAt };
   const a = c.audience;
   if (a.kind === "everyone" && !a.versionBelow && !a.activeDays && !a.installedDays && !a.excludeCreators && !a.notOpenedLatestDrop && !c.cooldownDays) {
     await db.insert(notifications).values({ ...base, userId: null, screen: a.screen ?? null });
@@ -299,6 +314,15 @@ export async function processQueue(campaignId?: string) {
   if (!campaignId) processing = true;
   try {
     const rules = await getRules();
+    // still queued when it expired (e.g. the server was asleep): don't push it late
+    const expired = await db.execute<{ campaign_id: string }>(sql`
+      UPDATE notification_deliveries d SET status = 'failed', error = 'Expired'
+      FROM notification_campaigns c
+      WHERE c.id = d.campaign_id AND d.status = 'queued' AND c.expires_at IS NOT NULL AND c.expires_at <= ${new Date().toISOString()}::timestamp
+      RETURNING d.campaign_id
+    `);
+    const expiredIds = [...new Set([...expired].map((r) => r.campaign_id))];
+    if (expiredIds.length) await refreshCounts(expiredIds);
     for (let round = 0; round < 50; round++) {
       const batch = await db
         .select({
@@ -381,7 +405,7 @@ export async function processQueue(campaignId?: string) {
           updates.push({ id: d.id, status: "failed", ticket: null, error: "Browser unsubscribed", sent: false });
           continue;
         }
-        const r = await sendWebPush({ endpoint: d.target, p256dh: d.p256dh, auth: d.auth }, webPayload(d.c, d.id, varsOf(d)), TTL[d.c.type as NotificationType] ?? 24 * 3600);
+        const r = await sendWebPush({ endpoint: d.target, p256dh: d.p256dh, auth: d.auth }, webPayload(d.c, d.id, varsOf(d)), ttlFor(d.c, d.c.type as NotificationType).ttl ?? 24 * 3600);
         updates.push({ id: d.id, status: r.ok ? "delivered" : "failed", ticket: null, error: r.ok ? null : (r.error ?? "Failed"), sent: r.ok });
         if (r.dead) deadWeb.push(d.target);
       }
@@ -482,8 +506,15 @@ function appMessage(c: Campaign, deliveryId: string, token: string, appVersion: 
     ...(c.actions?.length ? { categoryId: type } : {}),
     priority: "high",
     sound: "default",
-    ...(TTL[type] ? { ttl: TTL[type] } : {}),
+    ...ttlFor(c, type),
   };
+}
+
+/** Expo drops it if the phone stays offline this long: the type's TTL, never past the expiry. */
+function ttlFor(c: Campaign, type: NotificationType): { ttl?: number } {
+  const left = c.expiresAt ? Math.floor((c.expiresAt.getTime() - Date.now()) / 1000) : null;
+  const ttl = left !== null ? Math.max(60, Math.min(left, TTL[type] ?? left)) : TTL[type];
+  return ttl ? { ttl } : {};
 }
 
 function webPayload(c: Campaign, deliveryId: string, vars: PersonalVars | undefined) {

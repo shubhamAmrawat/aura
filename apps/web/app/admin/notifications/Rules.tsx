@@ -19,6 +19,7 @@ const ALERTS: { key: keyof NotificationRules["alerts"]; label: string; sub: stri
   { key: "report", label: "New report", sub: "To every admin's phone and browser" },
   { key: "application", label: "New creator application", sub: "To every admin's phone and browser" },
   { key: "deliveryProblems", label: "Push delivery problems", sub: "When more than 10% of a send fails" },
+  { key: "signup", label: "New user joined", sub: "When someone makes an account (waits for quiet hours to end)" },
 ];
 
 const card = { background: "var(--bg-secondary)", border: "1px solid var(--border)" };

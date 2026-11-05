@@ -6,13 +6,17 @@ import { BellIcon } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { useDevice } from "@/lib/useDevice";
 import { screenFor } from "@/lib/device";
-import { getInbox, getUnreadCount, markSeen, timeAgo, typeLabel, webHref, type NotificationItem } from "@/lib/notificationsApi";
+import { getInbox, getUnreadCount, isEnded, markSeen, timeAgo, typeLabel, webHref, type NotificationItem } from "@/lib/notificationsApi";
 import { dismissPrompt, enableWebPush, promptDismissed, syncWebPush, webPushState, type WebPushState } from "@/lib/webPush";
 
 const POLL_MS = 90_000;
 
-/** Navbar bell: unread count, and a panel with the latest notifications (+ turning on browser notifications). */
-export default function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
+/**
+ * Navbar bell: unread count, and a panel with the latest notifications (+ turning on browser notifications).
+ * `admin`: the admin dashboard's bell — admin alerts only (reports, applications, sign-ups…).
+ */
+export default function NotificationBell({ align = "right", admin = false }: { align?: "left" | "right"; admin?: boolean }) {
+  const scope = admin ? "admin" : "user";
   const { user, loaded } = useAuth();
   const { device } = useDevice();
   const screen = screenFor(device);
@@ -45,8 +49,8 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
 
   const refreshCount = useCallback(() => {
     if (!loaded) return;
-    void getUnreadCount(screen, signedIn).then(setUnread);
-  }, [screen, signedIn, loaded]);
+    void getUnreadCount(screen, signedIn, scope).then(setUnread);
+  }, [screen, signedIn, loaded, scope]);
 
   useEffect(() => {
     refreshCount();
@@ -63,11 +67,11 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
     setOpen(true);
     setError(false);
     try {
-      const page = await getInbox({ screen, signedIn, limit: 8 });
+      const page = await getInbox({ screen, signedIn, limit: 8, scope });
       setItems(page.data);
       setSeenBefore(new Date(page.seenAt).getTime());
       setUnread(0);
-      await markSeen(signedIn);
+      await markSeen(signedIn, scope);
     } catch {
       setError(true);
     }
@@ -125,7 +129,9 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
                 </span>
                 <span className="flex flex-col gap-0.5">
                   <span className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>Get notified in this browser</span>
-                  <span className="text-[12.5px] leading-snug" style={{ color: "var(--text-secondary)" }}>New drops and your uploads, even when Aurora isn&apos;t open. Turn off any time.</span>
+                  <span className="text-[12.5px] leading-snug" style={{ color: "var(--text-secondary)" }}>
+                    {admin ? "New reports, creator applications and sign-ups, even when this tab is closed." : "New drops and your uploads, even when Aurora isn't open."} Turn off any time.
+                  </span>
                 </span>
               </div>
               <div className="flex gap-2">
@@ -149,14 +155,18 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
                 {[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl" style={{ background: "var(--bg-secondary)" }} />)}
               </div>
             )}
-            {items?.length === 0 && <p className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>Nothing yet. New drops and updates show up here.</p>}
+            {items?.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                {admin ? "No alerts yet. New reports, creator applications and sign-ups show up here." : "Nothing yet. New drops and updates show up here."}
+              </p>
+            )}
             {items?.map((n) => (
               <NotificationRow key={n.id} n={n} unread={new Date(n.createdAt).getTime() > seenBefore} onNavigate={() => setOpen(false)} />
             ))}
           </div>
 
-          <Link href="/notifications" onClick={() => setOpen(false)} className="block px-4 py-3 text-center text-[13px] font-bold" style={{ borderTop: "1px solid var(--border)", color: "var(--accent)" }}>
-            See all notifications
+          <Link href={admin ? "/admin/alerts" : "/notifications"} onClick={() => setOpen(false)} className="block px-4 py-3 text-center text-[13px] font-bold" style={{ borderTop: "1px solid var(--border)", color: "var(--accent)" }}>
+            {admin ? "See all alerts" : "See all notifications"}
           </Link>
         </div>
       )}
@@ -164,9 +174,11 @@ export default function NotificationBell({ align = "right" }: { align?: "left" |
   );
 }
 
-export function NotificationRow({ n, unread, onNavigate }: { n: NotificationItem; unread: boolean; onNavigate?: () => void }) {
+export function NotificationRow({ n, unread: isNew, onNavigate }: { n: NotificationItem; unread: boolean; onNavigate?: () => void }) {
   const { href, external } = webHref(n.url);
   const t = typeLabel(n.type);
+  const ended = isEnded(n);
+  const unread = isNew && !ended;
   const content = (
     <>
       {n.imageUrl ? (
@@ -178,7 +190,10 @@ export function NotificationRow({ n, unread, onNavigate }: { n: NotificationItem
         </span>
       )}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[11px] font-extrabold uppercase tracking-wider" style={{ color: t.color }}>{t.label} · {timeAgo(n.createdAt)}</span>
+        <span className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider" style={{ color: ended ? "var(--text-muted)" : t.color }}>
+          {t.label} · {timeAgo(n.createdAt)}
+          {ended && <span className="rounded px-1.5 py-px text-[10px] tracking-wide" style={{ background: "var(--bg-secondary)", color: "var(--text-secondary)" }}>Ended</span>}
+        </span>
         <span className="text-sm" style={{ color: unread ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: unread ? 700 : 600 }}>{n.title}</span>
         {n.body && <span className="line-clamp-2 text-[12.5px]" style={{ color: "var(--text-muted)" }}>{n.body}</span>}
       </span>
@@ -186,7 +201,7 @@ export function NotificationRow({ n, unread, onNavigate }: { n: NotificationItem
     </>
   );
   const cls = "flex gap-3 px-4 py-3 transition-colors hover:bg-white/5";
-  const style = unread ? { background: "rgba(129,238,78,0.04)" } : undefined;
+  const style = unread ? { background: "rgba(129,238,78,0.04)" } : ended ? { opacity: 0.6 } : undefined;
   return external ? (
     <a href={href} target="_blank" rel="noopener noreferrer" onClick={onNavigate} className={cls} style={style}>{content}</a>
   ) : (

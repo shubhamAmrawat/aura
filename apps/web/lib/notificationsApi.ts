@@ -13,10 +13,16 @@ export type NotificationItem = {
   /** a path (/wallpaper/…, /collection/…), an https link, or null */
   url: string | null;
   actions: { id: string; label: string; url: string }[];
+  /** after this it's "Ended" (e.g. its drop ended) */
+  expiresAt?: string | null;
   createdAt: string;
 };
 
+export const isEnded = (n: Pick<NotificationItem, "expiresAt">, now = Date.now()) => !!n.expiresAt && new Date(n.expiresAt).getTime() <= now;
+
 export type InboxPage = { data: NotificationItem[]; hasMore: boolean; seenAt: string; unread: number };
+/** user = the website inbox (no admin alerts); admin = admin alerts only (the admin bell) */
+export type InboxScope = "user" | "admin";
 
 function localSeen(): string | null {
   try {
@@ -33,15 +39,15 @@ function query(params: Record<string, string | undefined | null>) {
   return s ? `?${s}` : "";
 }
 
-export async function getUnreadCount(screen: string | undefined, signedIn: boolean): Promise<number> {
-  const res = await fetch(`${API_URL}/api/notifications/unread${query({ screen, since: signedIn ? null : localSeen() })}`, { credentials: "include", cache: "no-store" });
+export async function getUnreadCount(screen: string | undefined, signedIn: boolean, scope: InboxScope = "user"): Promise<number> {
+  const res = await fetch(`${API_URL}/api/notifications/unread${query({ screen, since: signedIn ? null : localSeen(), scope })}`, { credentials: "include", cache: "no-store" });
   if (!res.ok) return 0;
   const data = await res.json().catch(() => ({}));
   return typeof data.unread === "number" ? data.unread : 0;
 }
 
-export async function getInbox(opts: { screen?: string; signedIn: boolean; before?: string; limit?: number }): Promise<InboxPage> {
-  const url = `${API_URL}/api/notifications${query({ screen: opts.screen, since: opts.signedIn ? null : localSeen(), before: opts.before, limit: String(opts.limit ?? 20) })}`;
+export async function getInbox(opts: { screen?: string; signedIn: boolean; before?: string; limit?: number; scope?: InboxScope }): Promise<InboxPage> {
+  const url = `${API_URL}/api/notifications${query({ screen: opts.screen, since: opts.signedIn ? null : localSeen(), before: opts.before, limit: String(opts.limit ?? 20), scope: opts.scope ?? "user" })}`;
   const res = await fetch(url, { credentials: "include", cache: "no-store" });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Couldn't load notifications");
@@ -49,7 +55,7 @@ export async function getInbox(opts: { screen?: string; signedIn: boolean; befor
 }
 
 /** Everything up to now counts as seen (account, or this browser when signed out). */
-export async function markSeen(signedIn: boolean) {
+export async function markSeen(signedIn: boolean, scope: InboxScope = "user") {
   if (!signedIn) {
     try {
       localStorage.setItem(SEEN_KEY, new Date().toISOString());
@@ -58,7 +64,7 @@ export async function markSeen(signedIn: boolean) {
     }
     return;
   }
-  await fetch(`${API_URL}/api/notifications/seen`, { method: "POST", credentials: "include" }).catch(() => undefined);
+  await fetch(`${API_URL}/api/notifications/seen?scope=${scope}`, { method: "POST", credentials: "include" }).catch(() => undefined);
 }
 
 /** Where a notification goes on the website: its page, an https link, or the inbox. */
@@ -97,6 +103,8 @@ export function typeLabel(type: string): { label: string; color: string } {
     case "admin_application":
     case "admin_delivery":
       return { label: "Admin", color: "#F87171" };
+    case "admin_signup":
+      return { label: "New user", color: "var(--accent)" };
     case "upload_live":
     case "upload_rejected":
     case "milestone":

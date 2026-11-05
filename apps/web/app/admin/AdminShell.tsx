@@ -146,7 +146,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen flex" style={{ background: "var(--bg-primary)" }}>
       {/* Sidebar (desktop) */}
       <aside
-        className="hidden md:flex w-60 shrink-0 flex-col gap-6 p-4 sticky top-0 h-screen"
+        className="hidden md:flex w-60 shrink-0 flex-col gap-6 p-4 sticky top-0 h-screen z-40"
         style={{ borderRight: "1px solid var(--border)", background: "var(--bg-secondary)" }}
       >
         <div className="flex items-center gap-2 px-2 pt-1">
@@ -155,7 +155,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             Admin
           </span>
           <span className="ml-auto">
-            <NotificationBell align="left" />
+            <NotificationBell align="left" admin />
           </span>
         </div>
         {nav}
@@ -197,7 +197,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--accent)" }}>Admin</span>
           </div>
           <span className="ml-auto mr-1">
-            <NotificationBell />
+            <NotificationBell admin />
           </span>
           <button
             onClick={() => setMenuOpen((v) => !v)}

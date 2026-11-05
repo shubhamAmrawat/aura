@@ -3,7 +3,7 @@ import { authUserId } from "../utils/request";
 import { parseOrThrow } from "../utils/validate";
 import { isExpoPushToken } from "../integrations/expoPush";
 import { ApiError } from "../utils/ApiError";
-import { DevicePrefsBody, InboxQuery, OpenedBody, RegisterDeviceBody, TokenBody, TokenQuery, WebEndpointBody, WebPrefsBody, WebSubscribeBody } from "../validators/notification.schema";
+import { DevicePrefsBody, InboxQuery, SeenQuery, OpenedBody, RegisterDeviceBody, TokenBody, TokenQuery, WebEndpointBody, WebPrefsBody, WebSubscribeBody } from "../validators/notification.schema";
 import { markOpened } from "../services/notify/engine";
 import { vapidPublicKey } from "../integrations/webPush";
 import * as notify from "../services/notification.service";
@@ -13,18 +13,19 @@ import { getAppVersions } from "../services/appConfig.service";
 /** GET /api/notifications?screen=&since=&before=&limit= — signed in: own + broadcasts; signed out: broadcasts */
 export const inbox = route("Failed to load notifications", async (req, res) => {
   const q = parseOrThrow(InboxQuery, req.query);
-  res.json(await notify.listInbox({ userId: req.userId, screen: q.screen ?? null, since: q.since, before: q.before, limit: q.limit }));
+  res.json(await notify.listInbox({ userId: req.userId, screen: q.screen ?? null, since: q.since, before: q.before, limit: q.limit, scope: q.scope }));
 });
 
 /** GET /api/notifications/unread?screen=&since= */
 export const unread = route("Failed to load notifications", async (req, res) => {
   const q = parseOrThrow(InboxQuery, req.query);
-  res.json(await notify.unreadCount({ userId: req.userId, screen: q.screen ?? null, since: q.since }));
+  res.json(await notify.unreadCount({ userId: req.userId, screen: q.screen ?? null, since: q.since, scope: q.scope }));
 });
 
-/** POST /api/notifications/seen — the inbox was opened */
+/** POST /api/notifications/seen?scope= — the inbox (or the admin bell, scope=admin) was opened */
 export const seen = route("Failed to update notifications", async (req, res) => {
-  res.json(await notify.markSeen(authUserId(req)));
+  const { scope } = parseOrThrow(SeenQuery, req.query);
+  res.json(await notify.markSeen(authUserId(req), scope === "admin"));
 });
 
 /** POST /api/notifications/devices { token, screen, platform, appVersion } — signed in links the phone to the account */

@@ -43,12 +43,15 @@ export async function sendManual(
   audience: CampaignAudience,
   scheduledFor: Date | null,
   respectQuiet: boolean,
-  from: { templateId: string | null; cooldownDays: number } = { templateId: null, cooldownDays: 0 }
+  from: { templateId: string | null; cooldownDays: number; expiresAt?: Date | null } = { templateId: null, cooldownDays: 0 }
 ) {
   if (scheduledFor && scheduledFor.getTime() < Date.now() - 60_000) throw new ApiError(400, "That time has passed.");
+  const expiresAt = from.expiresAt ?? null;
+  if (expiresAt && expiresAt.getTime() <= Math.max(Date.now(), scheduledFor?.getTime() ?? 0) + 5 * 60_000)
+    throw new ApiError(400, "The expiry has to be at least 5 minutes after it goes out.");
   assertFilled(m);
   const row = await createCampaign(
-    { kind: "manual", ...m, audience, scheduledFor, respectQuiet, createdBy: adminId, templateId: from.templateId, cooldownDays: from.templateId ? from.cooldownDays : 0 },
+    { kind: "manual", ...m, audience, scheduledFor, respectQuiet, createdBy: adminId, templateId: from.templateId, cooldownDays: from.templateId ? from.cooldownDays : 0, expiresAt },
     { wait: true }
   );
   if (!row) throw new ApiError(409, "Already sent.");

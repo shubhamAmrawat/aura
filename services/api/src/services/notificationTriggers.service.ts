@@ -15,6 +15,7 @@ type Auto = {
   url?: string | null;
   actions?: NotificationAction[];
   dedupeKey: string;
+  expiresAt?: Date | null;
 };
 
 const AUTO_OF: Partial<Record<NotificationType, AutoKey>> = {
@@ -47,10 +48,12 @@ async function broadcast(n: Auto & { screen?: "mobile" | "tablet" | null }) {
 }
 
 /** Alerts to every admin (app + browsers), if that alert is switched on. Never throws. */
-export async function alertAdmins(kind: "report" | "application" | "deliveryProblems", n: Omit<Auto, "type">) {
+const ALERT_TYPE = { report: "admin_report", application: "admin_application", deliveryProblems: "admin_delivery", signup: "admin_signup" } as const satisfies Record<string, NotificationType>;
+
+export async function alertAdmins(kind: keyof typeof ALERT_TYPE, n: Omit<Auto, "type">) {
   try {
     if (!(await getRules()).alerts[kind]) return;
-    const type: NotificationType = kind === "report" ? "admin_report" : kind === "application" ? "admin_application" : "admin_delivery";
+    const type: NotificationType = ALERT_TYPE[kind];
     await createCampaign({ kind: "auto", type, ...n, audience: { kind: "admins" } });
   } catch (e) {
     console.error(`[notify] admin alert failed:`, e instanceof Error ? e.message : e);
@@ -174,7 +177,7 @@ const DROP_ANNOUNCE_WINDOW_MS = 48 * 3600_000;
 async function announceLiveDrops() {
   const now = new Date();
   const live = await db
-    .select({ id: collections.id, title: collections.title, startsAt: collections.startsAt, publishedAt: collections.publishedAt })
+    .select({ id: collections.id, title: collections.title, startsAt: collections.startsAt, endsAt: collections.endsAt, publishedAt: collections.publishedAt })
     .from(collections)
     .where(
       and(
@@ -205,6 +208,7 @@ async function announceLiveDrops() {
         { id: "autochange", label: "Auto-change from it", url: `/settings/wallpaper-changer?dropId=${d.id}&dropName=${encodeURIComponent(d.title)}` },
       ],
       dedupeKey: key,
+      expiresAt: d.endsAt,
     });
     console.log(`[notify] announced drop ${d.title}`);
   }

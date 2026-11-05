@@ -27,7 +27,7 @@ export const send = route("Failed to send", async (req, res) => {
       b.audience,
       b.scheduledFor ?? null,
       b.respectQuiet,
-      { templateId: b.templateId ?? null, cooldownDays: b.cooldownDays }
+      { templateId: b.templateId ?? null, cooldownDays: b.cooldownDays, expiresAt: b.expiresAt ?? null }
     )
   );
 });

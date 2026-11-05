@@ -112,6 +112,9 @@ export default function Compose({ overview, initialUserId, templateId, onClearTe
   const [later, setLater] = useState(false);
   const [at, setAt] = useState(soonLocal());
   const [respectQuiet, setRespectQuiet] = useState(true);
+  // expiry: auto = when the drop it opens ends (if it opens one), else never
+  const [expiry, setExpiry] = useState<"auto" | "never" | "custom">("auto");
+  const [expiresLocal, setExpiresLocal] = useState("");
   // ui
   const [drops, setDrops] = useState<AdminDropSummary[]>([]);
   const [picker, setPicker] = useState<"image" | "opens" | null>(null);
@@ -213,6 +216,15 @@ export default function Compose({ overview, initialUserId, templateId, onClearTe
 
   const url = opens.kind === "inbox" ? null : opens.kind === "link" ? opens.url.trim() || null : opens.kind === "drop" ? `/collection/${opens.id}` : `/wallpaper/${opens.id}`;
   const message: NotifyMessage = { type, title: fillIn(title, fills).trim(), body: fillIn(body, fills).trim() || null, imageUrl: imageUrl.trim() || null, url, actions: buttons.filter((b) => b.label.trim() && b.url.trim()) };
+  // the drop this opens (picked, or a /collection/… link from a template) and when it ends
+  const dropId = opens.kind === "drop" ? opens.id : opens.kind === "link" ? /^\/collection\/([0-9a-f-]{36})/.exec(opens.url.trim())?.[1] : undefined;
+  const dropEndsAny = (dropId ? drops.find((d) => d.id === dropId)?.endsAt : null) ?? (dropId ? tpl?.expiresAt : null) ?? null;
+  // an already-ended (or about to end) drop: nothing to expire with
+  const dropEnds = dropEndsAny && new Date(dropEndsAny).getTime() > Date.now() + 10 * 60_000 ? dropEndsAny : null;
+  const expiresAt =
+    expiry === "auto" ? dropEnds : expiry === "custom" && expiresLocal ? new Date(expiresLocal).toISOString() : null;
+  const fmtWhen = (iso: string) => new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+
   const unfilled = Object.keys(fills).filter((k) => !fills[k]?.trim() && (title + body).includes(`{${k}}`));
   const canSend = !!message.title && !!audience && (!later || !!at) && !unfilled.length;
 
@@ -246,6 +258,7 @@ export default function Compose({ overview, initialUserId, templateId, onClearTe
         respectQuiet,
         templateId: tpl?.template.id ?? null,
         cooldownDays: from?.cooldownDays ?? 0,
+        expiresAt,
       });
       setConfirm(false);
       const c = r.campaign;
@@ -499,6 +512,20 @@ export default function Compose({ overview, initialUserId, templateId, onClearTe
             <input type="checkbox" checked={respectQuiet} onChange={(e) => setRespectQuiet(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
             Respect quiet hours ({overview.rules.quietStart}–{overview.rules.quietEnd} IST) and the daily cap ({overview.rules.dailyCap})
           </label>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={label} style={{ color: "var(--text-secondary)" }}>
+              Ends
+              <select value={expiry} onChange={(e) => setExpiry(e.target.value as typeof expiry)} className="h-9 rounded-lg px-2 text-sm font-normal [color-scheme:dark]" style={inputStyle}>
+                <option value="auto">{dropEnds ? `When the drop ends (${fmtWhen(dropEnds)})` : "Never"}</option>
+                {dropEnds && <option value="never">Never</option>}
+                <option value="custom">At a time…</option>
+              </select>
+            </label>
+            {expiry === "custom" && (
+              <input type="datetime-local" value={expiresLocal} onChange={(e) => setExpiresLocal(e.target.value)} className="h-9 w-64 rounded-lg px-3 text-sm [color-scheme:dark]" style={inputStyle} aria-label="Ends at" />
+            )}
+          </div>
+          <p className="text-xs -mt-2" style={{ color: "var(--text-muted)" }}>After it ends it isn&apos;t sent to anyone who hasn&apos;t got it yet, and the inbox shows it as “Ended”.</p>
         </Step>
       </div>
 

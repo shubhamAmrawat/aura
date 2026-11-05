@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, like, lt, notLike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../config/db";
 import { notifications, notificationSeen, pushDevices, webPushSubscriptions, type NotificationPrefs } from "../models";
 import { PREF_DEFAULTS } from "./notify/engine";
@@ -61,7 +61,24 @@ const BROADCAST_DAYS = 30;
 /** With nothing seen yet, only the last week counts as unread. */
 const DEFAULT_UNSEEN_DAYS = 7;
 
-function inboxWhere(userId: string | undefined, screen: ScreenFilter | null) {
+export type InboxScope = "all" | "user" | "admin";
+
+/** Ended items stay in the inbox (marked "Ended") this long, then drop out. */
+const ENDED_KEEP_DAYS = 3;
+
+function inboxWhere(userId: string | undefined, screen: ScreenFilter | null, scope: InboxScope = "all") {
+  const keep = or(isNull(notifications.expiresAt), gt(notifications.expiresAt, new Date(Date.now() - ENDED_KEEP_DAYS * 86_400_000)))!;
+  return and(inboxWhereScoped(userId, screen, scope), keep)!;
+}
+
+function inboxWhereScoped(userId: string | undefined, screen: ScreenFilter | null, scope: InboxScope) {
+  // admin alerts (types admin_*) are always personal rows
+  if (scope === "admin") return userId ? and(eq(notifications.userId, userId), like(notifications.type, "admin\\_%"))! : sql`false`;
+  const all = inboxWhereAll(userId, screen);
+  return scope === "user" ? and(all, notLike(notifications.type, "admin\\_%"))! : all;
+}
+
+function inboxWhereAll(userId: string | undefined, screen: ScreenFilter | null) {
   const since = new Date(Date.now() - BROADCAST_DAYS * 86_400_000);
   const broadcasts = and(
     isNull(notifications.userId),
@@ -71,10 +88,10 @@ function inboxWhere(userId: string | undefined, screen: ScreenFilter | null) {
   return userId ? or(eq(notifications.userId, userId), broadcasts)! : broadcasts!;
 }
 
-async function seenAt(userId: string | undefined, since: Date | null) {
+async function seenAt(userId: string | undefined, since: Date | null, admin = false) {
   if (userId) {
-    const [row] = await db.select({ seenAt: notificationSeen.seenAt }).from(notificationSeen).where(eq(notificationSeen.userId, userId)).limit(1);
-    if (row) return row.seenAt;
+    const [row] = await db.select({ seenAt: notificationSeen.seenAt, adminSeenAt: notificationSeen.adminSeenAt }).from(notificationSeen).where(eq(notificationSeen.userId, userId)).limit(1);
+    if (row && (!admin || row.adminSeenAt)) return admin ? row.adminSeenAt! : row.seenAt;
   } else if (since) {
     return since;
   }
@@ -87,8 +104,8 @@ async function countUnread(where: SQL, seen: Date) {
 }
 
 /** Inbox page: the user's own notifications plus recent broadcasts, newest first. */
-export async function listInbox(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null; before: Date | null; limit: number }) {
-  const where = inboxWhere(opts.userId, opts.screen);
+export async function listInbox(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null; before: Date | null; limit: number; scope?: InboxScope }) {
+  const where = inboxWhere(opts.userId, opts.screen, opts.scope);
   const rows = await db
     .select({
       id: notifications.id,
@@ -98,13 +115,14 @@ export async function listInbox(opts: { userId?: string; screen: ScreenFilter | 
       imageUrl: notifications.imageUrl,
       url: notifications.url,
       actions: notifications.actions,
+      expiresAt: notifications.expiresAt,
       createdAt: notifications.createdAt,
     })
     .from(notifications)
     .where(and(where, opts.before ? lt(notifications.createdAt, opts.before) : undefined))
     .orderBy(desc(notifications.createdAt))
     .limit(opts.limit + 1);
-  const seen = await seenAt(opts.userId, opts.since);
+  const seen = await seenAt(opts.userId, opts.since, opts.scope === "admin");
   return {
     data: rows.slice(0, opts.limit),
     hasMore: rows.length > opts.limit,
@@ -113,15 +131,23 @@ export async function listInbox(opts: { userId?: string; screen: ScreenFilter | 
   };
 }
 
-export async function unreadCount(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null }) {
-  const where = inboxWhere(opts.userId, opts.screen);
-  return { unread: await countUnread(where, await seenAt(opts.userId, opts.since)) };
+export async function unreadCount(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null; scope?: InboxScope }) {
+  const where = inboxWhere(opts.userId, opts.screen, opts.scope);
+  return { unread: await countUnread(where, await seenAt(opts.userId, opts.since, opts.scope === "admin")) };
 }
 
-/** Opening the inbox: everything up to now counts as seen. */
-export async function markSeen(userId: string) {
+/** Opening the inbox (or, with admin, the admin bell): everything up to now counts as seen. */
+export async function markSeen(userId: string, admin = false) {
   const now = new Date();
-  await db.insert(notificationSeen).values({ userId, seenAt: now }).onConflictDoUpdate({ target: notificationSeen.userId, set: { seenAt: now } });
+  if (admin) {
+    // first time: leave the regular inbox's "seen" where the default would have put it
+    await db
+      .insert(notificationSeen)
+      .values({ userId, seenAt: new Date(Date.now() - DEFAULT_UNSEEN_DAYS * 86_400_000), adminSeenAt: now })
+      .onConflictDoUpdate({ target: notificationSeen.userId, set: { adminSeenAt: now } });
+  } else {
+    await db.insert(notificationSeen).values({ userId, seenAt: now }).onConflictDoUpdate({ target: notificationSeen.userId, set: { seenAt: now } });
+  }
   return { seenAt: now };
 }
 

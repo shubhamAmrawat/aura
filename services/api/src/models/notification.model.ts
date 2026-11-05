@@ -42,6 +42,8 @@ export const notifications = pgTable(
     /** how many phones it was pushed to */
     pushed: integer("pushed").notNull().default(0),
     campaignId: uuid("campaign_id"),
+    /** after this it shows as "Ended" (e.g. the drop it's about ended) */
+    expiresAt: timestamp("expires_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => [index("notifications_user_created_idx").on(t.userId, t.createdAt)]
@@ -51,6 +53,8 @@ export const notifications = pgTable(
 export const notificationSeen = pgTable("notification_seen", {
   userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   seenAt: timestamp("seen_at").notNull().defaultNow(),
+  /** the admin bell (admin alerts only) */
+  adminSeenAt: timestamp("admin_seen_at"),
 });
 
 /** Who a campaign goes to. */
@@ -97,6 +101,8 @@ export const notificationCampaigns = pgTable("notification_campaigns", {
   /** the template it was made from; with cooldownDays, people who got it recently are skipped */
   templateId: uuid("template_id"),
   cooldownDays: integer("cooldown_days").notNull().default(0),
+  /** not pushed after this; its inbox items show "Ended" */
+  expiresAt: timestamp("expires_at"),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),

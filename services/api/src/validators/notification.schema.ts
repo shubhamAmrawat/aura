@@ -21,7 +21,10 @@ export const InboxQuery = z.object({
   since: isoDate,
   before: isoDate,
   limit: z.coerce.number().int().min(1).max(50).default(30),
+  /** all = everything (app); user = without admin alerts (website bell); admin = admin alerts only (admin bell) */
+  scope: z.enum(["all", "user", "admin"]).default("all"),
 });
+export const SeenQuery = z.object({ scope: z.enum(["all", "user", "admin"]).default("all") });
 
 export const RegisterDeviceBody = z
   .object({
@@ -142,6 +145,16 @@ export const SendBody = z
     /** made from a template: its cooldown skips people who got it recently */
     templateId: z.string().regex(UUID).nullable().optional(),
     cooldownDays: z.number().int().min(0).max(365).default(0),
+    /** ISO date-time; null = never. Not pushed after this; inbox shows "Ended". */
+    expiresAt: z.string().nullable().optional().transform((v, ctx) => {
+      if (!v) return null;
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) {
+        ctx.addIssue({ code: "custom", message: "Invalid expiry time" });
+        return z.NEVER;
+      }
+      return d;
+    }),
   })
   .strict();
 
@@ -197,7 +210,7 @@ export const RulesBody = z
     quietEnd: HHMM,
     dailyCap: z.number().int().min(0).max(20),
     auto: z.object({ drop: z.boolean(), daily: z.boolean(), upload_live: z.boolean(), upload_rejected: z.boolean(), milestone: z.boolean(), creator: z.boolean(), report: z.boolean() }),
-    alerts: z.object({ report: z.boolean(), application: z.boolean(), deliveryProblems: z.boolean() }),
+    alerts: z.object({ report: z.boolean(), application: z.boolean(), deliveryProblems: z.boolean(), signup: z.boolean() }),
   })
   .strict();
 

@@ -731,7 +731,7 @@ export type NotificationRules = {
   quietEnd: string;
   dailyCap: number;
   auto: { drop: boolean; daily: boolean; upload_live: boolean; upload_rejected: boolean; milestone: boolean; creator: boolean; report: boolean };
-  alerts: { report: boolean; application: boolean; deliveryProblems: boolean };
+  alerts: { report: boolean; application: boolean; deliveryProblems: boolean; signup: boolean };
 };
 
 export type AdminNotificationsOverview = {
@@ -803,7 +803,16 @@ export type UserNotifications = {
 export const getNotificationsOverview = () => adminGet<AdminNotificationsOverview>("/notifications");
 export const previewAudience = (audience: NotifyAudience, type: NotifyMessage["type"], from?: { templateId: string; cooldownDays: number } | null) =>
   adminCall<{ phones: number; browsers: number; people: number }>("POST", "/notifications/preview", { audience, type, ...(from ?? {}) });
-export const sendNotification = (body: { message: NotifyMessage; audience: NotifyAudience; scheduledFor: string | null; respectQuiet: boolean; templateId?: string | null; cooldownDays?: number }) =>
+export const sendNotification = (body: {
+  message: NotifyMessage;
+  audience: NotifyAudience;
+  scheduledFor: string | null;
+  respectQuiet: boolean;
+  templateId?: string | null;
+  cooldownDays?: number;
+  /** ISO; null = never */
+  expiresAt?: string | null;
+}) =>
   adminCall<CampaignDetail>("POST", "/notifications/send", body);
 export const sendTestNotification = (message: NotifyMessage) => adminCall<CampaignDetail>("POST", "/notifications/test", { message });
 export const listCampaigns = (filter: "all" | "manual" | "auto" | "scheduled", offset = 0) =>
@@ -842,6 +851,8 @@ export type PreparedTemplate = {
   message: NotifyMessage;
   audience: NotifyAudience;
   cooldownDays: number;
+  /** when the drop it's about ends */
+  expiresAt: string | null;
   values: Record<string, string>;
   missing: string[];
   personal: string[];

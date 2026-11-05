@@ -8,7 +8,7 @@ import { Colors } from "../constants";
 import { useInsets } from "../hooks/useInsets";
 import { useAuth } from "../lib/AuthContext";
 import { useScreenFilter } from "../lib/ScreenFilterContext";
-import { getInbox, markSeen, timeAgo, typeLabel, type InboxItem } from "../lib/notifications";
+import { getInbox, isEnded, markSeen, timeAgo, typeLabel, type InboxItem } from "../lib/notifications";
 import { NOTIFICATIONS_SEEN } from "../lib/notificationEvents";
 import { openNotificationUrl } from "../lib/usePushSetup";
 
@@ -122,8 +122,10 @@ export default function NotificationsScreen() {
   );
 }
 
-function Row({ n, unread }: { n: InboxItem; unread: boolean }) {
+function Row({ n, unread: isNew }: { n: InboxItem; unread: boolean }) {
   const t = typeLabel(n.type);
+  const ended = isEnded(n);
+  const unread = isNew && !ended;
   const isDrop = n.type === "drop";
   const accent = isDrop ? "#FF9A3C" : Colors.accent;
   return (
@@ -132,6 +134,7 @@ function Row({ n, unread }: { n: InboxItem; unread: boolean }) {
       style={({ pressed }) => [
         styles.row,
         unread && (isDrop ? styles.rowDrop : styles.rowUnread),
+        ended && { opacity: 0.6 },
         pressed && { opacity: 0.85 },
       ]}
       accessibilityRole="button"
@@ -145,13 +148,18 @@ function Row({ n, unread }: { n: InboxItem; unread: boolean }) {
       )}
       <View style={{ flex: 1, gap: 4 }}>
         <View style={styles.metaRow}>
-          <Text style={[styles.kicker, { color: t.color }]}>{t.label}</Text>
+          <Text style={[styles.kicker, { color: ended ? Colors.textMuted : t.color }]}>{t.label}</Text>
           <Text style={styles.time}>· {timeAgo(n.createdAt)}</Text>
+          {ended ? (
+            <View style={styles.endedPill}>
+              <Text style={styles.endedText}>ENDED</Text>
+            </View>
+          ) : null}
           {unread ? <View style={[styles.dot, { backgroundColor: accent }]} accessibilityLabel="Unread" /> : null}
         </View>
         <Text style={[styles.rowTitle, !unread && { color: "#DDD9D3", fontWeight: "600" }]}>{n.title}</Text>
         {n.body ? <Text style={styles.rowBody} numberOfLines={3}>{n.body}</Text> : null}
-        {n.actions.length ? (
+        {n.actions.length && !ended ? (
           <View style={styles.actions}>
             {n.actions.slice(0, 2).map((a, i) => (
               <Pressable
@@ -171,6 +179,8 @@ function Row({ n, unread }: { n: InboxItem; unread: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  endedPill: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.08)" },
+  endedText: { color: Colors.textSecondary, fontSize: 9.5, fontWeight: "800", letterSpacing: 0.6 },
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
   title: { color: Colors.textPrimary, fontSize: 34, lineHeight: 38 },
   filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

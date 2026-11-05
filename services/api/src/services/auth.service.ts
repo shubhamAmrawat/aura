@@ -16,6 +16,17 @@ import { sendOTPEmail } from "../integrations/email";
 import { googleAudiences, verifyGoogleIdToken } from "../integrations/google";
 import { importGoogleAvatar, isGoogleAvatarUrl } from "../integrations/avatarImport";
 import type { OtpType } from "../validators/auth.schema";
+import { alertAdmins } from "./notificationTriggers.service";
+
+/** Admin alert: someone made an account (in the background; never blocks sign-up). */
+function alertSignup(u: { id: string; username: string; displayName: string }, via: "email" | "Google") {
+  void alertAdmins("signup", {
+    title: "New user joined",
+    body: `${u.displayName} (@${u.username}) signed up with ${via}.`,
+    url: `https://www.aurora-walls.com/admin/users?q=${encodeURIComponent(u.username)}`,
+    dedupeKey: `alert:signup:${u.id}`,
+  });
+}
 
 /**
  * bcrypt work factor for new password hashes. 10 is bcrypt's standard default (~4× faster than 12,
@@ -127,6 +138,7 @@ export async function signup(input: { email: string; username: string; displayNa
       .returning()
   );
   if (!created) throw new ApiError(500, "Failed to create user");
+  alertSignup(created, "email");
 
   const token = generateToken({ userId: created.id, email: created.email, role: created.role });
   return { user: created, token };
@@ -310,6 +322,7 @@ export async function loginWithGoogle(credential: string) {
         passwordHash: null,
       })
       .returning());
+    alertSignup(created!, "Google");
     return issue(created!, true);
   } catch (err) {
     // Lost a race with a parallel request for the same Google account → just log in.

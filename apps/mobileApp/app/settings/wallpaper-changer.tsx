@@ -28,7 +28,7 @@ import { SettingsRow, SettingsSection } from "../../components/SettingsRow";
 import { Colors } from "../../constants";
 import { useInsets } from "../../hooks/useInsets";
 import AuroraWallpaper from "../../modules/aurora-wallpaper";
-import { Category } from "../../lib/api";
+import { ApiError, Category } from "../../lib/api";
 import { useAuth } from "../../lib/AuthContext";
 import { useCollections } from "../../lib/CollectionsContext";
 import { useScreenFilter } from "../../lib/ScreenFilterContext";
@@ -278,9 +278,11 @@ const WallpaperChanger = () => {
     let pool: PoolItem[];
     try {
       pool = await fetchPool(source, screen);
-    } catch {
+    } catch (e) {
       setBusy(null);
-      showToast("Couldn't load those wallpapers. Check your connection and try again.", { type: "error", position: "top" });
+      // e.g. "Auto-change from it" on an old notification for a drop that was taken down
+      const gone = e instanceof ApiError && [401, 403, 404].includes(e.status);
+      showToast(gone ? `“${source.name}” is no longer available.` : "Couldn't load those wallpapers. Check your connection and try again.", { type: "error", position: "top" });
       return;
     }
     if (pool.length === 0) {

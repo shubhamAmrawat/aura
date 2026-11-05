@@ -14,7 +14,7 @@ const KEY = "notifications.rules";
 
 export const AUTO_KEYS = ["drop", "daily", "upload_live", "upload_rejected", "milestone", "creator", "report"] as const;
 export type AutoKey = (typeof AUTO_KEYS)[number];
-export const ALERT_KEYS = ["report", "application", "deliveryProblems"] as const;
+export const ALERT_KEYS = ["report", "application", "deliveryProblems", "signup"] as const;
 export type AlertKey = (typeof ALERT_KEYS)[number];
 
 export type NotificationRules = {
@@ -30,7 +30,7 @@ export const DEFAULT_RULES: NotificationRules = {
   quietEnd: "08:00",
   dailyCap: 2,
   auto: { drop: true, daily: true, upload_live: true, upload_rejected: true, milestone: true, creator: true, report: true },
-  alerts: { report: true, application: true, deliveryProblems: false },
+  alerts: { report: true, application: true, deliveryProblems: false, signup: true },
 };
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;

@@ -22,8 +22,12 @@ export type InboxItem = {
   imageUrl: string | null;
   url: string | null;
   actions: { id: string; label: string; url: string }[];
+  /** after this it's "Ended" (e.g. its drop ended) */
+  expiresAt?: string | null;
   createdAt: string;
 };
+
+export const isEnded = (n: Pick<InboxItem, "expiresAt">, now = Date.now()) => !!n.expiresAt && new Date(n.expiresAt).getTime() <= now;
 
 const TOKEN_KEY = "push_token_v1";
 const SEEN_KEY = "notifications_seen_v1";

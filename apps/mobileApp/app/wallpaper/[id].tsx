@@ -2,7 +2,8 @@
   import { useEffect, useMemo, useRef, useState } from "react";
   import { Animated, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
   import { getSimilarWallpapers, getWallpaperById, isWallpaperLiked, toggleWallpaperLike, trackWallpaperView } from "../../lib/wallpaperApi";
-  import { Creator, Wallpaper } from "../../lib/api";
+  import { ApiError, Creator, Wallpaper } from "../../lib/api";
+  import Header from "../../components/Header";
   import { LinearGradient } from "expo-linear-gradient";
   import { getContrastColor, hexToRgba } from "../../utils/color";
   import { Image } from "expo-image";
@@ -87,6 +88,8 @@
     // ─── State ───────────────────────────────────────────────────────────────────
     // Start from route params so detail screen renders instantly.
     const [wallpaper, setWallpaper] = useState<Wallpaper | null>(seedWallpaper);
+    /** deleted / taken down (e.g. opened from an old notification) */
+    const [missing, setMissing] = useState(false);
     const [similarWallpapers, setSimilarWallpapers] = useState<Wallpaper[]>([]);
     const [activeIndex, setActiveIndex] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
@@ -174,6 +177,7 @@
     // ─── Data fetching ────────────────────────────────────────────────────────────
     useEffect(() => {
       setActiveIndex(0);
+      setMissing(false);
       setWallpaper(seedWallpaper);
       setSimilarWallpapers([]);
       // A failed load keeps what the grid passed in (detail) / shows no carousel (similar).
@@ -290,7 +294,13 @@
     }, [activeWallpaperId, user]);
 
     const fetchWallpaper = async () => {
-      const res = await getWallpaperById(id);
+      let res: Awaited<ReturnType<typeof getWallpaperById>>;
+      try {
+        res = await getWallpaperById(id);
+      } catch (e) {
+        if (e instanceof ApiError && [403, 404].includes(e.status)) setMissing(true);
+        throw e;
+      }
       // the detail endpoint has no thumbUrl; keep the one from the tile so the placeholder doesn't flicker
       setWallpaper((prev) => ({ ...res, thumbUrl: res.thumbUrl ?? prev?.thumbUrl ?? null }));
       setCreators((c) => ({ ...c, [res.id]: res.creator ?? null }));
@@ -432,6 +442,22 @@
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────────
+    if (missing && !seedWallpaper) {
+      return (
+        <View style={{ flex: 1, backgroundColor: Colors.bgPrimary }}>
+          <Header title="" logo={false} showBackButton />
+          <View style={styles.missing}>
+            <Ionicons name="image-outline" size={40} color={Colors.textMuted} />
+            <Text style={styles.missingTitle}>This wallpaper is no longer available</Text>
+            <Text style={styles.missingText}>It may have been removed by its creator or by Aurora.</Text>
+            <Pressable onPress={() => router.replace("/")} style={styles.missingBtn} accessibilityRole="button">
+              <Text style={styles.missingBtnText}>Browse wallpapers</Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={{ flex: 1, backgroundColor: Colors.bgPrimary }}>
 
@@ -560,6 +586,11 @@
   }
 
   const styles = StyleSheet.create({
+    missing: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 32, paddingBottom: 80 },
+    missingTitle: { color: Colors.textPrimary, fontSize: 17, fontWeight: "700", textAlign: "center" },
+    missingText: { color: Colors.textMuted, fontSize: 13.5, textAlign: "center" },
+    missingBtn: { marginTop: 8, height: 42, paddingHorizontal: 20, borderRadius: 21, backgroundColor: Colors.accent, alignItems: "center", justifyContent: "center" },
+    missingBtnText: { color: "#0A0A0A", fontSize: 14, fontWeight: "800" },
     headerContainer: {
       flexDirection: "row",
       alignItems: "center",
