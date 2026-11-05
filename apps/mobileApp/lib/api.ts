@@ -95,6 +95,8 @@ export async function request<T>(
   const token = await getToken(); 
   const headers:Record<string,string> = {
     "Content-Type": "application/json",
+    // tells the API this is the app (Admin › Users: app or website)
+    "X-Aurora-Client": "app",
     ...(options.headers as Record<string, string>),
   }
   if(token){

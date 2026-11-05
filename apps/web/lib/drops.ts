@@ -77,3 +77,18 @@ export function tint(hex: string, alpha: number) {
   const n = parseInt(hex.replace("#", ""), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
 }
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Ends today, 3:07 PM" / "Ends tomorrow, 9:00 AM" / "Ends 18 Nov, 3:07 PM" (local time); null = no end or already ended. */
+export function endsAtLabel(endsAt: string | null, now = new Date()): string | null {
+  if (!endsAt) return null;
+  const d = new Date(endsAt);
+  if (!(d.getTime() > now.getTime())) return null;
+  const h = d.getHours() % 12 || 12;
+  const time = `${h}:${String(d.getMinutes()).padStart(2, "0")} ${d.getHours() < 12 ? "AM" : "PM"}`;
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+  const day = days === 0 ? "today" : days === 1 ? "tomorrow" : `${d.getDate()} ${MONTHS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ""}`;
+  return `Ends ${day}, ${time}`;
+}

@@ -17,12 +17,14 @@ import { googleAudiences, verifyGoogleIdToken } from "../integrations/google";
 import { importGoogleAvatar, isGoogleAvatarUrl } from "../integrations/avatarImport";
 import type { OtpType } from "../validators/auth.schema";
 import { alertAdmins } from "./notificationTriggers.service";
+import type { Client } from "../utils/client";
 
 /** Admin alert: someone made an account (in the background; never blocks sign-up). */
-function alertSignup(u: { id: string; username: string; displayName: string }, via: "email" | "Google") {
+function alertSignup(u: { id: string; username: string; displayName: string }, via: "email" | "Google", source: Client | null) {
+  const where = source === "app" ? " on the app" : source === "web" ? " on the website" : "";
   void alertAdmins("signup", {
     title: "New user joined",
-    body: `${u.displayName} (@${u.username}) signed up with ${via}.`,
+    body: `${u.displayName} (@${u.username}) signed up${where} with ${via}.`,
     url: `https://www.aurora-walls.com/admin/users?q=${encodeURIComponent(u.username)}`,
     dedupeKey: `alert:signup:${u.id}`,
   });
@@ -115,7 +117,7 @@ async function hasVerifiedOtp(email: string, type: string) {
   return rows.length > 0;
 }
 
-export async function signup(input: { email: string; username: string; displayName: string; password: string }) {
+export async function signup(input: { email: string; username: string; displayName: string; password: string }, source: Client | null = null) {
   // Independent checks, run together (each is a round trip to the database).
   const [verified, taken] = await Promise.all([
     hasVerifiedOtp(input.email, "signup"),
@@ -134,11 +136,13 @@ export async function signup(input: { email: string; username: string; displayNa
         displayName: input.displayName,
         passwordHash,
         isEmailVerified: true,
+        signupSource: source,
+        signupMethod: "email",
       })
       .returning()
   );
   if (!created) throw new ApiError(500, "Failed to create user");
-  alertSignup(created, "email");
+  alertSignup(created, "email", source);
 
   const token = generateToken({ userId: created.id, email: created.email, role: created.role });
   return { user: created, token };
@@ -238,7 +242,7 @@ async function uniqueUsernameFrom(email: string): Promise<string> {
  * Sign in with a Google ID token. Order: existing google_id → existing email (link) → new account.
  * Returns isNewUser so the client can show a welcome step.
  */
-export async function loginWithGoogle(credential: string) {
+export async function loginWithGoogle(credential: string, source: Client | null = null) {
   if (googleAudiences().length === 0) throw new ApiError(503, "Google sign-in is not configured.");
 
   let profile;
@@ -320,9 +324,11 @@ export async function loginWithGoogle(credential: string) {
         googleId: profile.sub,
         isEmailVerified: true,
         passwordHash: null,
+        signupSource: source,
+        signupMethod: "google",
       })
       .returning());
-    alertSignup(created!, "Google");
+    alertSignup(created!, "Google", source);
     return issue(created!, true);
   } catch (err) {
     // Lost a race with a parallel request for the same Google account → just log in.

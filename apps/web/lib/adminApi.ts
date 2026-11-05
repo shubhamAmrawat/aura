@@ -491,6 +491,22 @@ export type AdminUser = {
   likes: number;
   lastActiveAt: string | null;
   createdAt: string;
+  /** where they made the account; null = before this was tracked */
+  signupSource: "app" | "web" | null;
+  usesApp: boolean;
+  usesWeb: boolean;
+};
+export type UserPlatform = {
+  signupSource: "app" | "web" | null;
+  signupMethod: "google" | "email" | null;
+  firstAppAt: string | null;
+  lastAppAt: string | null;
+  firstWebAt: string | null;
+  lastWebAt: string | null;
+  phone: { deviceName: string | null; osVersion: string | null; appVersion: string | null; screen: string } | null;
+  browserAgent: string | null;
+  downloadsApp: number;
+  downloadsWeb: number;
 };
 type Thumb = { wallpaperId: string; title: string; fileUrl: string; dominantColor: string; at: string };
 export type AdminUserDetail = AdminUser & {
@@ -505,6 +521,7 @@ export type AdminUserDetail = AdminUser & {
   recentDownloads: (Thumb & { quality: string; source: string })[];
   recentLikes: Thumb[];
   history: { action: string; details: Record<string, unknown> | null; at: string; adminEmail: string | null }[];
+  platform: UserPlatform;
 };
 export type UserFilters = {
   q?: string;
@@ -513,6 +530,7 @@ export type UserFilters = {
   creator?: "true" | "false";
   signIn?: "google" | "password" | "google-only" | "password-only";
   locked?: "true" | "false";
+  uses?: "app" | "web" | "both";
   sort?: "newest" | "oldest" | "uploads" | "downloads" | "likes" | "name";
   limit?: number;
   offset?: number;

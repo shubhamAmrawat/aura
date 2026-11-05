@@ -42,6 +42,15 @@ export const users = pgTable("users", {
   disabledBy: uuid("disabled_by").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
   /** Last signed-in request from the website or app (updated at most every 5 min; see utils/lastActive) */
   lastActiveAt: timestamp("last_active_at"),
+  /** where they made the account; null = before this was tracked */
+  signupSource: text("signup_source").$type<"app" | "web">(),
+  signupMethod: text("signup_method").$type<"google" | "email">(),
+  firstAppAt: timestamp("first_app_at"),
+  lastAppAt: timestamp("last_app_at"),
+  firstWebAt: timestamp("first_web_at"),
+  lastWebAt: timestamp("last_web_at"),
+  /** the browser's user agent the last time they used the website */
+  lastWebAgent: text("last_web_agent"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   

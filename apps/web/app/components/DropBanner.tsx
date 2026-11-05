@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { endsInLabel, tint, type DropSpotlight } from "@/lib/drops";
+import { ClockIcon } from "lucide-react";
+import { endsAtLabel, tint, type DropSpotlight } from "@/lib/drops";
 
 /**
  * Home page banner for the live drop — made entirely from the drop's own wallpapers:
@@ -9,7 +10,7 @@ import { endsInLabel, tint, type DropSpotlight } from "@/lib/drops";
 export default function DropBanner({ drop, preview }: { drop: DropSpotlight; preview?: boolean }) {
   const [first, second, third, fourth] = drop.preview;
   const accent = drop.accentColor;
-  const ends = endsInLabel(drop.endsAt);
+  const ends = endsAtLabel(drop.endsAt);
   const img = (w: DropSpotlight["preview"][number] | undefined) => w?.thumbUrl ?? w?.fileUrl;
   // Fan of cards: center (first) on top, the rest tilted behind it. Positions are % of a box that
   // is as tall as the banner and 1.6× as wide, so the cards scale with the banner's height, not
@@ -55,13 +56,12 @@ export default function DropBanner({ drop, preview }: { drop: DropSpotlight; pre
 
       <div className="absolute left-5 right-5 sm:right-auto sm:left-10 md:left-12 top-6 bottom-6 md:top-11 md:bottom-11 sm:w-[40%] sm:max-w-[520px] flex flex-col justify-between">
         <div className="flex flex-col gap-2 md:gap-3">
-          <span
-            className="self-start inline-flex items-center gap-2 h-[26px] px-3 rounded-full text-[11px] font-extrabold tracking-[1.4px] uppercase"
-            style={{ background: tint(accent, 0.18), color: accent }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />
-            New drop{ends ? ` · ${ends}` : ""}
-          </span>
+          {ends && (
+            <span className="self-start inline-flex items-center gap-1.5 text-[13px] md:text-sm font-semibold" style={{ color: "rgba(245,240,235,.85)" }}>
+              <ClockIcon size={15} strokeWidth={2.2} aria-hidden style={{ color: accent }} />
+              {ends}
+            </span>
+          )}
           <span className="text-[44px] md:text-[64px] leading-[.95]" style={{ fontFamily: "var(--font-serif)", color: "#F5F0EB" }}>{drop.title}</span>
           <span className="text-sm md:text-[15px] leading-relaxed line-clamp-2" style={{ color: "rgba(245,240,235,.8)" }}>
             {drop.description ?? `${drop.wallpaperCount} wallpapers, hand-picked by Aurora.`}

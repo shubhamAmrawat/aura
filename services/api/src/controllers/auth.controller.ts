@@ -19,13 +19,14 @@ import {
 import * as authService from "../services/auth.service";
 import { ACCOUNT_DISABLED_MESSAGE, accountStatus } from "../utils/accountStatus";
 import { touchLastActive } from "../utils/lastActive";
+import { browserAgent, clientOf } from "../utils/client";
 
 /** Token's user id, refusing accounts an admin has disabled. Counts as activity (Last active). */
 async function activeUserIdFromToken(req: Parameters<typeof userIdFromToken>[0]) {
   const id = userIdFromToken(req);
   const status = await accountStatus(id);
   if (status === "disabled") throw new ApiError(403, ACCOUNT_DISABLED_MESSAGE);
-  if (status === "active") touchLastActive(id);
+  if (status === "active") touchLastActive(id, clientOf(req), browserAgent(req));
   return id;
 }
 
@@ -46,9 +47,9 @@ export const signup = route("Failed to create account", async (req, res) => {
   const body = parseOrThrow(SignupBody, req.body);
   parseOrThrow(PasswordLength, body.password);
 
-  const { user, token } = await authService.signup(body);
+  const { user, token } = await authService.signup(body, clientOf(req));
   setAuthCookie(res, token);
-  touchLastActive(user.id);
+  touchLastActive(user.id, clientOf(req), browserAgent(req));
   await authService.clearOtps(body.email, "signup");
 
   res.json({
@@ -62,7 +63,7 @@ export const login = route("Failed to login", async (req, res) => {
   const email = req.body?.email;
   const { user, token } = await authService.login(email);
   setAuthCookie(res, token);
-  touchLastActive(user.id);
+  touchLastActive(user.id, clientOf(req), browserAgent(req));
   await authService.clearOtps(email, "login");
 
   res.json({
@@ -154,16 +155,16 @@ export const loginWithPassword = route("Failed to login", async (req, res) => {
   }
   const { user, token } = await authService.loginWithPassword(email, password);
   setAuthCookie(res, token);
-  touchLastActive(user.id);
+  touchLastActive(user.id, clientOf(req), browserAgent(req));
   res.json(loginResponse(user, token));
 });
 
 /** POST /api/auth/google { credential } — Google Identity Services ID token */
 export const loginWithGoogle = route("Google sign-in failed.", async (req, res) => {
   const { credential } = parseOrThrow(GoogleLoginBody, req.body);
-  const { user, token, isNewUser } = await authService.loginWithGoogle(credential);
+  const { user, token, isNewUser } = await authService.loginWithGoogle(credential, clientOf(req));
   setAuthCookie(res, token);
-  touchLastActive(user.id);
+  touchLastActive(user.id, clientOf(req), browserAgent(req));
   res.json({ ...loginResponse(user, token), isNewUser });
 });
 

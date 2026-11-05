@@ -189,11 +189,13 @@ export async function adminListDrops() {
       showOnApp: collections.showOnApp,
       showOnWeb: collections.showOnWeb,
       createdAt: collections.createdAt,
-      wallpaperCount: sql<number>`(select count(*)::int from ${collectionWallpapers} where ${collectionWallpapers.collectionId} = ${collections.id})`,
+      // Written out as "collections"."id": in a one-table select drizzle prints columns without the
+      // table name, and a bare "id" inside these subqueries would mean the wallpaper's id.
+      wallpaperCount: sql<number>`(select count(*)::int from collection_wallpapers cw where cw.collection_id = "collections"."id")`,
       coverThumbUrl: sql<string | null>`(
         select coalesce(w.cdn_variants -> 'thumb' ->> 'url', w.file_url)
         from collection_wallpapers cw join wallpapers w on w.id = cw.wallpaper_id
-        where cw.collection_id = ${collections.id}
+        where cw.collection_id = "collections"."id"
         order by cw.sort_order, cw.added_at limit 1
       )`,
     })

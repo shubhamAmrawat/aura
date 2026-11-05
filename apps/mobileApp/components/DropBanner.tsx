@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { DropPreviewItem, DropSpotlight, endsInLabel, tint } from "../lib/drops";
+import { DropPreviewItem, DropSpotlight, endsAtLabel, tint } from "../lib/drops";
 
 type Serif = { fontFamily?: string; fontWeight: "400" | "700" };
 
@@ -16,7 +16,7 @@ const src = (w?: DropPreviewItem) => (w ? w.thumbUrl || w.fileUrl : undefined);
 export default function DropBanner({ drop, serif, onOpen }: { drop: DropSpotlight; serif: Serif; onOpen?: () => void }) {
   const [first, second, third] = drop.preview;
   const accent = drop.accentColor;
-  const ends = endsInLabel(drop.endsAt);
+  const ends = endsAtLabel(drop.endsAt);
   const words = drop.title.split(" ");
   const titleText = words.length === 2 ? `${words[0]}\n${words[1]}` : drop.title;
   // The art is only this device's shape (the API filters it): portrait cards on phones, landscape on tablets.
@@ -47,15 +47,17 @@ export default function DropBanner({ drop, serif, onOpen }: { drop: DropSpotligh
 
       <View style={styles.info}>
         <View style={{ gap: 8 }}>
-          <View style={[styles.pill, { backgroundColor: tint(accent, 0.18) }]}>
-            <View style={[styles.pillDot, { backgroundColor: accent }]} />
-            <Text style={[styles.pillText, { color: accent }]}>NEW DROP</Text>
-          </View>
+          {ends ? (
+            <View style={styles.ends}>
+              <Ionicons name="time-outline" size={14} color={accent} />
+              <Text style={styles.endsText}>{ends}</Text>
+            </View>
+          ) : null}
           <Text style={[styles.title, serif]} numberOfLines={3}>
             {titleText}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {drop.wallpaperCount} wallpapers{ends ? ` · ${ends}` : ""}
+            {drop.wallpaperCount} wallpapers
           </Text>
         </View>
         <View style={[styles.cta, { backgroundColor: accent }]}>
@@ -88,9 +90,8 @@ const styles = StyleSheet.create({
   backdrop: { position: "absolute", top: -30, left: -30, right: -30, bottom: -30, opacity: 0.9 },
   fan: { position: "absolute", borderRadius: 14, borderWidth: 2, borderColor: "rgba(255,255,255,0.18)" },
   info: { position: "absolute", left: 18, top: 20, bottom: 18, width: 170, justifyContent: "space-between" },
-  pill: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, height: 24, paddingHorizontal: 10, borderRadius: 12 },
-  pillDot: { width: 6, height: 6, borderRadius: 3 },
-  pillText: { fontSize: 10.5, fontWeight: "800", letterSpacing: 1.2 },
+  ends: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 5 },
+  endsText: { color: "rgba(245,240,235,0.85)", fontSize: 12, fontWeight: "600" },
   title: { color: "#F5F0EB", fontSize: 38, lineHeight: 38 },
   meta: { color: "rgba(245,240,235,0.8)", fontSize: 12 },
   cta: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, height: 38, paddingHorizontal: 16, borderRadius: 19 },

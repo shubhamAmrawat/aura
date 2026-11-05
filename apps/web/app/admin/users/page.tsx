@@ -13,10 +13,11 @@ import {
   type AdminUser,
   type AdminUserDetail,
   type UserFilters,
+  type UserPlatform,
 } from "@/lib/adminApi";
 import { useToast } from "@/lib/toast";
 import { Modal, StatusBadge, Toggle, inputStyle } from "../_components/ui";
-import { XIcon } from "lucide-react";
+import { MonitorIcon, SmartphoneIcon, XIcon } from "lucide-react";
 import UserNotificationsPanel from "../notifications/UserNotificationsPanel";
 import { useAuth } from "@/lib/authContext";
 
@@ -31,6 +32,26 @@ const exact = (iso: string | null) => {
   const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   return `${day}, ${time}`;
 };
+
+/** "Chrome on Windows" from a user agent. */
+function browserName(ua: string | null) {
+  if (!ua) return null;
+  const b = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /SamsungBrowser\//.test(ua) ? "Samsung Internet" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "A browser";
+  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Mac OS/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "";
+  return os ? `${b} on ${os}` : b;
+}
+
+const SOURCE_LABEL = { app: "App", web: "Website" } as const;
+
+function UsesBadges({ u }: { u: Pick<AdminUser, "usesApp" | "usesWeb"> }) {
+  if (!u.usesApp && !u.usesWeb) return <span style={{ color: "var(--text-muted)" }}>—</span>;
+  return (
+    <div className="flex gap-1">
+      {u.usesApp && <Badge tone="accent">App</Badge>}
+      {u.usesWeb && <Badge tone="info">Website</Badge>}
+    </div>
+  );
+}
 
 const ago = (iso: string | null) => {
   if (!iso) return "—";
@@ -128,7 +149,7 @@ function UsersManager() {
     </button>
   );
   const activeFilters =
-    [filters.q, filters.creator, filters.signIn, filters.locked].filter(Boolean).length +
+    [filters.q, filters.creator, filters.signIn, filters.locked, filters.uses].filter(Boolean).length +
     (filters.role !== "all" ? 1 : 0) +
     (filters.status && filters.status !== "all" ? 1 : 0);
 
@@ -162,6 +183,12 @@ function UsersManager() {
         </select>
         {chip(filters.creator === "true", "Creators", () => set({ creator: filters.creator === "true" ? undefined : "true" }))}
         {chip(filters.locked === "true", "Locked", () => set({ locked: filters.locked === "true" ? undefined : "true" }))}
+        <select aria-label="Uses" value={filters.uses ?? ""} onChange={(e) => set({ uses: (e.target.value || undefined) as UserFilters["uses"] })} className="rounded-lg px-3 py-2 text-sm" style={inputStyle}>
+          <option value="">App or website</option>
+          <option value="app">App only</option>
+          <option value="web">Website only</option>
+          <option value="both">Both</option>
+        </select>
         <span className="flex-1" />
         <select aria-label="Sort" value={filters.sort} onChange={(e) => set({ sort: e.target.value as UserFilters["sort"] })} className="rounded-lg px-3 py-2 text-sm" style={inputStyle}>
           {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
@@ -176,11 +203,13 @@ function UsersManager() {
       {error && <p className="mt-6 text-sm" style={{ color: "#ef4444" }}>{error}</p>}
 
       <div className="mt-4 rounded-xl overflow-x-auto" style={{ border: "1px solid var(--border)" }}>
-        <table className="w-full text-sm min-w-[860px]">
+        <table className="w-full text-sm min-w-[1040px]">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider" style={{ color: "var(--text-muted)", background: "var(--bg-secondary)" }}>
               <th className="px-4 py-2.5 font-medium">User</th>
               <th className="px-3 py-2.5 font-medium">Sign-in</th>
+              <th className="px-3 py-2.5 font-medium">Signed up on</th>
+              <th className="px-3 py-2.5 font-medium">Uses</th>
               <th className="px-3 py-2.5 font-medium">Status</th>
               <th className="px-3 py-2.5 font-medium text-right">Uploads</th>
               <th className="px-3 py-2.5 font-medium text-right">Downloads</th>
@@ -212,6 +241,10 @@ function UsersManager() {
                     {u.hasPassword && <Badge>Password</Badge>}
                   </div>
                 </td>
+                <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: u.signupSource ? "var(--text-secondary)" : "var(--text-muted)" }}>
+                  {u.signupSource ? SOURCE_LABEL[u.signupSource] : "Before tracking"}
+                </td>
+                <td className="px-3 py-2.5"><UsesBadges u={u} /></td>
                 <td className="px-3 py-2.5">
                   <div className="flex flex-wrap gap-1">
                     {u.disabled && <Badge tone="danger">Disabled</Badge>}
@@ -231,10 +264,10 @@ function UsersManager() {
               </tr>
             ))}
             {rows && rows.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-10 text-center" style={{ color: "var(--text-muted)" }}>No users match.</td></tr>
+              <tr><td colSpan={10} className="px-4 py-10 text-center" style={{ color: "var(--text-muted)" }}>No users match.</td></tr>
             )}
             {!rows && !error && Array.from({ length: 6 }).map((_, i) => (
-              <tr key={i} style={{ borderTop: "1px solid var(--border)" }}><td colSpan={8} className="px-4 py-3"><div className="h-8 rounded animate-pulse" style={{ background: "var(--bg-secondary)" }} /></td></tr>
+              <tr key={i} style={{ borderTop: "1px solid var(--border)" }}><td colSpan={10} className="px-4 py-3"><div className="h-8 rounded animate-pulse" style={{ background: "var(--bg-secondary)" }} /></td></tr>
             ))}
           </tbody>
         </table>
@@ -257,6 +290,72 @@ function UsersManager() {
         />
       )}
     </div>
+  );
+}
+
+/** Admin › Users drawer: where they signed up, and how they use the app and the website. */
+function WhereTheyUse({ p }: { p: UserPlatform }) {
+  const card = { background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" };
+  const app = !!p.lastAppAt;
+  const web = !!p.lastWebAt;
+  const total = p.downloadsApp + p.downloadsWeb;
+  const mostly =
+    app && web && total >= 5
+      ? p.downloadsApp / total >= 0.7
+        ? `Mostly the app (${Math.round((p.downloadsApp / total) * 100)}% of downloads)`
+        : p.downloadsWeb / total >= 0.7
+          ? `Mostly the website (${Math.round((p.downloadsWeb / total) * 100)}% of downloads)`
+          : "About the same on both"
+      : null;
+  const phone = p.phone ? [p.phone.deviceName, p.phone.osVersion, p.phone.appVersion ? `Aurora ${p.phone.appVersion}` : null].filter(Boolean).join(" · ") : null;
+  const Row = ({ kind, on, detail, last, first }: { kind: "app" | "web"; on: boolean; detail: string | null; last: string | null; first: string | null }) => (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: kind === "app" ? "rgba(129,238,78,0.1)" : "rgba(147,197,253,0.12)", color: kind === "app" ? "var(--accent)" : "#93C5FD" }}>
+        {kind === "app" ? <SmartphoneIcon size={16} aria-hidden="true" /> : <MonitorIcon size={16} aria-hidden="true" />}
+      </span>
+      <span className="flex-1 min-w-0 flex flex-col">
+        <span className="text-sm font-semibold" style={{ color: on ? "var(--text-primary)" : "var(--text-muted)" }}>{kind === "app" ? "Android app" : "Website"}</span>
+        <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>{on ? detail ?? "—" : kind === "app" ? "Hasn't used the app" : "Hasn't used the website"}</span>
+      </span>
+      {on && (
+        <span className="text-right flex flex-col shrink-0">
+          <span className="text-xs" style={{ color: "var(--text-secondary)" }} title={exact(last)}>{ago(last)}</span>
+          {first && <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>first {date(first)}</span>}
+        </span>
+      )}
+    </div>
+  );
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Where they use Aurora</h3>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg px-3 py-2.5 flex flex-col gap-0.5" style={card}>
+          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Signed up on</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{p.signupSource ? SOURCE_LABEL[p.signupSource] : "Before tracking"}</span>
+          {p.signupMethod && <span className="text-xs" style={{ color: "var(--text-muted)" }}>with {p.signupMethod === "google" ? "Google" : "email"}</span>}
+        </div>
+        <div className="rounded-lg px-3 py-2.5 flex flex-col gap-0.5" style={card}>
+          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>Uses</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{app && web ? "App + Website" : app ? "App only" : web ? "Website only" : "Not seen yet"}</span>
+          {mostly && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{mostly}</span>}
+        </div>
+      </div>
+      <div className="rounded-lg" style={card}>
+        <Row kind="app" on={app} detail={phone} last={p.lastAppAt} first={p.firstAppAt} />
+        <div style={{ borderTop: "1px solid var(--border)" }} />
+        <Row kind="web" on={web} detail={browserName(p.browserAgent)} last={p.lastWebAt} first={p.firstWebAt} />
+      </div>
+      {total > 0 && (
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Downloads: {fmt(p.downloadsApp)} on the app · {fmt(p.downloadsWeb)} on the website
+        </p>
+      )}
+      {!p.signupSource && (
+        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+          Joined before this was tracked: app and website use was filled in from their phones, browsers and downloads.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -371,6 +470,8 @@ function UserDrawer({ id, onClose, onChanged, onDeleted }: {
                   </div>
                 ))}
               </dl>
+
+              <WhereTheyUse p={u.platform} />
 
               <section className="flex flex-col gap-2">
                 <h3 className="text-xs uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>Actions</h3>

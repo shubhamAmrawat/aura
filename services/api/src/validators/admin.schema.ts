@@ -323,6 +323,8 @@ export const UserListQuery = z.object({
   creator: boolParam("creator"),
   signIn: z.enum(["google", "password", "google-only", "password-only"], { message: "Invalid sign-in filter" }).optional(),
   locked: boolParam("locked"),
+  /** app only / website only / both */
+  uses: z.enum(["app", "web", "both"], { message: "Invalid filter" }).optional(),
   sort: z.enum(["newest", "oldest", "uploads", "downloads", "likes", "name"], { message: "Invalid sort" }).default("newest"),
   limit: intIn(1, 100, 50),
   offset: intIn(0, 1_000_000, 0),

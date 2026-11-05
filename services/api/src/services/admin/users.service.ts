@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, ilike, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../config/db";
-import { adminActions, categories, collections, downloads, likes, users, wallpapers } from "../../models";
+import { adminActions, categories, collections, downloads, likes, pushDevices, users, wallpapers, webPushSubscriptions } from "../../models";
 import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
 import { purgeAccount } from "../profile.service";
@@ -14,6 +14,7 @@ export type UserListFilters = {
   creator?: boolean;
   signIn?: "google" | "password" | "google-only" | "password-only";
   locked?: boolean;
+  uses?: "app" | "web" | "both";
   sort: "newest" | "oldest" | "uploads" | "downloads" | "likes" | "name";
   limit: number;
   offset: number;
@@ -58,7 +59,12 @@ const listSelect = {
   likes: likesCount,
   lastActiveAt: lastActiveIso,
   createdAt: users.createdAt,
+  signupSource: users.signupSource,
+  usesApp: sql<boolean>`(${users.lastAppAt} IS NOT NULL)`,
+  usesWeb: sql<boolean>`(${users.lastWebAt} IS NOT NULL)`,
 };
+
+const iso = (col: SQL | typeof users.lastAppAt | typeof users.firstAppAt | typeof users.lastWebAt | typeof users.firstWebAt) => sql<string | null>`to_char(${col}, 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`;
 
 export async function listUsers(f: UserListFilters) {
   const where: SQL[] = [];
@@ -76,6 +82,9 @@ export async function listUsers(f: UserListFilters) {
   if (f.signIn === "password-only") where.push(and(isNull(users.googleId), isNotNull(users.passwordHash))!);
   if (f.locked === true) where.push(and(isNotNull(users.lockedUntil), gt(users.lockedUntil, sql`now()`))!);
   if (f.locked === false) where.push(or(isNull(users.lockedUntil), sql`${users.lockedUntil} <= now()`)!);
+  if (f.uses === "app") where.push(and(isNotNull(users.lastAppAt), isNull(users.lastWebAt))!);
+  if (f.uses === "web") where.push(and(isNotNull(users.lastWebAt), isNull(users.lastAppAt))!);
+  if (f.uses === "both") where.push(and(isNotNull(users.lastAppAt), isNotNull(users.lastWebAt))!);
 
   const order = {
     newest: [desc(users.createdAt)],
@@ -150,7 +159,50 @@ export async function getUserDetail(id: string) {
       .limit(20),
   ]);
 
-  return { ...user, ...profile, liveUploads: live, hiddenUploads: hidden, collections: collectionsCount, recentUploads, recentDownloads, recentLikes, history };
+  return { ...user, ...profile, liveUploads: live, hiddenUploads: hidden, collections: collectionsCount, recentUploads, recentDownloads, recentLikes, history, platform: await platformOf(id) };
+}
+
+/** "Where they use Aurora": sign-up place, first/last seen on the app and the website, their latest phone and browser, downloads by place. */
+async function platformOf(id: string) {
+  const [[p], [phone], [browser], split] = await Promise.all([
+    db
+      .select({
+        signupSource: users.signupSource,
+        signupMethod: users.signupMethod,
+        firstAppAt: iso(users.firstAppAt),
+        lastAppAt: iso(users.lastAppAt),
+        firstWebAt: iso(users.firstWebAt),
+        lastWebAt: iso(users.lastWebAt),
+        lastWebAgent: users.lastWebAgent,
+      })
+      .from(users)
+      .where(eq(users.id, id)),
+    db
+      .select({ deviceName: pushDevices.deviceName, osVersion: pushDevices.osVersion, appVersion: pushDevices.appVersion, screen: pushDevices.screen })
+      .from(pushDevices)
+      .where(eq(pushDevices.userId, id))
+      .orderBy(desc(pushDevices.lastSeenAt))
+      .limit(1),
+    db
+      .select({ userAgent: webPushSubscriptions.userAgent })
+      .from(webPushSubscriptions)
+      .where(eq(webPushSubscriptions.userId, id))
+      .orderBy(desc(webPushSubscriptions.lastSeenAt))
+      .limit(1),
+    db
+      .select({ source: downloads.source, n: sql<number>`count(*)::int` })
+      .from(downloads)
+      .where(eq(downloads.userId, id))
+      .groupBy(downloads.source),
+  ]);
+  const by = (s: string) => split.find((r) => r.source === s)?.n ?? 0;
+  return {
+    ...p!,
+    phone: phone ?? null,
+    browserAgent: p?.lastWebAgent ?? browser?.userAgent ?? null,
+    downloadsApp: by("mobile"),
+    downloadsWeb: by("web"),
+  };
 }
 
 /** Admin accounts are managed with the script, never from the dashboard. */
