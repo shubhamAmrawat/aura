@@ -50,6 +50,240 @@ export type BlogPost = {
 
 const ALL_BLOG_POSTS: BlogPost[] = [
   {
+    slug: "aurora-drops-limited-wallpaper-collections",
+    title: "Aurora Drops: Limited Wallpaper Collections, Explained",
+    category: "Aurora",
+    searchQuery: "festival",
+    gradient: "linear-gradient(135deg, #3b1d0e 0%, #b45309 50%, #facc15 100%)",
+    readTime: "4 min read",
+    date: "November 2026",
+    excerpt:
+      "Drops are small, hand-picked wallpaper collections that run for a limited time. Here’s how they work, how to catch one while it’s live, and what happens when it ends.",
+    content: [
+      {
+        type: "p",
+        text: "Most of Aurora is an open library: you search, browse a category, and download whatever fits your screen. Drops are different. A drop is a small collection put together around one idea — a festival, a mood, a colour, a style of screen — and it is featured for a limited window. The first one, Diwali Drops, gathered diyas, lanterns, rangoli and night-sky fireworks into a single set that looked right together on a phone.",
+      },
+      {
+        type: "h2",
+        text: "Why Limited?",
+      },
+      {
+        type: "p",
+        text: "A giant library is great for searching, but it is hard to browse with intent. A drop answers a simpler question: what should my screen look like this week? Keeping the window short keeps the collection tight. Every wallpaper in it is picked to sit well next to the others, so you can switch between them across the week and your phone still feels like it has one look rather than ten unrelated ones.",
+      },
+      {
+        type: "h2",
+        text: "How to Find a Live Drop",
+      },
+      {
+        type: "ul",
+        items: [
+          "On the Aurora home page (website and Android app) a live drop shows as a banner made from its own wallpapers.",
+          "The banner shows when the drop ends, next to a small clock, so you know how long you have.",
+          "If you have notifications turned on in the app, you get one notification when a new drop goes live — not a stream of reminders.",
+          "Open the banner to see the full collection, in the order it was arranged.",
+        ],
+      },
+      {
+        type: "h2",
+        text: "What Happens When a Drop Ends",
+      },
+      {
+        type: "p",
+        text: "The banner disappears from the home page, and that is the only thing that changes. The drop page itself stays available and is marked as ended, so a link you saved still works and you can still download from it. The wallpapers are ordinary Aurora wallpapers too: they keep appearing in their categories, in search and in your likes, before, during and after the drop.",
+      },
+      {
+        type: "h2",
+        text: "Using a Drop as Your Rotation",
+      },
+      {
+        type: "p",
+        text: "On Android, a drop works well as the source for Aurora’s Wallpaper changer. Choose the drop as the collection to rotate through and pick how often it changes — anywhere from every hour to once a day — and your home screen, lock screen or both will cycle through the set on their own. Because a drop is curated as a group, the changes feel like variations on one theme rather than random jumps.",
+      },
+      {
+        type: "p",
+        text: "New drops are planned around festivals and seasons, with smaller ones in between. If there’s a theme you’d like to see as a drop, the contact page is the fastest way to tell us.",
+      },
+    ],
+  },
+  {
+    slug: "how-aurora-picks-wallpaper-of-the-day",
+    title: "Wallpaper of the Day: How Aurora Picks One Every Morning",
+    category: "Aurora",
+    searchQuery: "sunrise",
+    gradient: "linear-gradient(135deg, #1e1b4b 0%, #7c3aed 50%, #f59e0b 100%)",
+    readTime: "4 min read",
+    date: "November 2026",
+    excerpt:
+      "Every day Aurora features one wallpaper for phones and one for desktops. Here’s how they’re chosen, why you won’t see repeats for a long time, and where to find today’s pick.",
+    content: [
+      {
+        type: "p",
+        text: "Scrolling a big wallpaper library is fun, but sometimes you just want someone to hand you one good image. That is the idea behind the wallpaper of the day: a single pick, the same for everyone, refreshed every morning. It is the easiest way to discover parts of the library you would never have searched for.",
+      },
+      {
+        type: "h2",
+        text: "One for Phones, One for Desktops",
+      },
+      {
+        type: "p",
+        text: "A tall phone wallpaper cropped onto a wide monitor (or the other way round) rarely looks good, so Aurora picks two wallpapers each day: a portrait one for phones and a landscape one for desktops and tablets. On the website, today’s desktop pick is the first slide of the home page, marked with a small sun. In the Android app, the phone pick has its own section on the home screen.",
+      },
+      {
+        type: "h2",
+        text: "How the Pick Works",
+      },
+      {
+        type: "ul",
+        items: [
+          "The pick changes at midnight India time and stays the same for everyone for the whole day.",
+          "It is chosen from approved wallpapers in the right shape for the screen — phone or desktop.",
+          "A wallpaper that has been picked won’t be picked again until every other eligible wallpaper has had its day, so repeats are rare.",
+          "Yesterday’s pick is never repeated today, even when a new round starts.",
+          "If a wallpaper is removed after it was picked, a new one is chosen straight away.",
+        ],
+      },
+      {
+        type: "p",
+        text: "In practice this means the daily pick tours the whole library rather than circling the same popular images. Some days it lands on a crowd favourite; other days it surfaces a quiet minimal piece or a photograph that has only a handful of downloads. Both are the point.",
+      },
+      {
+        type: "h2",
+        text: "Getting It Every Morning",
+      },
+      {
+        type: "p",
+        text: "In the Android app you can turn on the “Wallpaper of the day” notification in Settings › Notifications. It arrives once a morning with the image and two buttons — set it as your wallpaper or save it — and it never wakes you up: Aurora holds non-urgent notifications during quiet hours at night. On the website there is nothing to turn on; today’s pick is simply the first thing on the home page.",
+      },
+      {
+        type: "p",
+        text: "If you like a daily pick, tap the heart. Likes are how Aurora learns what you enjoy, and the Wallpaper changer can rotate through your likes too.",
+      },
+    ],
+  },
+  {
+    slug: "auto-change-wallpaper-android",
+    title: "How to Auto-Change Your Wallpaper on Android",
+    category: "Guides",
+    searchQuery: "mountains",
+    gradient: "linear-gradient(135deg, #0f172a 0%, #0f766e 50%, #81ee4e 100%)",
+    readTime: "5 min read",
+    date: "November 2026",
+    excerpt:
+      "Android doesn’t rotate wallpapers on its own. Here’s how to make your home and lock screen change automatically — from a category, a collection or your likes — and how to keep it reliable.",
+    content: [
+      {
+        type: "p",
+        text: "Changing your wallpaper is one of the smallest ways to make a phone feel new, but doing it by hand gets old fast. Android has no built-in rotation for your own picks, so Aurora’s Android app includes a Wallpaper changer that does it for you on a schedule you choose.",
+      },
+      {
+        type: "h2",
+        text: "Setting It Up",
+      },
+      {
+        type: "ul",
+        items: [
+          "Open the Aurora app and sign in — the changer is available with a free account.",
+          "Go to Settings › Wallpaper changer.",
+          "Choose a source: a category such as Nature or Minimal, one of your collections, a drop, or your liked wallpapers.",
+          "Choose where it goes: home screen, lock screen, or both.",
+          "Pick how often it changes — any interval from every hour to every 24 hours.",
+          "Turn it on. You can also change the wallpaper right away to check how it looks.",
+        ],
+      },
+      {
+        type: "h2",
+        text: "Choosing a Good Source",
+      },
+      {
+        type: "p",
+        text: "The source decides whether rotation feels pleasant or chaotic. A broad category gives the most variety; a collection you built yourself gives the most control. Your likes are the easiest option — every heart you tap quietly adds to the rotation. Drops sit in between: varied, but curated to look good together. Only wallpapers that fit your phone’s shape are used, so you won’t get a landscape image squeezed onto a tall screen.",
+      },
+      {
+        type: "h2",
+        text: "Why the Timing Isn’t Exact",
+      },
+      {
+        type: "p",
+        text: "Android batches background work to save battery, so a wallpaper scheduled for 9:00 may change a few minutes later. That is normal, and the changer shows the approximate time of the next change so you know it is still running.",
+      },
+      {
+        type: "h2",
+        text: "Keeping It Reliable",
+      },
+      {
+        type: "ul",
+        items: [
+          "Some phones (notably Xiaomi, Oppo, Vivo and Realme) aggressively stop background apps. If changes stop, allow Aurora to run in the background in the phone’s battery settings — the changer screen links straight to the right page.",
+          "If you’d rather keep one wallpaper for a while, just switch the changer off; your settings are kept for next time.",
+        ],
+      },
+      {
+        type: "p",
+        text: "A good rhythm for most people is once a day on the home screen with a quieter, darker set on the lock screen. Try it for a week and you will probably stop thinking of your wallpaper as a setting and start thinking of it as something that keeps up with you.",
+      },
+    ],
+  },
+  {
+    slug: "phone-vs-desktop-wallpapers-aspect-ratio",
+    title: "Phone vs Desktop Wallpapers: Getting the Right Fit",
+    category: "Guides",
+    searchQuery: "minimal",
+    gradient: "linear-gradient(135deg, #111827 0%, #374151 50%, #9ca3af 100%)",
+    readTime: "5 min read",
+    date: "November 2026",
+    excerpt:
+      "Why a stunning desktop wallpaper can look wrong on a phone, what aspect ratio actually means, and how to choose an image that survives cropping, icons and clocks.",
+    content: [
+      {
+        type: "p",
+        text: "You find a wallpaper you love, set it on your phone, and something is off: the subject is cut in half, the clock sits on top of a face, or the image looks oddly zoomed. Almost always the problem is shape, not quality. Phones and computers have very different screen shapes, and a wallpaper made for one rarely fits the other without losing something.",
+      },
+      {
+        type: "h2",
+        text: "Aspect Ratio in Plain Terms",
+      },
+      {
+        type: "p",
+        text: "Aspect ratio is simply width compared with height. Most monitors and laptops are wide — 16:9 or 16:10, meaning roughly 1.8 times wider than tall. Modern phones are the opposite: tall and narrow, around 9:19.5 or 9:20. When an image doesn’t match the screen, the system fills the screen by cropping whatever doesn’t fit. Put a wide landscape on a phone and you keep a narrow vertical slice from the middle; everything at the sides is gone.",
+      },
+      {
+        type: "h2",
+        text: "What Survives Cropping",
+      },
+      {
+        type: "ul",
+        items: [
+          "Images with the subject centred — a single planet, a lone tree, a centred figure — crop gracefully in both directions.",
+          "Patterns, gradients and textures have no ‘important part’, so they work on any screen.",
+          "Wide panoramas and group shots lose the most on a phone; keep them for the desktop.",
+          "Tall scenes (waterfalls, towers, portraits) usually look cramped on a monitor but excellent on a phone.",
+        ],
+      },
+      {
+        type: "h2",
+        text: "Leave Room for Clocks and Icons",
+      },
+      {
+        type: "p",
+        text: "On a phone’s lock screen the top third is taken by the clock and notifications; on the home screen, icons and widgets sit over most of the image. Wallpapers with a calm upper area — sky, dark space, soft gradient — keep the clock readable. Busy images are often better saved for the lock screen, where you see them briefly, while something quieter works behind home-screen icons all day.",
+      },
+      {
+        type: "h2",
+        text: "How Aurora Helps",
+      },
+      {
+        type: "p",
+        text: "Every wallpaper on Aurora is tagged as a phone (portrait) or desktop (landscape) wallpaper. The Phone / Desktop switch at the top of the website filters the whole site to the shape you need, and the Android app automatically shows wallpapers in your device’s shape — phone or tablet. Each wallpaper page lists its exact resolution, so you can check it matches or exceeds your screen before downloading — upscaling a small image is what makes wallpapers look soft.",
+      },
+      {
+        type: "p",
+        text: "The quick rule: pick the shape first, then the image. A slightly less spectacular wallpaper in the right shape will look better every single day than a perfect one that’s been cropped beyond recognition.",
+      },
+    ],
+  },
+  {
     slug: "best-dark-wallpapers-oled-screens",
     title: "Best Dark Wallpapers for OLED Screens in 2025",
     category: "Guides",
