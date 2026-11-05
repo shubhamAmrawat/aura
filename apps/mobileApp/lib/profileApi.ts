@@ -79,6 +79,21 @@ export async function uploadAvatarToSignedUrl(uploadUrl: string, fileUri: string
   }
 }
 
+export type AvatarStyle = "critter" | "celestial" | "face";
+
+/** A preview image of a pack avatar (same style + seed = same picture). */
+export const packAvatarPreview = (style: AvatarStyle, seed: number, size = 160) =>
+  `${process.env.EXPO_PUBLIC_API_URL}/api/avatars/${style}/${seed}.png?size=${size}`;
+
+/** Pick an avatar from Aurora's pack; returns the new profile picture URL. */
+export async function setPackAvatar(style: AvatarStyle, seed: number): Promise<string> {
+  const res = await request<{ message: string; avatarUrl: string }>("/api/profile/avatar/pack", {
+    method: "PUT",
+    body: JSON.stringify({ style, seed }),
+  });
+  return res.avatarUrl;
+}
+
 export async function uploadAvatarDirect(fileUri: string, mimeType: string): Promise<string> {
   const formData = new FormData();
   formData.append("avatar", {

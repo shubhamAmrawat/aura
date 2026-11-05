@@ -101,6 +101,23 @@ export async function confirmAvatarUpload(fileUrl: string, key: string): Promise
   return data.avatarUrl as string;
 }
 
+export type AvatarStyle = "critter" | "celestial" | "face";
+
+/** A preview image of a pack avatar (same style + seed = same picture). */
+export const packAvatarPreview = (style: AvatarStyle, seed: number, size = 160) => `${getApiUrl()}/api/avatars/${style}/${seed}.png?size=${size}`;
+
+/** Pick an avatar from Aurora's pack; returns the new profile picture URL. */
+export async function setPackAvatar(style: AvatarStyle, seed: number): Promise<string> {
+  const response = await fetch(`${getApiUrl()}/api/profile/avatar/pack`, {
+    method: "PUT",
+    headers: jsonHeaders(),
+    credentials: "include",
+    body: JSON.stringify({ style, seed }),
+  });
+  const data = await parseJson<{ avatarUrl: string }>(response);
+  return data.avatarUrl as string;
+}
+
 export async function uploadAvatarToSignedUrl(uploadUrl: string, file: File): Promise<void> {
   const response = await fetch(uploadUrl, {
     method: "PUT",

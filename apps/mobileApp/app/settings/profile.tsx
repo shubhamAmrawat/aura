@@ -30,6 +30,7 @@ import {
   uploadCoverToSignedUrl,
 } from "../../lib/profileApi";
 import { ensureCameraPermission } from "../../lib/permissions";
+import AvatarPackSheet from "../../components/AvatarPackSheet";
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
@@ -54,6 +55,7 @@ export default function EditProfile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [sourcePickerTarget, setSourcePickerTarget] = useState<"avatar" | "cover" | null>(null);
+  const [packOpen, setPackOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState({
     displayName: "",
@@ -588,6 +590,18 @@ export default function EditProfile() {
             </Text>
             <Text style={styles.sourceSubtitle}>Choose image source</Text>
             <View style={styles.sourceButtons}>
+              {sourcePickerTarget === "avatar" ? (
+                <Pressable
+                  style={({ pressed }) => [styles.sourceButton, pressed && { opacity: 0.9 }]}
+                  onPress={() => {
+                    closeSourcePicker();
+                    setPackOpen(true);
+                  }}
+                >
+                  <Ionicons name="happy-outline" size={16} color={Colors.textPrimary} />
+                  <Text style={styles.sourceButtonText}>Choose an Aurora avatar</Text>
+                </Pressable>
+              ) : null}
               <Pressable
                 style={({ pressed }) => [styles.sourceButton, pressed && { opacity: 0.9 }]}
                 onPress={() => handleSourceSelection("camera")}
@@ -618,6 +632,15 @@ export default function EditProfile() {
           </Pressable>
         </Pressable>
       </Modal>
+      <AvatarPackSheet
+        visible={packOpen}
+        onClose={() => setPackOpen(false)}
+        onSaved={(avatarUrl) => {
+          setPackOpen(false);
+          setUser((prev) => (prev ? { ...prev, avatarUrl } : prev));
+          showToast("Avatar updated.", { type: "success" });
+        }}
+      />
     </View>
   );
 }

@@ -18,6 +18,7 @@ import { importGoogleAvatar, isGoogleAvatarUrl } from "../integrations/avatarImp
 import type { OtpType } from "../validators/auth.schema";
 import { alertAdmins } from "./notificationTriggers.service";
 import type { Client } from "../utils/client";
+import { assignDefaultAvatarLater } from "./avatarPack.service";
 
 /** Admin alert: someone made an account (in the background; never blocks sign-up). */
 function alertSignup(u: { id: string; username: string; displayName: string }, via: "email" | "Google", source: Client | null) {
@@ -143,6 +144,7 @@ export async function signup(input: { email: string; username: string; displayNa
   );
   if (!created) throw new ApiError(500, "Failed to create user");
   alertSignup(created, "email", source);
+  assignDefaultAvatarLater(created.id);
 
   const token = generateToken({ userId: created.id, email: created.email, role: created.role });
   return { user: created, token };
@@ -329,6 +331,7 @@ export async function loginWithGoogle(credential: string, source: Client | null 
       })
       .returning());
     alertSignup(created!, "Google", source);
+    if (!created!.avatarUrl) assignDefaultAvatarLater(created!.id);
     return issue(created!, true);
   } catch (err) {
     // Lost a race with a parallel request for the same Google account → just log in.

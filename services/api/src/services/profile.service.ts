@@ -9,6 +9,8 @@ import { generateWallpaperTextEmbedding } from "../integrations/openai";
 import { BCRYPT_COST, checkOtp, findUserById, issueOtp } from "./auth.service";
 import { removeWallpaper } from "./wallpaperRemoval.service";
 import { deleteThumbFor, thumbUrlSql } from "./wallpaperThumb.service";
+import { isPackKey, storePackAvatar } from "./avatarPack.service";
+import type { AvatarStyle } from "../utils/avatarPack";
 
 export type ImageKind = "avatar" | "cover";
 
@@ -64,6 +66,15 @@ export async function updateProfile(
 }
 
 // ─── Avatar / cover images ────────────────────────────────
+
+/** An avatar from Aurora's pack (replaces an uploaded photo, which is then deleted). */
+export async function setPackAvatar(user: UserRow, style: AvatarStyle, seed: number) {
+  assertStorageConfigured("avatar");
+  const url = await storePackAvatar(style, seed);
+  await deleteOldImage(user.id, "avatar", user.avatarUrl);
+  await db.update(users).set({ avatarUrl: url, updatedAt: new Date() }).where(eq(users.id, user.id));
+  return url;
+}
 
 export function createImageUploadUrl(userId: string, kind: ImageKind, fileType: string) {
   return generateUploadUrl(IMAGE[kind].folder, fileType, userId);
@@ -241,7 +252,7 @@ export async function purgeAccount(user: { id: string; email: string; avatarUrl:
     ...uploads.map((w) => r2KeyFromUrl(w.fileUrl)),
     r2KeyFromUrl(user.avatarUrl),
     r2KeyFromUrl(user.coverUrl),
-  ].filter((k): k is string => k !== null);
+  ].filter((k): k is string => k !== null && !isPackKey(k)); // pack avatars are shared
   await Promise.all(
     keys.map((key) => deleteFile(key).catch((e) => console.error("[r2] Account delete cleanup failed:", key, e)))
   );

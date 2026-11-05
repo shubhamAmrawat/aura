@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { Wallpaper } from "@aura/types";
 import AvatarCropper from "@/app/components/AvatarCropper";
 import AvatarImage from "@/app/components/AvatarImage";
+import AvatarPicker from "@/app/components/AvatarPicker";
 import WallpaperCard from "@/app/components/WallpaperCard";
 import UserUploadsSection from "@/app/components/UserUploadsSection";
 import EditProfileDrawer from "./EditProfileDrawer";
@@ -161,6 +162,7 @@ function ProfileContent() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropMode, setCropMode] = useState<"avatar" | "cover">("avatar");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [creatorStatus, setCreatorStatus] = useState<CreatorStatus | null>(null);
 
@@ -304,12 +306,28 @@ function ProfileContent() {
       <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose profile photo" onChange={(e) => pickImage(e, "avatar")} />
       <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Choose cover image" onChange={(e) => pickImage(e, "cover")} />
 
+      {pickerOpen && (
+        <AvatarPicker
+          onClose={() => setPickerOpen(false)}
+          onUploadPhoto={() => {
+            setPickerOpen(false);
+            avatarInputRef.current?.click();
+          }}
+          onSaved={(url) => {
+            setPickerOpen(false);
+            setProfile((p) => (p ? { ...p, avatarUrl: url } : p));
+            if (authUser) setAuthUser({ ...authUser, avatarUrl: url });
+            toast("Avatar updated.", "success");
+          }}
+        />
+      )}
+
       {editOpen && (
         <EditProfileDrawer
           profile={profile}
           uploadingAvatar={uploadingAvatar}
           uploadingCover={uploadingCover}
-          onPickAvatar={() => avatarInputRef.current?.click()}
+          onPickAvatar={() => setPickerOpen(true)}
           onPickCover={() => coverInputRef.current?.click()}
           onSaved={handleProfileSaved}
           onClose={closeEdit}
@@ -368,7 +386,7 @@ function ProfileContent() {
               </div>
               <button
                 type="button"
-                onClick={() => avatarInputRef.current?.click()}
+                onClick={() => setPickerOpen(true)}
                 disabled={uploadingAvatar}
                 aria-label="Change profile photo"
                 className="absolute right-1.5 bottom-2 w-[34px] h-[34px] rounded-full flex items-center justify-center transition-transform hover:scale-105"

@@ -17,6 +17,7 @@ profileRoutes.post("/delete/otp", profile.sendDeleteAccountOtp);
 
 profileRoutes.post("/avatar/upload-url", profile.imageUploadUrl("avatar"));
 profileRoutes.put("/avatar", profile.confirmImage("avatar"));
+profileRoutes.put("/avatar/pack", profile.setPackAvatar);
 profileRoutes.post("/avatar/direct", singleImage("avatar", HARD_CAP, "Avatar must be smaller than 5MB."), profile.uploadImageDirect("avatar"));
 
 profileRoutes.post("/cover/upload-url", profile.imageUploadUrl("cover"));

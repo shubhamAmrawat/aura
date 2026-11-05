@@ -16,6 +16,8 @@
     "db:seed:dev": "tsx --env-file=../../.env scripts/dev-seed.mts",
     "db:backfill-phash": "tsx --env-file=../../.env scripts/backfill-phash.mts",
     "db:backfill-phash:prod": "tsx --env-file=../../.env.production scripts/backfill-phash.mts",
+    "db:assign-avatars": "tsx --env-file=../../.env scripts/assign-avatars.mts",
+    "db:assign-avatars:prod": "tsx --env-file=../../.env.production scripts/assign-avatars.mts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",

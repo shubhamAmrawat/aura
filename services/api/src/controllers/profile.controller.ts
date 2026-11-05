@@ -14,6 +14,10 @@ import {
   UpdateUploadBody,
 } from "../validators/profile.schema";
 import * as profileService from "../services/profile.service";
+import { z } from "zod";
+import { AVATAR_STYLES, MAX_SEED } from "../utils/avatarPack";
+
+const PackAvatarBody = z.object({ style: z.enum(AVATAR_STYLES, { message: "Unknown avatar style" }), seed: z.number().int().min(0).max(MAX_SEED) }).strict();
 import * as interestsService from "../services/interests.service";
 import type { ImageKind } from "../services/profile.service";
 
@@ -98,6 +102,14 @@ export const uploadImageDirect = (kind: ImageKind) => async (req: Request, res: 
   const url = await profileService.uploadImageDirect(user, kind, file);
   res.json({ message: `${LABEL[kind]} updated successfully`, [`${kind}Url`]: url });
 };
+
+/** PUT /api/profile/avatar/pack { style, seed } — pick an avatar from Aurora's pack */
+export const setPackAvatar = route("Failed to update avatar", async (req, res) => {
+  const { style, seed } = parseOrThrow(PackAvatarBody, req.body);
+  const user = await profileService.getUserOrThrow(authUserId(req));
+  const url = await profileService.setPackAvatar(user, style, seed);
+  res.json({ message: "Avatar updated successfully", avatarUrl: url });
+});
 
 // ─── Password ──────────────────────────────────────────────
 
