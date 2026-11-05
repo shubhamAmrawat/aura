@@ -1,27 +1,26 @@
-import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import Sheet from "./Sheet";
 import { Colors } from "../constants";
-import { packAvatarPreview, setPackAvatar, type AvatarStyle } from "../lib/profileApi";
-
-const PACKS: { key: AvatarStyle; label: string }[] = [
-  { key: "critter", label: "Critters" },
-  { key: "celestial", label: "Celestials" },
-  { key: "face", label: "Faces" },
-];
+import { FALLBACK_PACKS, getAvatarPacks, packAvatarPreview, setPackAvatar, type AvatarPack, type AvatarStyle } from "../lib/profileApi";
 const COUNT = 12;
 const randomSeeds = () => Array.from({ length: COUNT }, () => Math.floor(Math.random() * 0xffffffff));
 
-/** Profile › choose an avatar from Aurora's pack (three styles). */
+/** Profile › choose an avatar from Aurora's packs (the list comes from the API). */
 export default function AvatarPackSheet({ visible, onClose, onSaved }: { visible: boolean; onClose: () => void; onSaved: (avatarUrl: string) => void }) {
-  const [style, setStyle] = useState<AvatarStyle>("critter");
+  const [packs, setPacks] = useState<AvatarPack[]>(FALLBACK_PACKS);
+  const [style, setStyle] = useState<AvatarStyle>(FALLBACK_PACKS[0]!.key);
   const [seeds, setSeeds] = useState<number[]>(randomSeeds);
   const [picked, setPicked] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const shown = picked ?? seeds[0]!;
+
+  useEffect(() => {
+    if (visible) getAvatarPacks().then(setPacks).catch(() => undefined);
+  }, [visible]);
 
   const save = async () => {
     setSaving(true);
@@ -40,36 +39,35 @@ export default function AvatarPackSheet({ visible, onClose, onSaved }: { visible
       <Text style={styles.title}>Choose your avatar</Text>
       <View style={styles.top}>
         <Image source={{ uri: packAvatarPreview(style, shown, 256) }} style={styles.preview} contentFit="cover" transition={150} />
-        <View style={{ flex: 1, gap: 10 }}>
-          <View style={styles.tabs} accessibilityRole="tablist">
-            {PACKS.map((p) => (
-              <Pressable
-                key={p.key}
-                onPress={() => {
-                  setStyle(p.key);
-                  setPicked(null);
-                }}
-                style={[styles.tab, style === p.key && styles.tabOn]}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: style === p.key }}
-              >
-                <Text style={[styles.tabText, style === p.key && styles.tabTextOn]}>{p.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+        <Pressable
+          onPress={() => {
+            setSeeds(randomSeeds());
+            setPicked(null);
+          }}
+          style={({ pressed }) => [styles.shuffle, pressed && { opacity: 0.8 }]}
+          accessibilityRole="button"
+        >
+          <Ionicons name="shuffle" size={16} color={Colors.textPrimary} />
+          <Text style={styles.shuffleText}>Shuffle</Text>
+        </Pressable>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} style={styles.tabsScroll} accessibilityRole="tablist">
+        {packs.map((p) => (
           <Pressable
+            key={p.key}
             onPress={() => {
-              setSeeds(randomSeeds());
+              setStyle(p.key);
               setPicked(null);
             }}
-            style={({ pressed }) => [styles.shuffle, pressed && { opacity: 0.8 }]}
-            accessibilityRole="button"
+            style={[styles.tab, style === p.key && styles.tabOn]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: style === p.key }}
           >
-            <Ionicons name="shuffle" size={16} color={Colors.textPrimary} />
-            <Text style={styles.shuffleText}>Shuffle</Text>
+            <Text style={[styles.tabText, style === p.key && styles.tabTextOn]}>{p.label}</Text>
           </Pressable>
-        </View>
-      </View>
+        ))}
+      </ScrollView>
 
       <View style={styles.grid}>
         {seeds.map((seed) => {
@@ -93,11 +91,12 @@ export default function AvatarPackSheet({ visible, onClose, onSaved }: { visible
 
 const styles = StyleSheet.create({
   title: { color: Colors.textPrimary, fontSize: 20, fontWeight: "800", marginBottom: 14 },
-  top: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 18 },
+  top: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 16 },
   preview: { width: 96, height: 96, borderRadius: 48, backgroundColor: Colors.bgSecondary },
-  tabs: { flexDirection: "row", padding: 3, borderRadius: 12, backgroundColor: Colors.bgSecondary, alignSelf: "flex-start" },
-  tab: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9 },
-  tabOn: { backgroundColor: Colors.accent },
+  tabsScroll: { marginHorizontal: -20, marginBottom: 16, flexGrow: 0 },
+  tabs: { gap: 8, paddingHorizontal: 20 },
+  tab: { height: 34, paddingHorizontal: 14, borderRadius: 17, justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+  tabOn: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   tabText: { color: Colors.textSecondary, fontSize: 12.5, fontWeight: "700" },
   tabTextOn: { color: "#0A0A0A" },
   shuffle: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.08)" },

@@ -101,10 +101,25 @@ export async function confirmAvatarUpload(fileUrl: string, key: string): Promise
   return data.avatarUrl as string;
 }
 
-export type AvatarStyle = "critter" | "celestial" | "face";
+/** A pack key from the API ("critter", "anime", …). Packs come from the server, so new ones need no website change. */
+export type AvatarStyle = string;
+export type AvatarPack = { key: AvatarStyle; label: string };
+
+/** Used only if the pack list can't be loaded. */
+export const FALLBACK_PACKS: AvatarPack[] = [
+  { key: "critter", label: "Night critters" },
+  { key: "celestial", label: "Celestials" },
+  { key: "face", label: "Faces" },
+];
+
+export async function getAvatarPacks(): Promise<AvatarPack[]> {
+  const response = await fetch(`${getApiUrl()}/api/avatars/packs`);
+  const data = await parseJson<{ data: AvatarPack[] }>(response);
+  return data.data?.length ? data.data : FALLBACK_PACKS;
+}
 
 /** A preview image of a pack avatar (same style + seed = same picture). */
-export const packAvatarPreview = (style: AvatarStyle, seed: number, size = 160) => `${getApiUrl()}/api/avatars/${style}/${seed}.png?size=${size}`;
+export const packAvatarPreview = (style: AvatarStyle, seed: number, size = 160) => `${getApiUrl()}/api/avatars/${encodeURIComponent(style)}/${seed}.png?size=${size}`;
 
 /** Pick an avatar from Aurora's pack; returns the new profile picture URL. */
 export async function setPackAvatar(style: AvatarStyle, seed: number): Promise<string> {

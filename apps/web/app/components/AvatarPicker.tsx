@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ShuffleIcon, UploadIcon, XIcon } from "lucide-react";
-import { packAvatarPreview, setPackAvatar, type AvatarStyle } from "@/lib/profileApi";
+import { FALLBACK_PACKS, getAvatarPacks, packAvatarPreview, setPackAvatar, type AvatarPack, type AvatarStyle } from "@/lib/profileApi";
 
-const PACKS: { key: AvatarStyle; label: string }[] = [
-  { key: "critter", label: "Night critters" },
-  { key: "celestial", label: "Celestials" },
-  { key: "face", label: "Faces" },
-];
 const COUNT = 12;
 
 function randomSeeds(n: number) {
@@ -17,17 +12,22 @@ function randomSeeds(n: number) {
   return Array.from(a);
 }
 
-/** Profile › choose an avatar from Aurora's pack (three styles), or upload a photo instead. */
+/** Profile › choose an avatar from Aurora's packs (the list comes from the API), or upload a photo instead. */
 export default function AvatarPicker({ onClose, onSaved, onUploadPhoto }: {
   onClose: () => void;
   onSaved: (avatarUrl: string) => void;
   onUploadPhoto: () => void;
 }) {
-  const [style, setStyle] = useState<AvatarStyle>("critter");
+  const [packs, setPacks] = useState<AvatarPack[]>(FALLBACK_PACKS);
+  const [style, setStyle] = useState<AvatarStyle>(FALLBACK_PACKS[0]!.key);
   const [seeds, setSeeds] = useState<number[]>(() => randomSeeds(COUNT));
   const [picked, setPicked] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    getAvatarPacks().then(setPacks).catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && !saving && onClose();
@@ -75,7 +75,7 @@ export default function AvatarPicker({ onClose, onSaved, onUploadPhoto }: {
           <img src={packAvatarPreview(style, shown, 256)} alt="Your new avatar" width={112} height={112} className="w-28 h-28 rounded-full" style={{ background: "var(--bg-secondary)" }} />
           <div className="flex flex-col gap-3 min-w-0">
             <div role="tablist" aria-label="Avatar style" className="inline-flex flex-wrap gap-1 p-1 rounded-xl" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-              {PACKS.map((p) => (
+              {packs.map((p) => (
                 <button
                   key={p.key}
                   type="button"

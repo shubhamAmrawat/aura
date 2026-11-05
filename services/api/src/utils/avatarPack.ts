@@ -1,15 +1,30 @@
 /**
- * Aurora avatar pack: three original vector styles (Night critters, Celestials, Faces), each
+ * Aurora avatar packs: original vector styles (Night critters, Celestials, Faces, Masked heroes,
+ * Anime, Shades crew, Animals — Aurora's own characters, not copies of existing ones), each
  * drawn from parts so every (style, seed) gives the same picture. Pure SVG strings — rendered to
  * PNG by avatarPack.service for profile pictures, and served as previews for the pickers.
  */
 
-export const AVATAR_STYLES = ["critter", "celestial", "face"] as const;
+export const AVATAR_STYLES = ["critter", "celestial", "face", "hero", "anime", "shades", "animal"] as const;
 export type AvatarStyle = (typeof AVATAR_STYLES)[number];
 export const isAvatarStyle = (s: string): s is AvatarStyle => (AVATAR_STYLES as readonly string[]).includes(s);
 /** Seeds are unsigned 32-bit integers. */
 export const MAX_SEED = 0xffffffff;
 export const randomSeed = () => Math.floor(Math.random() * MAX_SEED);
+
+/**
+ * The packs the pickers show, in order (GET /api/avatars/packs). The website and app build their
+ * tabs from this list, so adding a pack here (plus its drawing below) needs no app update.
+ */
+export const AVATAR_PACKS: { key: AvatarStyle; label: string }[] = [
+  { key: "critter", label: "Night critters" },
+  { key: "celestial", label: "Celestials" },
+  { key: "face", label: "Faces" },
+  { key: "hero", label: "Masked heroes" },
+  { key: "anime", label: "Anime" },
+  { key: "shades", label: "Shades crew" },
+  { key: "animal", label: "Animals" },
+];
 
 const rng = (seed: number) => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 type Rand = () => number;
@@ -149,7 +164,122 @@ function celestial(seed: number, sfx = ""): string {
 }
 
 
-const DRAW: Record<AvatarStyle, (seed: number) => string> = { critter, celestial, face };
+
+// ── shared bits for the later packs ─────────────────────────
+const SKIN2 = ["#F6D5B8", "#EDBE95", "#D9A06F", "#B87A4B", "#8A5634", "#5E3A23"];
+const HAIR2 = ["#1C1820", "#3B2416", "#6B3E1F", "#C98B3A", "#A8432C", "#E8E3DA"];
+const FUNHAIR = ["#A78BFA", "#F472B6", "#2DD4BF", "#38BDF8", "#FB923C", "#81EE4E", "#F5F0EB", "#1C1820", "#FACC15"];
+const BRIGHT = ["#81EE4E", "#2DD4BF", "#38BDF8", "#A78BFA", "#F472B6", "#FB923C", "#FACC15", "#F87171"];
+const shade2 = "rgba(0,0,0,.14)";
+const wrap = (r: Rand, id: string, inner: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${bg(r, id)}<g clip-path="url(#c${id})">${inner}</g></svg>`;
+const capHair = (c: string) => `<path d="M29 47 C27 25 73 25 71 47 C66 35 34 35 29 47 Z" fill="${c}"/>`;
+const person = (skin: string, shirt: string) => `<path d="M10 104 C12 76 88 76 90 104 Z" fill="${shirt}"/><rect x="44" y="64" width="12" height="14" rx="5" fill="${skin}"/><rect x="44" y="64" width="12" height="7" fill="${shade2}"/><circle cx="30" cy="52" r="4.5" fill="${skin}"/><circle cx="70" cy="52" r="4.5" fill="${skin}"/><ellipse cx="50" cy="49" rx="20.5" ry="22.5" fill="${skin}"/>`;
+const smiles = [
+  `<path d="M45 61 Q50 65.5 55 61" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+  `<path d="M44 60 Q50 68 56 60 Z" fill="${INK}"/>`,
+  `<path d="M45 62 Q51 64 55 59.5" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+  `<path d="M46 62 L54 62" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`,
+];
+
+// ── Masked heroes ───────────────────────────────────────────
+function hero(seed: number, sfx = ""): string {
+  const r = rng(seed), id = seed.toString(36) + sfx;
+  const skin = pick(r, SKIN2), hair = pick(r, HAIR2), suit = pick(r, BRIGHT), mask = pick(r, ["#1C1820", ...BRIGHT]), cape = pick(r, ["#B91C1C", "#1E3A8A", "#4C1D95", "#0F766E", "#1C1820", "#9D174D"]);
+  const em = pick(r, ["star", "bolt", "diamond", "ring", "wing"] as const);
+  const emblems = {
+    star: `<path d="M50 80 l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="#FACC15"/>`,
+    bolt: `<path d="M53 79 L45 90 L50 90 L47 99 L56 87 L51 87 Z" fill="#FACC15"/>`,
+    diamond: `<path d="M50 79 L57 88 L50 97 L43 88 Z" fill="#F5F0EB"/>`,
+    ring: `<circle cx="50" cy="88" r="7" fill="none" stroke="#F5F0EB" stroke-width="3"/><circle cx="50" cy="88" r="2.5" fill="#FACC15"/>`,
+    wing: `<path d="M50 90 C44 82 38 84 36 86 C42 87 45 89 50 94 C55 89 58 87 64 86 C62 84 56 82 50 90 Z" fill="#F5F0EB"/>`,
+  };
+  const hairStyle = pick(r, ["cap", "spiky", "swoop", "hood"] as const);
+  const front = {
+    cap: capHair(hair),
+    spiky: `<path d="M29 46 L28 32 L35 36 L37 24 L44 31 L50 20 L56 31 L63 24 L65 36 L72 32 L71 46 C66 36 34 36 29 46 Z" fill="${hair}"/>`,
+    swoop: `<path d="M29 47 C27 26 73 24 71 44 C62 33 48 38 40 33 C35 38 31 42 29 47 Z" fill="${hair}"/>`,
+    hood: `<path d="M24 56 C22 22 78 22 76 56 L72 56 C72 34 28 34 28 56 Z" fill="${mask === "#1C1820" ? suit : mask}"/>`,
+  }[hairStyle];
+  const maskSvg = `<path d="M28 45 Q50 39 72 45 L71 55 Q61 51 50 55 Q39 51 29 55 Z" fill="${mask}"/><ellipse cx="41.5" cy="49.5" rx="4.6" ry="3.4" fill="#fff"/><ellipse cx="58.5" cy="49.5" rx="4.6" ry="3.4" fill="#fff"/><circle cx="42" cy="49.8" r="1.8" fill="${INK}"/><circle cx="59" cy="49.8" r="1.8" fill="${INK}"/>`;
+  const body = `<path d="M6 104 L18 74 Q50 86 82 74 L94 104 Z" fill="${cape}"/><path d="M14 104 C16 78 84 78 86 104 Z" fill="${suit}"/><path d="M38 77 L50 84 L62 77" stroke="${shade2}" stroke-width="3" fill="none"/>`;
+  const head = `<rect x="44" y="62" width="12" height="14" rx="5" fill="${skin}"/><circle cx="30" cy="50" r="4.5" fill="${skin}"/><circle cx="70" cy="50" r="4.5" fill="${skin}"/><ellipse cx="50" cy="47" rx="20.5" ry="22.5" fill="${skin}"/>`;
+  return wrap(r, id, `<g transform="translate(50 46) scale(.96) translate(-50 -48)">${body}${emblems[em]}${head}${front}${maskSvg}${pick(r, smiles)}</g>`);
+}
+
+// ── Anime ───────────────────────────────────────────────────
+function anime(seed: number, sfx = ""): string {
+  const r = rng(seed), id = seed.toString(36) + sfx;
+  const skin = pick(r, SKIN2.slice(0, 4)), hair = pick(r, FUNHAIR), iris = pick(r, ["#38BDF8", "#A78BFA", "#81EE4E", "#F472B6", "#FB923C", "#8B5A2B", "#2DD4BF"]), shirt = pick(r, BRIGHT);
+  const style = pick(r, ["bangs", "spiky", "long", "twin"] as const);
+  const back = style === "long" ? `<path d="M26 44 C24 18 76 18 74 44 L78 86 C68 80 32 80 22 86 Z" fill="${hair}"/>` : style === "twin" ? `<path d="M26 40 C14 46 14 70 22 82 C26 70 28 58 30 50 Z M74 40 C86 46 86 70 78 82 C74 70 72 58 70 50 Z" fill="${hair}"/>` : "";
+  const headPath = `M30 45 C30 26 70 26 70 45 C70 59 61 70 50 72 C39 70 30 59 30 45 Z`;
+  const front = {
+    bangs: `<path d="M27 48 L28 32 Q50 12 72 32 L73 48 L67 37 L63 46 L57 35 L51 45 L45 35 L39 46 L34 37 Z" fill="${hair}"/>`,
+    spiky: `<path d="M27 48 L22 30 L32 32 L30 16 L42 26 L50 10 L58 26 L70 16 L68 32 L78 30 L73 48 L66 37 L60 45 L54 35 L46 35 L40 45 L34 37 Z" fill="${hair}"/>`,
+    long: `<path d="M28 50 L29 32 Q50 14 71 32 L72 50 L66 38 L58 40 L50 34 L42 40 L34 38 Z" fill="${hair}"/>`,
+    twin: `<path d="M28 48 L29 32 Q50 14 71 32 L72 48 L65 38 L58 44 L52 36 L44 42 L36 38 Z" fill="${hair}"/><circle cx="29" cy="36" r="3.4" fill="${pick(r, ["#F472B6", "#FACC15", "#F5F0EB"])}"/>`,
+  }[style];
+  const eye = (x: number) => `<ellipse cx="${x}" cy="52" rx="4.4" ry="5.8" fill="#fff"/><ellipse cx="${x}" cy="53" rx="3.6" ry="4.9" fill="${iris}"/><ellipse cx="${x}" cy="54" rx="1.9" ry="2.8" fill="${INK}"/><circle cx="${x + 1.4}" cy="50.6" r="1.4" fill="#fff"/><circle cx="${x - 1.3}" cy="55.6" r=".7" fill="#fff"/><path d="M${x - 5.2} 47.6 Q${x} 45 ${x + 5.2} 47.6" stroke="${INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  const closed = (x: number) => `<path d="M${x - 4.5} 53 Q${x} 49 ${x + 4.5} 53" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+  const happy = r() < 0.25;
+  const eyes = happy ? closed(41) + closed(59) : eye(41) + eye(59);
+  const mouth = pick(r, [
+    `<path d="M47.5 63 Q50 65 52.5 63" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+    `<path d="M46.5 62.5 Q48 64.5 50 62.5 Q52 64.5 53.5 62.5" stroke="${INK}" stroke-width="1.6" fill="none" stroke-linecap="round"/>`,
+    `<path d="M47 62 L53 62 L50 65.5 Z" fill="#B4234B"/>`,
+  ]);
+  const blush = `<g stroke="#F472B6" stroke-width="1.4" stroke-linecap="round" opacity=".75"><path d="M33.5 59.5 L35.5 57.5 M36.5 60 L38.5 58 M39.5 60.5 L41.5 58.5"/><path d="M58.5 60.5 L60.5 58.5 M61.5 60 L63.5 58 M64.5 59.5 L66.5 57.5"/></g>`;
+  const extra = pick(r, ["", "", `<path d="M71 40 C73 44 74 46 72 48 C70 49 68 47 69 45 Z" fill="#7DD3FC"/>`, `<path d="M30 30 L34 18 L40 28 Z M70 30 L66 18 L60 28 Z" fill="${hair}"/><path d="M31.5 27 L34 21 L37 26 Z M68.5 27 L66 21 L63 26 Z" fill="#F9A8D4"/>`]);
+  return wrap(r, id, `<g transform="translate(50 52) scale(1.12) translate(-50 -50)">${back}<path d="M12 104 C14 78 86 78 88 104 Z" fill="${shirt}"/><path d="M40 78 L50 86 L60 78" fill="#fff" opacity=".9"/><rect x="45" y="64" width="10" height="13" rx="4" fill="${skin}"/><path d="${headPath}" fill="${skin}"/>${front}${eyes}${mouth}${blush}${extra}</g>`);
+}
+
+// ── Shades crew ─────────────────────────────────────────────
+function shades(seed: number, sfx = ""): string {
+  const r = rng(seed), id = seed.toString(36) + sfx;
+  const skin = pick(r, SKIN2), hair = pick(r, [...HAIR2, ...FUNHAIR.slice(0, 4)]), shirt = pick(r, BRIGHT);
+  const hat = pick(r, ["cap", "beanie", "none", "bucket", "none", "headphones"] as const);
+  const lens = pick(r, ["#111017", "#111017", "#1E3A8A", "#7C2D12", "#4C1D95"]);
+  const frame = pick(r, ["round", "square", "visor"] as const);
+  const shine = `<path d="M37 48 L41 46" stroke="#fff" stroke-opacity=".6" stroke-width="1.4" stroke-linecap="round"/><path d="M54 48 L58 46" stroke="#fff" stroke-opacity=".6" stroke-width="1.4" stroke-linecap="round"/>`;
+  const glasses = {
+    round: `<circle cx="41.5" cy="50" r="6.5" fill="${lens}"/><circle cx="58.5" cy="50" r="6.5" fill="${lens}"/><path d="M48 49 Q50 47.5 52 49" stroke="${INK}" stroke-width="1.8" fill="none"/>`,
+    square: `<rect x="33" y="45" width="15" height="10" rx="3" fill="${lens}"/><rect x="52" y="45" width="15" height="10" rx="3" fill="${lens}"/><path d="M48 48 L52 48" stroke="${INK}" stroke-width="2"/>`,
+    visor: `<path d="M30 46 Q50 42 70 46 L69 54 Q60 56 50 52 Q40 56 31 54 Z" fill="${lens}"/>`,
+  }[frame] + shine;
+  const hats = {
+    none: capHair(hair),
+    cap: `${capHair(hair)}<path d="M28 42 C28 22 72 22 72 42 Z" fill="${shirt}"/><path d="M28 41 L80 41 Q86 42 84 46 L28 45 Z" fill="${shirt}"/><path d="M28 41 L80 41 Q86 42 84 46 L28 45 Z" fill="${shade2}"/>`,
+    beanie: `<path d="M27 44 C27 20 73 20 73 44 Z" fill="${shirt}"/><rect x="26" y="40" width="48" height="7" rx="3.5" fill="${shirt}"/><rect x="26" y="40" width="48" height="7" rx="3.5" fill="${shade2}"/>`,
+    bucket: `<path d="M32 40 C32 24 68 24 68 40 Z" fill="${shirt}"/><path d="M22 44 Q50 34 78 44 L74 46 Q50 40 26 46 Z" fill="${shirt}"/><path d="M22 44 Q50 34 78 44 L74 46 Q50 40 26 46 Z" fill="${shade2}"/>`,
+    headphones: `${capHair(hair)}<path d="M27 50 C26 22 74 22 73 50" stroke="#2A2A33" stroke-width="4" fill="none"/><rect x="22" y="45" width="8" height="13" rx="4" fill="${shirt}"/><rect x="70" y="45" width="8" height="13" rx="4" fill="${shirt}"/>`,
+  }[hat];
+  const chain = r() < 0.4 ? `<path d="M40 79 Q50 90 60 79" stroke="#FACC15" stroke-width="1.8" fill="none"/>` : "";
+  return wrap(r, id, `<g transform="translate(50 52) scale(1.15) translate(-50 -50)">${person(skin, shirt)}${chain}${hats}${glasses}${pick(r, [smiles[0], smiles[2], smiles[1]])}</g>`);
+}
+
+// ── Animals ─────────────────────────────────────────────────
+function animal(seed: number, sfx = ""): string {
+  const r = rng(seed), id = seed.toString(36) + sfx;
+  const kind = pick(r, ["cat", "fox", "panda", "owl", "bunny", "bear", "penguin", "frog"] as const);
+  const dot = (x: number, y: number, s = 2.8) => `<circle cx="${x}" cy="${y}" r="${s}" fill="${INK}"/><circle cx="${x + s * 0.35}" cy="${y - s * 0.35}" r="${s * 0.32}" fill="#fff"/>`;
+  const blush = `<circle cx="34" cy="64" r="3.6" fill="#F472B6" opacity=".35"/><circle cx="66" cy="64" r="3.6" fill="#F472B6" opacity=".35"/>`;
+  const smileAt = (y: number) => `<path d="M46 ${y} Q48 ${y + 2.5} 50 ${y} Q52 ${y + 2.5} 54 ${y}" stroke="${INK}" stroke-width="1.8" fill="none" stroke-linecap="round"/>`;
+  const smile = smileAt(66);
+  const c = pick(r, ["#F59E0B", "#9CA3AF", "#E8E3DA", "#A16207", "#F472B6", "#A78BFA", "#2DD4BF"]);
+  let s = "";
+  if (kind === "cat") s = `<path d="M26 44 L28 20 L44 34 Z M74 44 L72 20 L56 34 Z" fill="${c}"/><path d="M30 38 L31 26 L39 34 Z M70 38 L69 26 L61 34 Z" fill="#F9A8D4"/><ellipse cx="50" cy="58" rx="27" ry="25" fill="${c}"/>${dot(40, 56)}${dot(60, 56)}<path d="M48 62 L52 62 L50 64.5 Z" fill="#F472B6"/>${smile}<g stroke="${INK}" stroke-width="1" opacity=".5"><path d="M30 62 L18 60 M30 66 L18 68 M70 62 L82 60 M70 66 L82 68"/></g>${blush}`;
+  if (kind === "fox") s = `<path d="M24 46 L26 14 L46 36 Z M76 46 L74 14 L54 36 Z" fill="#FB923C"/><path d="M28 38 L29 22 L39 33 Z M72 38 L71 22 L61 33 Z" fill="#1C1820"/><path d="M22 52 C22 36 78 36 78 52 C78 66 62 82 50 84 C38 82 22 66 22 52 Z" fill="#FB923C"/><path d="M24 56 C32 58 42 66 50 84 C38 82 26 70 24 56 Z M76 56 C68 58 58 66 50 84 C62 82 74 70 76 56 Z" fill="#FFF7ED"/>${dot(40, 56)}${dot(60, 56)}<ellipse cx="50" cy="72" rx="3.6" ry="2.6" fill="${INK}"/>`;
+  if (kind === "panda") s = `<circle cx="30" cy="34" r="9" fill="#1C1820"/><circle cx="70" cy="34" r="9" fill="#1C1820"/><ellipse cx="50" cy="58" rx="28" ry="26" fill="#F5F0EB"/><ellipse cx="39" cy="56" rx="7" ry="8.5" fill="#1C1820" transform="rotate(-20 39 56)"/><ellipse cx="61" cy="56" rx="7" ry="8.5" fill="#1C1820" transform="rotate(20 61 56)"/><circle cx="40" cy="56" r="2.6" fill="#fff"/><circle cx="60" cy="56" r="2.6" fill="#fff"/><ellipse cx="50" cy="65" rx="3.6" ry="2.6" fill="${INK}"/>${smileAt(70)}${blush}`;
+  if (kind === "owl") s = `<path d="M26 34 L32 22 L40 32 Z M74 34 L68 22 L60 32 Z" fill="#92400E"/><ellipse cx="50" cy="60" rx="27" ry="28" fill="#B45309"/><ellipse cx="50" cy="72" rx="15" ry="14" fill="#FDE68A" opacity=".6"/><circle cx="40" cy="52" r="10" fill="#FEF3C7"/><circle cx="60" cy="52" r="10" fill="#FEF3C7"/>${dot(40, 52, 4)}${dot(60, 52, 4)}<path d="M46 60 L54 60 L50 67 Z" fill="#F59E0B"/>`;
+  if (kind === "bunny") s = `<ellipse cx="38" cy="22" rx="7" ry="20" fill="${c}"/><ellipse cx="62" cy="22" rx="7" ry="20" fill="${c}"/><ellipse cx="38" cy="24" rx="3.4" ry="14" fill="#F9A8D4"/><ellipse cx="62" cy="24" rx="3.4" ry="14" fill="#F9A8D4"/><ellipse cx="50" cy="62" rx="26" ry="24" fill="${c}"/>${dot(41, 60)}${dot(59, 60)}<path d="M48 66 L52 66 L50 68.5 Z" fill="#F472B6"/>${smileAt(70)}${blush}`;
+  if (kind === "bear") s = `<circle cx="29" cy="36" r="10" fill="#92400E"/><circle cx="71" cy="36" r="10" fill="#92400E"/><circle cx="29" cy="36" r="5" fill="#FBBF24" opacity=".5"/><circle cx="71" cy="36" r="5" fill="#FBBF24" opacity=".5"/><ellipse cx="50" cy="58" rx="27" ry="26" fill="#A16207"/><ellipse cx="50" cy="68" rx="11" ry="8" fill="#FDE68A"/>${dot(40, 54)}${dot(60, 54)}<ellipse cx="50" cy="65" rx="3.6" ry="2.6" fill="${INK}"/>${smileAt(70)}`;
+  if (kind === "penguin") s = `<ellipse cx="50" cy="60" rx="29" ry="32" fill="#1F2937"/><path d="M50 47 C63 47 68 58 66 70 C62 81 38 81 34 70 C32 58 37 47 50 47 Z" fill="#F5F0EB"/><path d="M27 58 C22 66 22 76 26 82 L30 70 Z M73 58 C78 66 78 76 74 82 L70 70 Z" fill="#111827"/>${dot(42, 58)}${dot(58, 58)}<path d="M45 64 L55 64 L50 70 Z" fill="#F59E0B"/>${blush}`;
+  if (kind === "frog") s = `<circle cx="36" cy="38" r="11" fill="#4ADE80"/><circle cx="64" cy="38" r="11" fill="#4ADE80"/><ellipse cx="50" cy="62" rx="30" ry="22" fill="#4ADE80"/><circle cx="36" cy="38" r="6.5" fill="#fff"/><circle cx="64" cy="38" r="6.5" fill="#fff"/>${dot(36, 39, 3.4)}${dot(64, 39, 3.4)}<path d="M38 66 Q50 74 62 66" stroke="${INK}" stroke-width="2.2" fill="none" stroke-linecap="round"/>${blush}`;
+  return wrap(r, id, s);
+}
+
+
+const DRAW: Record<AvatarStyle, (seed: number) => string> = { critter, celestial, face, hero, anime, shades, animal };
 
 /** The avatar as an SVG document (100×100 viewBox). */
 export function avatarSvg(style: AvatarStyle, seed: number): string {

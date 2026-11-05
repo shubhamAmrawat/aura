@@ -3,4 +3,5 @@ import * as avatars from "../controllers/avatar.controller";
 
 export const avatarRoutes = Router();
 
+avatarRoutes.get("/packs", avatars.packs);
 avatarRoutes.get("/:style/:seed", avatars.preview);

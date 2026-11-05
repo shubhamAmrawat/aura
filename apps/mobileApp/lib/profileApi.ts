@@ -79,11 +79,25 @@ export async function uploadAvatarToSignedUrl(uploadUrl: string, fileUri: string
   }
 }
 
-export type AvatarStyle = "critter" | "celestial" | "face";
+/** A pack key from the API ("critter", "anime", …). Packs come from the server, so new ones need no app update. */
+export type AvatarStyle = string;
+export type AvatarPack = { key: AvatarStyle; label: string };
+
+/** Used only if the pack list can't be loaded. */
+export const FALLBACK_PACKS: AvatarPack[] = [
+  { key: "critter", label: "Critters" },
+  { key: "celestial", label: "Celestials" },
+  { key: "face", label: "Faces" },
+];
+
+export async function getAvatarPacks(): Promise<AvatarPack[]> {
+  const res = await request<{ data: AvatarPack[] }>("/api/avatars/packs");
+  return res.data?.length ? res.data : FALLBACK_PACKS;
+}
 
 /** A preview image of a pack avatar (same style + seed = same picture). */
 export const packAvatarPreview = (style: AvatarStyle, seed: number, size = 160) =>
-  `${process.env.EXPO_PUBLIC_API_URL}/api/avatars/${style}/${seed}.png?size=${size}`;
+  `${process.env.EXPO_PUBLIC_API_URL}/api/avatars/${encodeURIComponent(style)}/${seed}.png?size=${size}`;
 
 /** Pick an avatar from Aurora's pack; returns the new profile picture URL. */
 export async function setPackAvatar(style: AvatarStyle, seed: number): Promise<string> {
