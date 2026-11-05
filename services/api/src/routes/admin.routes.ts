@@ -60,6 +60,13 @@ adminRoutes.get("/notifications/users", notificationsAdmin.searchUsers);
 adminRoutes.get("/notifications/users/:id", notificationsAdmin.user);
 adminRoutes.post("/notifications/devices/remove", notificationsAdmin.removeDevice);
 adminRoutes.put("/notifications/rules", notificationsAdmin.rules);
+adminRoutes.get("/notifications/templates", notificationsAdmin.templateList);
+adminRoutes.post("/notifications/templates", notificationsAdmin.templateCreate);
+adminRoutes.get("/notifications/templates/:id", notificationsAdmin.templateGet);
+adminRoutes.put("/notifications/templates/:id", notificationsAdmin.templateUpdate);
+adminRoutes.delete("/notifications/templates/:id", notificationsAdmin.templateDelete);
+adminRoutes.post("/notifications/templates/:id/reset", notificationsAdmin.templateReset);
+adminRoutes.get("/notifications/templates/:id/prepare", notificationsAdmin.templatePrepare);
 adminRoutes.put("/app-versions", notificationsAdmin.versions);
 
 // Bulk upload (Phase 4)

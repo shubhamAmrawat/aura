@@ -1,6 +1,9 @@
-import { and, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../../config/db";
 import {
+  downloads,
+  likes,
+  wallpapers,
   notificationCampaigns,
   notificationDeliveries,
   notifications,
@@ -40,12 +43,22 @@ export const PREF: Record<NotificationType, PrefKey> = {
 
 export const PREF_DEFAULTS: Required<NotificationPrefs> = { drops: true, daily: false, updates: true, uploads: true, milestones: true, account: true };
 
+/** Android channels (app 1.0.4+): *_v2 and announcements pop up on screen; milestones and daily stay quiet. */
 const CHANNEL: Record<NotificationType, string> = {
+  drop: "drops_v2", daily: "daily", update: "updates_v2", announcement: "announcements",
+  upload_live: "uploads_v2", upload_rejected: "uploads_v2", milestone: "milestones",
+  creator_approved: "account_v2", creator_rejected: "account_v2", report_reviewed: "account_v2",
+  admin_report: "account_v2", admin_application: "account_v2", admin_delivery: "account_v2",
+};
+/** Apps before 1.0.4 only have the old channels. */
+const LEGACY_CHANNEL: Record<NotificationType, string> = {
   drop: "drops", daily: "daily", update: "updates", announcement: "updates",
   upload_live: "uploads", upload_rejected: "uploads", milestone: "uploads",
   creator_approved: "account", creator_rejected: "account", report_reviewed: "account",
   admin_report: "account", admin_application: "account", admin_delivery: "account",
 };
+const channelFor = (type: NotificationType, appVersion: string | null) =>
+  (older(appVersion, "1.0.4") ? LEGACY_CHANNEL : CHANNEL)[type] ?? "updates";
 
 /** Go out straight away, even in quiet hours, and never count toward the cap. */
 const URGENT = new Set<NotificationType>(["upload_live", "upload_rejected", "creator_approved", "creator_rejected", "report_reviewed", "admin_report", "admin_application", "admin_delivery"]);
@@ -69,6 +82,9 @@ export type NewCampaign = {
   respectQuiet?: boolean;
   dedupeKey?: string;
   createdBy?: string | null;
+  /** made from this template: skip people who got it in the last cooldownDays */
+  templateId?: string | null;
+  cooldownDays?: number;
 };
 
 type Campaign = typeof notificationCampaigns.$inferSelect;
@@ -91,6 +107,8 @@ export async function createCampaign(input: NewCampaign, opts: { wait?: boolean 
       scheduledFor: input.scheduledFor ?? new Date(),
       dedupeKey: input.dedupeKey ?? null,
       createdBy: input.createdBy ?? null,
+      templateId: input.templateId ?? null,
+      cooldownDays: input.cooldownDays ?? 0,
     })
     .onConflictDoNothing({ target: notificationCampaigns.dedupeKey })
     .returning();
@@ -138,12 +156,16 @@ export async function resolveAudience(a: CampaignAudience, type: NotificationTyp
   const prefOn = (col: typeof pushDevices.prefs | typeof webPushSubscriptions.prefs) => sql`coalesce((${col} ->> ${key})::boolean, ${PREF_DEFAULTS[key]})`;
   const out: Target[] = [];
 
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+  const creatorIds = () => db.select({ id: users.id }).from(users).where(eq(users.isCreator, true));
   const appRows = await db
     .select({ token: pushDevices.token, userId: pushDevices.userId, appVersion: pushDevices.appVersion })
     .from(pushDevices)
     .where(
       and(
         isNull(pushDevices.disabledAt),
+        a.installedDays ? lt(pushDevices.createdAt, daysAgo(a.installedDays)) : undefined,
+        a.excludeCreators ? or(isNull(pushDevices.userId), notInArray(pushDevices.userId, creatorIds())) : undefined,
         ignorePrefs ? undefined : prefOn(pushDevices.prefs),
         a.kind === "devices" ? (a.targets?.length ? inArray(pushDevices.token, a.targets) : sql`false`) : userFilter(pushDevices.userId, a),
         a.screen ? eq(pushDevices.screen, a.screen) : undefined,
@@ -160,6 +182,8 @@ export async function resolveAudience(a: CampaignAudience, type: NotificationTyp
       .where(
         and(
           isNull(webPushSubscriptions.disabledAt),
+          a.installedDays ? lt(webPushSubscriptions.createdAt, daysAgo(a.installedDays)) : undefined,
+          a.excludeCreators ? or(isNull(webPushSubscriptions.userId), notInArray(webPushSubscriptions.userId, creatorIds())) : undefined,
           ignorePrefs ? undefined : prefOn(webPushSubscriptions.prefs),
           a.kind === "devices" ? (a.targets?.length ? inArray(webPushSubscriptions.endpoint, a.targets) : sql`false`) : userFilter(webPushSubscriptions.userId, a),
           a.activeDays ? (a.activeDays > 0 ? gt(webPushSubscriptions.lastSeenAt, new Date(Date.now() - a.activeDays * 86_400_000)) : lt(webPushSubscriptions.lastSeenAt, new Date(Date.now() + a.activeDays * 86_400_000))) : undefined
@@ -167,7 +191,44 @@ export async function resolveAudience(a: CampaignAudience, type: NotificationTyp
       );
     for (const r of webRows) out.push({ channel: "web", target: r.endpoint, userId: r.userId, p256dh: r.p256dh, auth: r.auth });
   }
+  if (a.notOpenedLatestDrop && out.length) {
+    const [latest] = await db
+      .select({ id: notificationCampaigns.id })
+      .from(notificationCampaigns)
+      .where(and(eq(notificationCampaigns.type, "drop"), ne(notificationCampaigns.kind, "test"), inArray(notificationCampaigns.status, ["sending", "sent"])))
+      .orderBy(desc(notificationCampaigns.startedAt))
+      .limit(1);
+    if (latest) {
+      const opened = await db
+        .select({ target: notificationDeliveries.target })
+        .from(notificationDeliveries)
+        .where(and(eq(notificationDeliveries.campaignId, latest.id), isNotNull(notificationDeliveries.openedAt)));
+      const skip = new Set(opened.map((r) => r.target));
+      return out.filter((t) => !skip.has(t.target));
+    }
+  }
   return out;
+}
+
+/** Template cooldown: leave out phones / browsers / people that got this template in the last `days` days. */
+export async function applyCooldown<T extends { target: string; userId: string | null }>(targets: T[], templateId: string | null, days: number, exceptCampaign?: string): Promise<T[]> {
+  if (!templateId || days <= 0 || !targets.length) return targets;
+  const rows = await db
+    .select({ target: notificationDeliveries.target, userId: notificationDeliveries.userId })
+    .from(notificationDeliveries)
+    .innerJoin(notificationCampaigns, eq(notificationCampaigns.id, notificationDeliveries.campaignId))
+    .where(
+      and(
+        eq(notificationCampaigns.templateId, templateId),
+        ne(notificationCampaigns.kind, "test"),
+        exceptCampaign ? ne(notificationCampaigns.id, exceptCampaign) : undefined,
+        gt(notificationDeliveries.createdAt, new Date(Date.now() - days * 86_400_000)),
+        inArray(notificationDeliveries.status, ["queued", "sent", "delivered"])
+      )
+    );
+  const t = new Set(rows.map((r) => r.target));
+  const u = new Set(rows.flatMap((r) => (r.userId ? [r.userId] : [])));
+  return targets.filter((x) => !t.has(x.target) && !(x.userId && u.has(x.userId)));
 }
 
 /** Admin sends to specific people or phones are direct messages: they skip the person's switches. */
@@ -194,7 +255,7 @@ async function startCampaign(c: Campaign) {
     .returning();
   if (!claimed) return;
 
-  const targets = await resolveAudience(c.audience, type, isDirect(c));
+  const targets = await applyCooldown(await resolveAudience(c.audience, type, isDirect(c)), c.templateId, c.cooldownDays, c.id);
   for (let i = 0; i < targets.length; i += 1000) {
     await db.insert(notificationDeliveries).values(
       targets.slice(i, i + 1000).map((t) => ({ campaignId: c.id, channel: t.channel, target: t.target, userId: t.userId }))
@@ -208,17 +269,25 @@ async function startCampaign(c: Campaign) {
 /** Inbox rows: one shared row for "everyone"; otherwise one per person reached (tests: none). */
 async function writeInbox(c: Campaign, targets: Target[]) {
   if (c.kind === "test") return;
-  const base = { type: c.type, title: c.title, body: c.body, imageUrl: c.imageUrl, url: c.url, actions: c.actions, campaignId: c.id };
+  const base = { type: c.type, title: personalize(c.title), body: c.body ? personalize(c.body) : null, imageUrl: c.imageUrl, url: c.url, actions: c.actions, campaignId: c.id };
   const a = c.audience;
-  if (a.kind === "everyone" && !a.versionBelow && !a.activeDays) {
+  if (a.kind === "everyone" && !a.versionBelow && !a.activeDays && !a.installedDays && !a.excludeCreators && !a.notOpenedLatestDrop && !c.cooldownDays) {
     await db.insert(notifications).values({ ...base, userId: null, screen: a.screen ?? null });
     return;
   }
   const ids = new Set<string>(a.kind === "users" ? (a.userIds ?? []) : []);
   for (const t of targets) if (t.userId) ids.add(t.userId);
   const list = [...ids];
+  // {name} etc.: each person's own row is filled in for them
+  const text = c.title + " " + (c.body ?? "");
+  const vars = await personalVarsFor(list, text);
+  const named = PERSONAL_RE.test(text);
   for (let i = 0; i < list.length; i += 1000) {
-    await db.insert(notifications).values(list.slice(i, i + 1000).map((userId) => ({ ...base, userId })));
+    await db.insert(notifications).values(
+      list.slice(i, i + 1000).map((userId) =>
+        named ? { ...base, title: personalize(c.title, vars.get(userId)), body: c.body ? personalize(c.body, vars.get(userId)) : null, userId } : { ...base, userId }
+      )
+    );
   }
 }
 
@@ -240,10 +309,13 @@ export async function processQueue(campaignId?: string) {
           c: notificationCampaigns,
           p256dh: webPushSubscriptions.p256dh,
           auth: webPushSubscriptions.auth,
+          userId: notificationDeliveries.userId,
+          appVersion: pushDevices.appVersion,
         })
         .from(notificationDeliveries)
         .innerJoin(notificationCampaigns, eq(notificationCampaigns.id, notificationDeliveries.campaignId))
         .leftJoin(webPushSubscriptions, eq(webPushSubscriptions.endpoint, notificationDeliveries.target))
+        .leftJoin(pushDevices, eq(pushDevices.token, notificationDeliveries.target))
         .where(
           and(
             eq(notificationDeliveries.status, "queued"),
@@ -255,10 +327,16 @@ export async function processQueue(campaignId?: string) {
         )
         .limit(300);
       if (!batch.length) break;
+      const pv = await personalVarsFor(
+        batch.flatMap((d) => (d.userId ? [d.userId] : [])),
+        batch.map((d) => d.c.title + " " + (d.c.body ?? "")).join(" ")
+      );
+      const varsOf = (d: { userId: string | null }) => (d.userId ? pv.get(d.userId) : undefined);
 
       // daily cap: Aurora-wide pushes already sent today to each target
       const cappedTargets = new Set<string>();
-      const cappable = batch.filter((d) => CAPPED.has(d.c.type as NotificationType) && d.c.kind !== "test");
+      // (unticking "Respect quiet hours and the daily cap" in Compose skips the cap too)
+      const cappable = batch.filter((d) => CAPPED.has(d.c.type as NotificationType) && d.c.kind !== "test" && d.c.respectQuiet);
       if (cappable.length && rules.dailyCap >= 0) {
         const counts = await db
           .select({ target: notificationDeliveries.target, n: sql<number>`count(*)::int` })
@@ -287,7 +365,7 @@ export async function processQueue(campaignId?: string) {
       const deadWeb: string[] = [];
 
       const app = batch.filter((d) => d.channel === "app" && !cappedTargets.has(d.id));
-      const messages: ExpoMessage[] = app.map((d) => appMessage(d.c, d.id, d.target));
+      const messages: ExpoMessage[] = app.map((d) => appMessage(d.c, d.id, d.target, d.appVersion, varsOf(d)));
       const results = messages.length ? await sendExpoPush(messages) : [];
       app.forEach((d, i) => {
         const r = results[i];
@@ -303,7 +381,7 @@ export async function processQueue(campaignId?: string) {
           updates.push({ id: d.id, status: "failed", ticket: null, error: "Browser unsubscribed", sent: false });
           continue;
         }
-        const r = await sendWebPush({ endpoint: d.target, p256dh: d.p256dh, auth: d.auth }, webPayload(d.c, d.id), TTL[d.c.type as NotificationType] ?? 24 * 3600);
+        const r = await sendWebPush({ endpoint: d.target, p256dh: d.p256dh, auth: d.auth }, webPayload(d.c, d.id, varsOf(d)), TTL[d.c.type as NotificationType] ?? 24 * 3600);
         updates.push({ id: d.id, status: r.ok ? "delivered" : "failed", ticket: null, error: r.ok ? null : (r.error ?? "Failed"), sent: r.ok });
         if (r.dead) deadWeb.push(d.target);
       }
@@ -347,15 +425,60 @@ function deepLinkData(c: Campaign, deliveryId: string) {
   };
 }
 
-function appMessage(c: Campaign, deliveryId: string, token: string): ExpoMessage {
+/** Placeholders filled in per person when the message goes out. */
+export const PERSONAL_KEYS = ["name", "downloads", "likes"] as const;
+const PERSONAL_RE = /\{(name|downloads|likes)\}/;
+export type PersonalVars = { name?: string | null; downloads?: number; likes?: number };
+
+/** {name} → first name ("there" when signed out or unknown); {downloads} / {likes} → their wallpapers' last 7 days. */
+export function personalize(text: string, v?: PersonalVars) {
+  if (!PERSONAL_RE.test(text)) return text;
+  const first = (v?.name ?? "").trim().split(/\s+/)[0];
+  return text
+    .replace(/\{name\}/g, first || "there")
+    .replace(/\{downloads\}/g, String(v?.downloads ?? 0))
+    .replace(/\{likes\}/g, String(v?.likes ?? 0));
+}
+
+async function personalVarsFor(userIds: string[], text: string): Promise<Map<string, PersonalVars>> {
+  const out = new Map<string, PersonalVars>();
+  const ids = [...new Set(userIds)];
+  if (!ids.length || !PERSONAL_RE.test(text)) return out;
+  const stats = /\{(downloads|likes)\}/.test(text);
+  const since = new Date(Date.now() - 7 * 86_400_000);
+  for (let i = 0; i < ids.length; i += 1000) {
+    const chunk = ids.slice(i, i + 1000);
+    const rows = await db.select({ id: users.id, name: users.displayName }).from(users).where(inArray(users.id, chunk));
+    for (const r of rows) out.set(r.id, { name: r.name, downloads: 0, likes: 0 });
+    if (!stats) continue;
+    const dl = await db
+      .select({ id: wallpapers.uploaderId, n: sql<number>`count(*)::int` })
+      .from(downloads)
+      .innerJoin(wallpapers, eq(wallpapers.id, downloads.wallpaperId))
+      .where(and(inArray(wallpapers.uploaderId, chunk), gt(downloads.createdAt, since)))
+      .groupBy(wallpapers.uploaderId);
+    const lk = await db
+      .select({ id: wallpapers.uploaderId, n: sql<number>`count(*)::int` })
+      .from(likes)
+      .innerJoin(wallpapers, eq(wallpapers.id, likes.wallpaperId))
+      .where(and(inArray(wallpapers.uploaderId, chunk), gt(likes.createdAt, since)))
+      .groupBy(wallpapers.uploaderId);
+    for (const r of dl) if (r.id && out.has(r.id)) out.get(r.id)!.downloads = r.n;
+    for (const r of lk) if (r.id && out.has(r.id)) out.get(r.id)!.likes = r.n;
+  }
+  return out;
+}
+
+function appMessage(c: Campaign, deliveryId: string, token: string, appVersion: string | null, vars: PersonalVars | undefined): ExpoMessage {
   const type = c.type as NotificationType;
+  const body = c.body ? personalize(c.body, vars) : null;
   return {
     to: token,
-    title: c.title,
-    ...(c.body ? { body: c.body } : {}),
+    title: personalize(c.title, vars),
+    ...(body ? { body } : {}),
     // `rich`: the app's native module draws it (big picture + buttons, each a deep link)
     data: { rich: true, ...deepLinkData(c, deliveryId) },
-    channelId: CHANNEL[type] ?? "updates",
+    channelId: channelFor(type, appVersion),
     ...(c.actions?.length ? { categoryId: type } : {}),
     priority: "high",
     sound: "default",
@@ -363,8 +486,8 @@ function appMessage(c: Campaign, deliveryId: string, token: string): ExpoMessage
   };
 }
 
-function webPayload(c: Campaign, deliveryId: string) {
-  return { title: c.title, body: c.body ?? "", tag: c.type, ...deepLinkData(c, deliveryId) };
+function webPayload(c: Campaign, deliveryId: string, vars: PersonalVars | undefined) {
+  return { title: personalize(c.title, vars), body: personalize(c.body ?? "", vars), tag: c.type, ...deepLinkData(c, deliveryId) };
 }
 
 /** Recount a campaign's numbers; a sending campaign with nothing queued is done. */

@@ -749,6 +749,11 @@ export type NotifyAudience = {
   versionBelow?: string | null;
   activeDays?: number | null;
   includeWeb?: boolean;
+  /** phones / browsers set up at least N days ago */
+  installedDays?: number | null;
+  excludeCreators?: boolean;
+  /** leave out those who opened the latest drop notification */
+  notOpenedLatestDrop?: boolean;
 };
 
 export type NotifyAction = { id: string; label: string; url: string };
@@ -796,9 +801,9 @@ export type UserNotifications = {
 };
 
 export const getNotificationsOverview = () => adminGet<AdminNotificationsOverview>("/notifications");
-export const previewAudience = (audience: NotifyAudience, type: NotifyMessage["type"]) =>
-  adminCall<{ phones: number; browsers: number; people: number }>("POST", "/notifications/preview", { audience, type });
-export const sendNotification = (body: { message: NotifyMessage; audience: NotifyAudience; scheduledFor: string | null; respectQuiet: boolean }) =>
+export const previewAudience = (audience: NotifyAudience, type: NotifyMessage["type"], from?: { templateId: string; cooldownDays: number } | null) =>
+  adminCall<{ phones: number; browsers: number; people: number }>("POST", "/notifications/preview", { audience, type, ...(from ?? {}) });
+export const sendNotification = (body: { message: NotifyMessage; audience: NotifyAudience; scheduledFor: string | null; respectQuiet: boolean; templateId?: string | null; cooldownDays?: number }) =>
   adminCall<CampaignDetail>("POST", "/notifications/send", body);
 export const sendTestNotification = (message: NotifyMessage) => adminCall<CampaignDetail>("POST", "/notifications/test", { message });
 export const listCampaigns = (filter: "all" | "manual" | "auto" | "scheduled", offset = 0) =>
@@ -810,3 +815,42 @@ export const getUserNotifications = (id: string) => adminGet<UserNotifications>(
 export const removeNotifyTarget = (target: string) => adminCall<{ ok: true }>("POST", "/notifications/devices/remove", { target });
 export const saveNotificationRules = (rules: NotificationRules) => adminCall<{ rules: NotificationRules }>("PUT", "/notifications/rules", rules);
 export const saveAppVersions = (v: AppVersions) => adminCall<{ versions: AppVersions }>("PUT", "/app-versions", v);
+
+// ─── notification templates ─────────────────────────────────
+
+export type TemplateCategory = "reengage" | "growth" | "promotion" | "seasonal" | "info" | "creators";
+export type TemplateImageSource = "none" | "custom" | "drop" | "wallpaper";
+export type NotifyTemplateInput = {
+  category: TemplateCategory;
+  name: string;
+  description: string | null;
+  type: NotifyMessage["type"];
+  title: string;
+  body: string | null;
+  imageSource: TemplateImageSource;
+  imageUrl: string | null;
+  /** path, https link, aurora://update, @drop or @wallpaper */
+  url: string | null;
+  actions: NotifyAction[];
+  audience: NotifyAudience;
+  bestTime: string | null;
+  cooldownDays: number;
+};
+export type NotifyTemplate = NotifyTemplateInput & { id: string; key: string | null; builtin: boolean; modified?: boolean; createdAt: string; updatedAt: string };
+export type PreparedTemplate = {
+  template: { id: string; name: string; category: TemplateCategory; bestTime: string | null };
+  message: NotifyMessage;
+  audience: NotifyAudience;
+  cooldownDays: number;
+  values: Record<string, string>;
+  missing: string[];
+  personal: string[];
+  problems: string[];
+};
+
+export const listNotifyTemplates = () => adminGet<{ data: NotifyTemplate[] }>("/notifications/templates").then((r) => r.data);
+export const createNotifyTemplate = (t: NotifyTemplateInput) => adminCall<NotifyTemplate>("POST", "/notifications/templates", t);
+export const updateNotifyTemplate = (id: string, t: NotifyTemplateInput) => adminCall<NotifyTemplate>("PUT", `/notifications/templates/${id}`, t);
+export const deleteNotifyTemplate = (id: string) => adminCall<{ ok: true }>("DELETE", `/notifications/templates/${id}`);
+export const resetNotifyTemplate = (id: string) => adminCall<NotifyTemplate>("POST", `/notifications/templates/${id}/reset`);
+export const prepareNotifyTemplate = (id: string) => adminGet<PreparedTemplate>(`/notifications/templates/${id}/prepare`);

@@ -28,14 +28,22 @@ object RichNotifications {
   private const val ACCENT = 0xFF81EE4E.toInt()
   private const val NOTIFICATION_PARAM = "_n"
 
-  /** Same ids and names as lib/notifications.ts creates (whichever runs first wins). */
+  /**
+   * Fallback definitions, same ids and names as lib/notifications.ts (which normally creates them
+   * first). High = pops up on screen. Any other channel the app created is used as it is, so new
+   * channels never need a native change again.
+   */
   private val CHANNELS = mapOf(
-    "drops" to Pair("New drops", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "drops_v2" to Pair("New drops", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "uploads_v2" to Pair("Your uploads", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "account_v2" to Pair("Account and reports", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "updates_v2" to Pair("App updates", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "announcements" to Pair("Announcements", NotificationManagerCompat.IMPORTANCE_HIGH),
+    "milestones" to Pair("Milestones", NotificationManagerCompat.IMPORTANCE_DEFAULT),
     "daily" to Pair("Wallpaper of the day", NotificationManagerCompat.IMPORTANCE_DEFAULT),
-    "uploads" to Pair("Your uploads", NotificationManagerCompat.IMPORTANCE_DEFAULT),
-    "account" to Pair("Account and reports", NotificationManagerCompat.IMPORTANCE_DEFAULT),
-    "updates" to Pair("App updates and news", NotificationManagerCompat.IMPORTANCE_DEFAULT),
   )
+  private const val FALLBACK_CHANNEL = "announcements"
+  private val HIGH_IDS = CHANNELS.filterValues { it.second == NotificationManagerCompat.IMPORTANCE_HIGH }.keys
 
   fun showIfAurora(context: Context, data: Map<String, String>): Boolean {
     val payload = data["body"]?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
@@ -50,8 +58,13 @@ object RichNotifications {
 
     val title = data["title"] ?: payload.optString("title", "Aurora")
     val text = data["message"]
-    val channelId = data["channelId"]?.takeIf { CHANNELS.containsKey(it) } ?: "updates"
+    val requested = data["channelId"]
+    val channelId = when {
+      requested != null && (manager.getNotificationChannelCompat(requested) != null || CHANNELS.containsKey(requested)) -> requested
+      else -> FALLBACK_CHANNEL
+    }
     ensureChannel(manager, channelId)
+    val loud = Build.VERSION.SDK_INT < 26 && CHANNELS[channelId]?.second == NotificationManagerCompat.IMPORTANCE_HIGH
 
     val notificationId = (payload.optString("nid").ifEmpty { System.currentTimeMillis().toString() }).hashCode()
     val url = payload.optString("url").takeIf { it.isNotEmpty() && it != "null" }
@@ -64,7 +77,9 @@ object RichNotifications {
       .setColor(ACCENT)
       .setContentTitle(title)
       .setAutoCancel(true)
-      .setPriority(if (channelId == "drops") NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+      // Android 7 has no channels: priority decides the pop-up there
+      .setPriority(if (loud || channelId in HIGH_IDS) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
+      .setDefaults(NotificationCompat.DEFAULT_ALL)
       .setContentIntent(open(context, url, notificationId, 0, deliveryId, "tap"))
     if (!text.isNullOrEmpty()) builder.setContentText(text)
 

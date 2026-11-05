@@ -29,14 +29,22 @@ const TOKEN_KEY = "push_token_v1";
 const SEEN_KEY = "notifications_seen_v1";
 const ASK_KEY = "notifications_ask_v1";
 
-/** Same ids as the API (CHANNEL in notification.service.ts) and the native module. */
+/**
+ * Android channels. Same ids as the API (CHANNEL in services/notify/engine.ts) and the native
+ * module. HIGH = pops up on screen. A channel's importance can't be changed after it's created,
+ * so a change means a new id (the old ones are deleted below).
+ */
 const CHANNELS: { id: string; name: string; importance: Notifications.AndroidImportance; description: string }[] = [
-  { id: "drops", name: "New drops", importance: Notifications.AndroidImportance.HIGH, description: "When a limited drop goes live" },
+  { id: "drops_v2", name: "New drops", importance: Notifications.AndroidImportance.HIGH, description: "When a limited drop goes live" },
+  { id: "uploads_v2", name: "Your uploads", importance: Notifications.AndroidImportance.HIGH, description: "Approved or needs changes" },
+  { id: "account_v2", name: "Account and reports", importance: Notifications.AndroidImportance.HIGH, description: "Creator application, reports you made" },
+  { id: "updates_v2", name: "App updates", importance: Notifications.AndroidImportance.HIGH, description: "When a new version is ready" },
+  { id: "announcements", name: "Announcements", importance: Notifications.AndroidImportance.HIGH, description: "News and suggestions from Aurora" },
+  { id: "milestones", name: "Milestones", importance: Notifications.AndroidImportance.DEFAULT, description: "When your wallpapers reach new likes" },
   { id: "daily", name: "Wallpaper of the day", importance: Notifications.AndroidImportance.DEFAULT, description: "Every morning at 9:00" },
-  { id: "uploads", name: "Your uploads", importance: Notifications.AndroidImportance.DEFAULT, description: "Approved, needs changes, milestones" },
-  { id: "account", name: "Account and reports", importance: Notifications.AndroidImportance.DEFAULT, description: "Creator application, reports you made" },
-  { id: "updates", name: "App updates and news", importance: Notifications.AndroidImportance.DEFAULT, description: "New versions and announcements" },
 ];
+/** Channels from 1.0.2–1.0.3 (didn't pop up), and "news" from 1.0.4 test builds. */
+const OLD_CHANNELS = ["drops", "uploads", "account", "updates", "news"];
 
 /** Fallback buttons, if a push is ever drawn by expo-notifications instead of the native module. */
 const CATEGORIES: Record<string, { id: string; label: string }[]> = {
@@ -58,8 +66,16 @@ export async function configureNotifications() {
   });
   try {
     for (const c of CHANNELS) {
-      await Notifications.setNotificationChannelAsync(c.id, { name: c.name, importance: c.importance, description: c.description, lightColor: "#81EE4E" });
+      await Notifications.setNotificationChannelAsync(c.id, {
+        name: c.name,
+        importance: c.importance,
+        description: c.description,
+        lightColor: "#81EE4E",
+        enableVibrate: true,
+        showBadge: true,
+      });
     }
+    for (const id of OLD_CHANNELS) await Notifications.deleteNotificationChannelAsync(id).catch(() => undefined);
     for (const [id, actions] of Object.entries(CATEGORIES)) {
       await Notifications.setNotificationCategoryAsync(id, actions.map((a) => ({ identifier: a.id, buttonTitle: a.label, options: { opensAppToForeground: true } })));
     }

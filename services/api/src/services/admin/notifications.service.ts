@@ -3,7 +3,8 @@ import { db } from "../../config/db";
 import { notificationCampaigns, notificationDeliveries, pushDevices, users, webPushSubscriptions, type CampaignAudience, type NotificationAction } from "../../models";
 import { ApiError } from "../../utils/ApiError";
 import { logAdminAction } from "../../utils/audit";
-import { cancelCampaign, createCampaign, resolveAudience, type NotificationType } from "../notify/engine";
+import { applyCooldown, cancelCampaign, createCampaign, resolveAudience, type NotificationType } from "../notify/engine";
+import { unfilledPlaceholders } from "./notificationTemplates.service";
 import { getRules } from "../notify/rules";
 import { deviceStats } from "../notification.service";
 import { getAppVersions } from "../appConfig.service";
@@ -26,9 +27,9 @@ export async function overview() {
 }
 
 /** How many phones / browsers / people a composer audience reaches right now. */
-export async function previewAudience(audience: CampaignAudience, type: NotificationType) {
+export async function previewAudience(audience: CampaignAudience, type: NotificationType, templateId: string | null = null, cooldownDays = 0) {
   const direct = audience.kind === "users" || audience.kind === "devices";
-  const targets = await resolveAudience(audience, type, direct);
+  const targets = await applyCooldown(await resolveAudience(audience, type, direct), templateId, cooldownDays);
   return {
     phones: targets.filter((t) => t.channel === "app").length,
     browsers: targets.filter((t) => t.channel === "web").length,
@@ -36,10 +37,18 @@ export async function previewAudience(audience: CampaignAudience, type: Notifica
   };
 }
 
-export async function sendManual(adminId: string, m: ManualMessage, audience: CampaignAudience, scheduledFor: Date | null, respectQuiet: boolean) {
+export async function sendManual(
+  adminId: string,
+  m: ManualMessage,
+  audience: CampaignAudience,
+  scheduledFor: Date | null,
+  respectQuiet: boolean,
+  from: { templateId: string | null; cooldownDays: number } = { templateId: null, cooldownDays: 0 }
+) {
   if (scheduledFor && scheduledFor.getTime() < Date.now() - 60_000) throw new ApiError(400, "That time has passed.");
+  assertFilled(m);
   const row = await createCampaign(
-    { kind: "manual", ...m, audience, scheduledFor, respectQuiet, createdBy: adminId },
+    { kind: "manual", ...m, audience, scheduledFor, respectQuiet, createdBy: adminId, templateId: from.templateId, cooldownDays: from.templateId ? from.cooldownDays : 0 },
     { wait: true }
   );
   if (!row) throw new ApiError(409, "Already sent.");
@@ -48,7 +57,14 @@ export async function sendManual(adminId: string, m: ManualMessage, audience: Ca
 }
 
 /** To the admin's own phones and browsers only; skips quiet hours, the cap and the inbox. */
+/** {festival} etc. left in the text would go out as-is. */
+function assertFilled(m: ManualMessage) {
+  const left = unfilledPlaceholders(m.title, m.body);
+  if (left.length) throw new ApiError(400, `Fill in ${left.map((k) => `{${k}}`).join(", ")} first.`);
+}
+
 export async function sendTest(adminId: string, m: ManualMessage) {
+  assertFilled(m);
   const row = await createCampaign({ kind: "test", ...m, title: m.title, audience: { kind: "users", userIds: [adminId] }, respectQuiet: false, createdBy: adminId }, { wait: true });
   if (!row) throw new ApiError(500, "Couldn't send the test");
   const detail = await campaignDetail(row.id);

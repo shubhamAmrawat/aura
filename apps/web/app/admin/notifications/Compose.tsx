@@ -5,6 +5,7 @@ import {
   getUserNotifications,
   listAdminWallpapers,
   listDrops,
+  prepareNotifyTemplate,
   previewAudience,
   searchNotifyUsers,
   sendNotification,
@@ -16,8 +17,10 @@ import {
   type NotifyAudience,
   type NotifyMessage,
   type NotifyUser,
+  type PreparedTemplate,
   type UserNotifications,
 } from "@/lib/adminApi";
+import { describeCooldown } from "./Templates";
 import { useToast } from "@/lib/toast";
 import { ConfirmDialog, Modal, inputStyle } from "../_components/ui";
 
@@ -73,13 +76,28 @@ function soonLocal() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-export default function Compose({ overview, initialUserId, onSent }: { overview: AdminNotificationsOverview; initialUserId: string | null; onSent: (campaignId: string) => void }) {
+/** {festival} etc. → what the admin typed (personal ones like {name} stay for the server). */
+const fillIn = (s: string, fills: Record<string, string>) => s.replace(/\{([a-z]+)\}/g, (m, k: string) => (fills[k]?.trim() ? fills[k]!.trim() : m));
+const FILL_HINT: Record<string, string> = { festival: "Diwali", category: "Nature", summary: "Dark mode is here, and downloads are 2x faster.", drop: "Diwali Drops", ends: "12 Nov", count: "24", wallpaper: "Golden Diya", version: "1.0.4" };
+
+export default function Compose({ overview, initialUserId, templateId, onClearTemplate, onSent }: {
+  overview: AdminNotificationsOverview;
+  initialUserId: string | null;
+  templateId: string | null;
+  onClearTemplate: () => void;
+  onSent: (campaignId: string) => void;
+}) {
   const { toast } = useToast();
+  // from a template
+  const [tpl, setTpl] = useState<PreparedTemplate | null>(null);
+  const [fills, setFills] = useState<Record<string, string>>({});
+  const [cooldown, setCooldown] = useState(true);
+  const [extra, setExtra] = useState<Pick<NotifyAudience, "installedDays" | "excludeCreators" | "notOpenedLatestDrop">>({});
   // audience
   const [segment, setSegment] = useState<Segment>(initialUserId ? "person" : "everyone");
   const [screen, setScreen] = useState<"" | "mobile" | "tablet">("");
   const [versionBelow, setVersionBelow] = useState("");
-  const [active, setActive] = useState<"" | "7" | "-30">("");
+  const [active, setActive] = useState("");
   const [includeWeb, setIncludeWeb] = useState(overview.webPush);
   const [people, setPeople] = useState<Picked[]>([]);
   const [count, setCount] = useState<{ phones: number; browsers: number; people: number } | null>(null);
@@ -115,8 +133,38 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
       .catch(() => undefined);
   }, [initialUserId]);
 
+  // ?template=: fill everything in from it.
+  const fromTemplate = useRef(false);
+  useEffect(() => {
+    if (!templateId) return;
+    prepareNotifyTemplate(templateId)
+      .then((p) => {
+        fromTemplate.current = p.message.type !== "announcement"; // the type effect below runs only if the type changes
+        setTpl(p);
+        const m = p.message;
+        setType(m.type);
+        setTitle(m.title);
+        setBody(m.body ?? "");
+        setImageUrl(m.imageUrl ?? "");
+        setOpens(m.url ? { kind: "link", url: m.url } : { kind: "inbox" });
+        setButtons(m.actions);
+        const a = p.audience;
+        if (a.kind !== "users" && a.kind !== "devices") setSegment(a.kind);
+        setScreen(a.screen ?? "");
+        setVersionBelow(a.versionBelow ?? "");
+        setActive(a.activeDays ? String(a.activeDays) : "");
+        setExtra({ installedDays: a.installedDays ?? null, excludeCreators: a.excludeCreators, notOpenedLatestDrop: a.notOpenedLatestDrop });
+        setFills(Object.fromEntries(p.missing.map((k) => [k, ""])));
+      })
+      .catch((e) => toast(e instanceof Error ? e.message : "Couldn't load the template", "error"));
+  }, [templateId, toast]);
+
   // Type presets: an app update opens the Play Store and has an Update button.
   useEffect(() => {
+    if (fromTemplate.current) {
+      fromTemplate.current = false; // a template brings its own link and buttons
+      return;
+    }
     if (type === "update") {
       setOpens({ kind: "link", url: PLAY_URL });
       setButtons([{ id: "update", label: "Update", url: "aurora://update" }]);
@@ -138,8 +186,12 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
       versionBelow: versionBelow.trim() || null,
       activeDays: active ? Number(active) : null,
       includeWeb: includeWeb && overview.webPush,
+      ...(extra.installedDays ? { installedDays: extra.installedDays } : {}),
+      ...(extra.excludeCreators ? { excludeCreators: true } : {}),
+      ...(extra.notOpenedLatestDrop ? { notOpenedLatestDrop: true } : {}),
     };
-  }, [segment, people, screen, versionBelow, active, includeWeb, overview.webPush]);
+  }, [segment, people, screen, versionBelow, active, includeWeb, overview.webPush, extra]);
+  const from = tpl && cooldown && tpl.cooldownDays > 0 ? { templateId: tpl.template.id, cooldownDays: tpl.cooldownDays } : null;
 
   // Live reach count
   useEffect(() => {
@@ -149,7 +201,7 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
     }
     let alive = true;
     const t = setTimeout(() => {
-      previewAudience(audience, type)
+      previewAudience(audience, type, from)
         .then((c) => alive && setCount(c))
         .catch(() => alive && setCount(null));
     }, 350);
@@ -157,11 +209,12 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
       alive = false;
       clearTimeout(t);
     };
-  }, [audience, type]);
+  }, [audience, type, from?.templateId, from?.cooldownDays]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const url = opens.kind === "inbox" ? null : opens.kind === "link" ? opens.url.trim() || null : opens.kind === "drop" ? `/collection/${opens.id}` : `/wallpaper/${opens.id}`;
-  const message: NotifyMessage = { type, title: title.trim(), body: body.trim() || null, imageUrl: imageUrl.trim() || null, url, actions: buttons.filter((b) => b.label.trim() && b.url.trim()) };
-  const canSend = !!message.title && !!audience && (!later || !!at);
+  const message: NotifyMessage = { type, title: fillIn(title, fills).trim(), body: fillIn(body, fills).trim() || null, imageUrl: imageUrl.trim() || null, url, actions: buttons.filter((b) => b.label.trim() && b.url.trim()) };
+  const unfilled = Object.keys(fills).filter((k) => !fills[k]?.trim() && (title + body).includes(`{${k}}`));
+  const canSend = !!message.title && !!audience && (!later || !!at) && !unfilled.length;
 
   const presets: NotifyAction[] = [
     ...(opens.kind === "drop"
@@ -186,12 +239,23 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
   const send = async () => {
     setBusy("send");
     try {
-      const r = await sendNotification({ message, audience: audience!, scheduledFor: later ? new Date(at).toISOString() : null, respectQuiet });
+      const r = await sendNotification({
+        message,
+        audience: audience!,
+        scheduledFor: later ? new Date(at).toISOString() : null,
+        respectQuiet,
+        templateId: tpl?.template.id ?? null,
+        cooldownDays: from?.cooldownDays ?? 0,
+      });
       setConfirm(false);
       const c = r.campaign;
       toast(
-        c.status === "scheduled" ? "Scheduled." : c.status === "held" ? "Held for quiet hours — it goes out when they end." : `Sent to ${c.sent} of ${c.targeted}.`,
-        "success"
+        c.status === "scheduled"
+          ? "Scheduled."
+          : c.status === "held"
+            ? "Held for quiet hours — it goes out when they end."
+            : `Sent to ${c.sent} of ${c.targeted}.${c.capped ? ` ${c.capped} skipped: already got ${overview.rules.dailyCap} today (daily cap).` : ""}${c.failed ? ` ${c.failed} failed — see Campaigns.` : ""}`,
+        c.sent || !c.targeted ? "success" : "error"
       );
       onSent(c.id);
     } catch (e) {
@@ -213,9 +277,50 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
     }
   };
 
+  const extraChips = [
+    extra.installedDays ? { k: "installedDays" as const, label: `Had the app ${extra.installedDays}+ days` } : null,
+    extra.excludeCreators ? { k: "excludeCreators" as const, label: "Not creators" } : null,
+    extra.notOpenedLatestDrop ? { k: "notOpenedLatestDrop" as const, label: "Didn't open the latest drop" } : null,
+  ].filter((x): x is { k: "installedDays" | "excludeCreators" | "notOpenedLatestDrop"; label: string } => !!x);
+
   return (
     <div className="flex flex-wrap gap-5 items-start">
       <div className="flex-[999_1_520px] min-w-0 flex flex-col gap-4">
+        {tpl && (
+          <section className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "rgba(129,238,78,0.06)", border: "1px solid rgba(129,238,78,0.25)" }}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <span className="font-bold" style={{ color: "var(--text-primary)" }}>From template: {tpl.template.name}</span>
+              {tpl.template.bestTime && <span style={{ color: "var(--text-secondary)" }}>· {tpl.template.bestTime}</span>}
+              <span className="flex-1" />
+              <button type="button" onClick={onClearTemplate} className="text-xs font-semibold hover:underline" style={{ color: "var(--text-secondary)" }}>Start blank</button>
+            </div>
+            {tpl.cooldownDays > 0 && (
+              <label className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
+                <input type="checkbox" checked={cooldown} onChange={(e) => setCooldown(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+                Skip anyone who got this template in the last {tpl.cooldownDays} days ({describeCooldown(tpl.cooldownDays).toLowerCase()})
+              </label>
+            )}
+            {tpl.personal.length > 0 && (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                {tpl.personal.map((k) => `{${k}}`).join(", ")} {tpl.personal.length === 1 ? "is" : "are"} filled in for each person when it goes out{tpl.personal.includes("name") ? " (“there” for signed-out phones)" : ""}.
+              </p>
+            )}
+            {Object.keys(fills).length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {Object.keys(fills).map((k) => (
+                  <label key={k} className={`${label} flex-1 min-w-[180px]`} style={{ color: "var(--text-secondary)" }}>
+                    <span className="font-mono">{`{${k}}`}</span>
+                    <input value={fills[k]} onChange={(e) => setFills({ ...fills, [k]: e.target.value })} placeholder={FILL_HINT[k] ?? "Type it here"} className="rounded-lg px-3 py-2 text-sm font-normal" style={inputStyle} />
+                  </label>
+                ))}
+              </div>
+            )}
+            {tpl.problems.map((p) => (
+              <p key={p} className="text-xs px-3 py-2 rounded-lg" style={{ color: "#FFB66B", background: "rgba(255,154,60,0.08)" }}>{p}</p>
+            ))}
+          </section>
+        )}
+
         {/* 1. Who */}
         <Step n={1} title="Who gets it">
           <div role="radiogroup" aria-label="Audience" className="flex flex-wrap gap-2">
@@ -242,9 +347,12 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
               </label>
               <label className={label} style={{ color: "var(--text-secondary)" }}>
                 Last active
-                <select value={active} onChange={(e) => setActive(e.target.value as typeof active)} className="h-9 rounded-lg px-2 text-sm font-normal [color-scheme:dark]" style={inputStyle}>
+                <select value={active} onChange={(e) => setActive(e.target.value)} className="h-9 rounded-lg px-2 text-sm font-normal [color-scheme:dark]" style={inputStyle}>
                   <option value="">Anytime</option>
                   <option value="7">In the last 7 days</option>
+                  <option value="30">In the last 30 days</option>
+                  <option value="-7">Not in 7 days</option>
+                  <option value="-14">Not in 14 days</option>
                   <option value="-30">Not in 30 days</option>
                 </select>
               </label>
@@ -252,6 +360,17 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
                 <input type="checkbox" checked={includeWeb && overview.webPush} disabled={!overview.webPush || !!screen || !!versionBelow.trim()} onChange={(e) => setIncludeWeb(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
                 Also website (browser push)
               </label>
+            </div>
+          )}
+
+          {segment !== "person" && extraChips.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {extraChips.map((c) => (
+                <span key={c.k} className="inline-flex items-center gap-1.5 h-8 pl-3 pr-1.5 rounded-full text-xs font-semibold" style={{ background: "rgba(147,197,253,.12)", color: "#93C5FD" }}>
+                  {c.label}
+                  <button type="button" aria-label={`Remove: ${c.label}`} onClick={() => setExtra({ ...extra, [c.k]: c.k === "installedDays" ? null : undefined })} className="w-5 h-5 rounded-full hover:bg-white/10">×</button>
+                </span>
+              ))}
             </div>
           )}
 
@@ -407,7 +526,7 @@ export default function Compose({ overview, initialUserId, onSent }: { overview:
             )}
           </div>
         </div>
-        <button type="button" disabled={!message.title || busy !== null} onClick={() => void test()} className="h-11 rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-white/5" style={{ border: "1px solid var(--border-hover)", color: "var(--text-primary)" }}>
+        <button type="button" disabled={!message.title || unfilled.length > 0 || busy !== null} onClick={() => void test()} className="h-11 rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-white/5" style={{ border: "1px solid var(--border-hover)", color: "var(--text-primary)" }}>
           {busy === "test" ? "Sending test…" : "Send test to my phone"}
         </button>
         <div className="rounded-2xl p-4 flex flex-col gap-3" style={card}>

@@ -102,6 +102,9 @@ export const AudienceSchema = z
     versionBelow: z.string().regex(/^\d{1,3}\.\d{1,3}\.\d{1,4}$/, "Versions look like 1.0.2").nullable().optional(),
     activeDays: z.number().int().min(-365).max(365).nullable().optional(),
     includeWeb: z.boolean().optional(),
+    installedDays: z.number().int().min(1).max(365).nullable().optional(),
+    excludeCreators: z.boolean().optional(),
+    notOpenedLatestDrop: z.boolean().optional(),
   })
   .strict()
   .refine((a) => a.kind !== "users" || (a.userIds?.length ?? 0) > 0, "Pick at least one person")
@@ -136,11 +139,50 @@ export const SendBody = z
       return d;
     }),
     respectQuiet: z.boolean().default(true),
+    /** made from a template: its cooldown skips people who got it recently */
+    templateId: z.string().regex(UUID).nullable().optional(),
+    cooldownDays: z.number().int().min(0).max(365).default(0),
   })
   .strict();
 
 export const TestBody = z.object({ message: ManualMessageSchema }).strict();
-export const PreviewBody = z.object({ audience: AudienceSchema, type: z.enum(["announcement", "update", "drop"]).default("announcement") }).strict();
+export const PreviewBody = z
+  .object({
+    audience: AudienceSchema,
+    type: z.enum(["announcement", "update", "drop"]).default("announcement"),
+    templateId: z.string().regex(UUID).nullable().optional(),
+    cooldownDays: z.number().int().min(0).max(365).default(0),
+  })
+  .strict();
+
+/** Template links may also be @drop / @wallpaper (the live drop, the trending wallpaper). */
+const templateLink = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => v.startsWith("/") || v.startsWith("https://") || v === "aurora://update" || v === "@drop" || v === "@wallpaper", "Links start with / or https://, or are @drop / @wallpaper");
+
+export const TemplateBody = z
+  .object({
+    category: z.enum(["reengage", "growth", "promotion", "seasonal", "info", "creators"]),
+    name: z.string().trim().min(1, "Name is required").max(60),
+    description: z.string().trim().max(200).nullable().optional().transform((v) => v || null),
+    type: z.enum(["announcement", "update", "drop"]),
+    title: z.string().trim().min(1, "Title is required").max(65, "Titles can be at most 65 characters"),
+    body: z.string().trim().max(240, "Messages can be at most 240 characters").nullable().optional().transform((v) => v || null),
+    imageSource: z.enum(["none", "custom", "drop", "wallpaper"]),
+    imageUrl: z.string().trim().max(500).refine((v) => v.startsWith("https://"), "Images must be https links").nullable().optional().transform((v) => v || null),
+    url: templateLink.nullable().optional().transform((v) => v || null),
+    actions: z
+      .array(z.object({ id: z.string().regex(/^[a-z0-9_]{1,20}$/), label: z.string().trim().min(1).max(24), url: templateLink }).strict())
+      .max(2)
+      .default([]),
+    audience: AudienceSchema.refine((a) => a.kind !== "users" && a.kind !== "devices", "Templates go to groups, not picked people"),
+    bestTime: z.string().trim().max(40).nullable().optional().transform((v) => v || null),
+    cooldownDays: z.number().int().min(0).max(365).default(0),
+  })
+  .strict()
+  .refine((t) => t.imageSource !== "custom" || !!t.imageUrl, { message: "Add an image link, or pick another image source", path: ["imageUrl"] });
 
 export const CampaignListQuery = z.object({
   filter: z.enum(["all", "manual", "auto", "scheduled"]).default("all"),

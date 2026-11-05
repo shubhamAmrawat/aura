@@ -69,6 +69,12 @@ export type CampaignAudience = {
   includeWeb?: boolean;
   /** only for broadcast-type inbox rows: show to everyone's inbox */
   inbox?: boolean;
+  /** phones / browsers set up at least N days ago */
+  installedDays?: number | null;
+  /** leave out creators */
+  excludeCreators?: boolean;
+  /** leave out phones / browsers that opened the latest drop notification */
+  notOpenedLatestDrop?: boolean;
 };
 
 export type CampaignStatus = "scheduled" | "held" | "sending" | "sent" | "cancelled";
@@ -88,6 +94,9 @@ export const notificationCampaigns = pgTable("notification_campaigns", {
   status: text("status").$type<CampaignStatus>().notNull().default("scheduled"),
   scheduledFor: timestamp("scheduled_for").notNull().defaultNow(),
   dedupeKey: text("dedupe_key").unique(),
+  /** the template it was made from; with cooldownDays, people who got it recently are skipped */
+  templateId: uuid("template_id"),
+  cooldownDays: integer("cooldown_days").notNull().default(0),
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   startedAt: timestamp("started_at"),
@@ -130,4 +139,32 @@ export const webPushSubscriptions = pgTable("web_push_subscriptions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
   disabledAt: timestamp("disabled_at"),
+});
+
+export type TemplateCategory = "reengage" | "growth" | "promotion" | "seasonal" | "info" | "creators";
+export type TemplateImageSource = "none" | "custom" | "drop" | "wallpaper";
+
+/** Reusable messages (Admin › Notifications › Templates). key set = built-in. */
+export const notificationTemplates = pgTable("notification_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: text("key").unique(),
+  category: text("category").$type<TemplateCategory>().notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  type: text("type").$type<"announcement" | "update" | "drop">().notNull().default("announcement"),
+  title: text("title").notNull(),
+  body: text("body"),
+  imageSource: text("image_source").$type<TemplateImageSource>().notNull().default("none"),
+  imageUrl: text("image_url"),
+  /** path, https link, aurora://update, or @drop / @wallpaper (filled in when used) */
+  url: text("url"),
+  actions: jsonb("actions").$type<NotificationAction[]>().notNull().default([]),
+  audience: jsonb("audience").$type<CampaignAudience>().notNull(),
+  bestTime: text("best_time"),
+  cooldownDays: integer("cooldown_days").notNull().default(0),
+  builtin: boolean("builtin").notNull().default(false),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  archivedAt: timestamp("archived_at"),
 });

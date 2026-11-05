@@ -6,10 +6,12 @@ import { getNotificationsOverview, type AdminNotificationsOverview } from "@/lib
 import Compose from "./Compose";
 import Campaigns from "./Campaigns";
 import Rules from "./Rules";
+import Templates from "./Templates";
 
-type Tab = "compose" | "campaigns" | "rules";
+type Tab = "compose" | "templates" | "campaigns" | "rules";
 const TABS: { key: Tab; label: string }[] = [
   { key: "compose", label: "Compose" },
+  { key: "templates", label: "Templates" },
   { key: "campaigns", label: "Campaigns" },
   { key: "rules", label: "Rules" },
 ];
@@ -73,11 +75,15 @@ function NotificationCenter() {
       <div className="mt-6">
         {tab === "compose" && data && (
           <Compose
+            key={params.get("template") ?? "blank"}
             overview={data}
             initialUserId={params.get("user")}
+            templateId={params.get("template")}
+            onClearTemplate={() => go("compose")}
             onSent={(id) => go("campaigns", `&campaign=${id}`)}
           />
         )}
+        {tab === "templates" && <Templates onUse={(id) => go("compose", `&template=${id}`)} />}
         {tab === "campaigns" && <Campaigns selectedId={params.get("campaign")} onSelect={(id) => go("campaigns", id ? `&campaign=${id}` : "")} />}
         {tab === "rules" && data && <Rules overview={data} onSaved={load} />}
       </div>
