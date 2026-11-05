@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull, like, lt, notLike, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, like, lt, ne, notLike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "../config/db";
 import { notifications, notificationSeen, pushDevices, webPushSubscriptions, type NotificationPrefs } from "../models";
 import { PREF_DEFAULTS } from "./notify/engine";
@@ -75,7 +75,8 @@ function inboxWhereScoped(userId: string | undefined, screen: ScreenFilter | nul
   // admin alerts (types admin_*) are always personal rows
   if (scope === "admin") return userId ? and(eq(notifications.userId, userId), like(notifications.type, "admin\\_%"))! : sql`false`;
   const all = inboxWhereAll(userId, screen);
-  return scope === "user" ? and(all, notLike(notifications.type, "admin\\_%"))! : all;
+  // website bell: no admin alerts, and no daily pick (the home page hero shows it)
+  return scope === "user" ? and(all, notLike(notifications.type, "admin\\_%"), ne(notifications.type, "daily"))! : all;
 }
 
 function inboxWhereAll(userId: string | undefined, screen: ScreenFilter | null) {
@@ -83,7 +84,8 @@ function inboxWhereAll(userId: string | undefined, screen: ScreenFilter | null) 
   const broadcasts = and(
     isNull(notifications.userId),
     gt(notifications.createdAt, since),
-    screen ? or(isNull(notifications.screen), eq(notifications.screen, screen)) : undefined
+    // per-device broadcasts (e.g. the daily pick has a phone and a desktop one): without a screen, show the desktop one only
+    or(isNull(notifications.screen), eq(notifications.screen, screen ?? "tablet"))
   );
   return userId ? or(eq(notifications.userId, userId), broadcasts)! : broadcasts!;
 }

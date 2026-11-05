@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/authContext";
 import { useDevice } from "@/lib/useDevice";
-import { screenFor } from "@/lib/device";
+import { inboxScreen } from "@/lib/device";
 import { getInbox, markSeen, type NotificationItem } from "@/lib/notificationsApi";
 import { NotificationRow } from "@/app/components/NotificationBell";
 
@@ -11,7 +11,7 @@ import { NotificationRow } from "@/app/components/NotificationBell";
 export default function NotificationsPage() {
   const { user, loaded } = useAuth();
   const { device } = useDevice();
-  const screen = screenFor(device);
+  const screen = inboxScreen(device);
   const signedIn = !!user;
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [hasMore, setHasMore] = useState(false);

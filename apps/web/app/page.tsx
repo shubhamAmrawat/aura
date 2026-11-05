@@ -3,7 +3,7 @@ import LatestWallpapersInfinite from "./components/LatestWallpapersInfinite";
 import DropBanner from "./components/DropBanner";
 import Link from "next/link";
 import { Wallpaper } from "@aura/types";
-import { getPersonalizedFeed, getFeaturedWallpapers, getDropSpotlight, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
+import { getPersonalizedFeed, getFeaturedWallpapers, getDropSpotlight, getDailyWallpaper, WALLPAPERS_FEED_PAGE_SIZE } from "@/lib/api";
 import { getDevice } from "@/lib/device.server";
 import { cookies } from "next/headers";
 
@@ -12,11 +12,13 @@ export default async function HomePage() {
   const cookieStore = await cookies();
   const token = cookieStore.get("aura_token")?.value;
 
-  const [wallpapersResult, featuredResult, dropResult] = await Promise.allSettled([
+  const [wallpapersResult, featuredResult, dropResult, dailyResult] = await Promise.allSettled([
     getPersonalizedFeed({ limit: WALLPAPERS_FEED_PAGE_SIZE, offset: 0, device, authToken: token }),
     getFeaturedWallpapers(),
     getDropSpotlight(),
+    getDailyWallpaper(),
   ]);
+  const daily = dailyResult.status === "fulfilled" ? dailyResult.value : null;
   const drop = dropResult.status === "fulfilled" ? dropResult.value : null;
 
   const wallpapers: Wallpaper[] =
@@ -31,7 +33,7 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen w-full" style={{ background: "var(--bg-primary)" }}>
-      <Hero wallpapers={featuredWallpapers} />
+      <Hero wallpapers={featuredWallpapers} daily={daily} />
 
       {drop && (
         <section aria-label={drop.title} className="w-full px-4 sm:px-8 md:px-12 pt-8">

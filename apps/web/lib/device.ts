@@ -19,4 +19,16 @@ export function screenFor(device: Device | undefined): "mobile" | "tablet" | und
   return undefined;
 }
 
+/**
+ * Which device's notifications the inbox shows. Some broadcasts come in a phone and a desktop
+ * version (e.g. the wallpaper of the day), so the inbox always picks one: the device filter if
+ * it's set, otherwise this screen's size.
+ */
+export function inboxScreen(device: Device | undefined): "mobile" | "tablet" {
+  const s = screenFor(device);
+  if (s) return s;
+  if (typeof window === "undefined") return "tablet";
+  return window.matchMedia("(max-width: 767px)").matches ? "mobile" : "tablet";
+}
+
 export const DEVICE_LABEL: Record<Device, string> = { all: "All", phone: "Phone", desktop: "Desktop" };

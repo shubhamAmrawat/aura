@@ -4,16 +4,23 @@ import { Wallpaper } from "@aura/types";
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { SunIcon } from "lucide-react";
 import { getContrastColor } from "@/lib/color";
+import type { DailyWallpaper } from "@/lib/api";
 
 interface HeroProps {
   wallpapers: Wallpaper[];
+  /** Today's wallpaper of the day: shown first, with its label always on screen. */
+  daily?: DailyWallpaper | null;
 }
 
 const SWIPE_MIN_PX = 50;
 const SWIPE_CLICK_GUARD_MS = 450;
 
-const Hero = ({ wallpapers }: HeroProps) => {
+const Hero = ({ wallpapers: featured, daily }: HeroProps) => {
+  // the daily pick first (and not twice if it's also featured), then the featured ones in admin order
+  const wallpapers = daily ? [daily, ...featured.filter((w) => w.id !== daily.id)] : featured;
+  const isDaily = (i: number) => !!daily && i === 0;
   const [current, setCurrent] = useState(0);
   const [hovered, setHovered] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -48,6 +55,7 @@ const Hero = ({ wallpapers }: HeroProps) => {
   }, [wallpapers.length]);
 
   const wallpaper = wallpapers[current];
+  const dailyShown = isDaily(current);
 
   if (!wallpaper) return null;
 
@@ -159,21 +167,49 @@ const Hero = ({ wallpapers }: HeroProps) => {
 
       {/* indicators */}
       <div className="absolute bottom-8 left-12 z-10 flex flex-col gap-3">
-        <p className="text-[11px] font-mono tracking-[0.2em] text-white/30">
-          {String(current + 1).padStart(2, "0")} / {String(wallpapers.length).padStart(2, "0")}
-        </p>
-        <div className="flex gap-2 items-center">
+        {/* wallpaper of the day: its badge instead of the count; featured slides: "01 / 06" (featured only) */}
+        <div className="h-8 flex items-end">
+          {dailyShown ? (
+            <span
+              className="inline-flex items-center gap-2 h-8 pl-2.5 pr-3.5 rounded-full text-[13px] font-bold text-white"
+              style={{ background: "rgba(10,10,10,0.55)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(10px)" }}
+            >
+              <SunIcon size={15} strokeWidth={2.4} color="#FACC15" aria-hidden="true" />
+              Wallpaper of the day
+            </span>
+          ) : (
+            <p className="text-[11px] font-mono tracking-[0.2em] text-white/30">
+              {String(current - (daily ? 1 : 0) + 1).padStart(2, "0")} / {String(wallpapers.length - (daily ? 1 : 0)).padStart(2, "0")}
+            </p>
+          )}
+        </div>
+        {/* each bar sits in a 24px-tall button, so it's easy to hit; the sun is a button for slide 1 */}
+        <div className="flex items-center -ml-1.5">
+          {daily && (
+            <button
+              type="button"
+              onClick={() => setCurrent(0)}
+              aria-label="Go to the wallpaper of the day"
+              className="group w-6 h-6 flex items-center justify-center rounded-full cursor-pointer hover:bg-white/10"
+            >
+              <SunIcon size={14} strokeWidth={2.6} color="#FACC15" aria-hidden="true" className="transition-transform group-hover:scale-110" />
+            </button>
+          )}
           {wallpapers.map((_, i) => (
             <button
               key={i}
+              type="button"
               onClick={() => setCurrent(i)}
-              aria-label={`Go to slide ${i + 1}`}
-              className={`h-0.5 rounded-full border-none cursor-pointer transition-all duration-500 ${
-                i === current
-                  ? "w-10 bg-white"
-                  : "w-4 bg-white/25 hover:bg-white/50"
-              }`}
-            />
+              aria-label={isDaily(i) ? "Go to the wallpaper of the day" : `Go to slide ${i + 1}`}
+              aria-current={i === current ? "true" : undefined}
+              className="group h-6 px-1 flex items-center cursor-pointer"
+            >
+              <span
+                className={`block h-0.5 rounded-full transition-all duration-500 ${
+                  i === current ? "w-10 bg-white" : "w-4 bg-white/25 group-hover:bg-white/60"
+                }`}
+              />
+            </button>
           ))}
         </div>
       </div>

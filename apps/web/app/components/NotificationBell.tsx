@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BellIcon } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { useDevice } from "@/lib/useDevice";
-import { screenFor } from "@/lib/device";
+import { inboxScreen } from "@/lib/device";
 import { getInbox, getUnreadCount, isEnded, markSeen, timeAgo, typeLabel, webHref, type NotificationItem } from "@/lib/notificationsApi";
 import { dismissPrompt, enableWebPush, promptDismissed, syncWebPush, webPushState, type WebPushState } from "@/lib/webPush";
 
@@ -19,7 +19,7 @@ export default function NotificationBell({ align = "right", admin = false }: { a
   const scope = admin ? "admin" : "user";
   const { user, loaded } = useAuth();
   const { device } = useDevice();
-  const screen = screenFor(device);
+  const screen = inboxScreen(device);
   const signedIn = !!user;
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);

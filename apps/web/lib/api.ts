@@ -124,6 +124,16 @@ export async function getFeaturedWallpapers(): Promise<Wallpaper[]> {
   }
 }
 
+export type DailyWallpaper = Wallpaper & { categoryName?: string | null };
+
+/** Today's wallpaper of the day (the desktop one: the home hero is a wide banner on every screen). */
+export async function getDailyWallpaper(): Promise<DailyWallpaper | null> {
+  const { wallpaper } = await fetchJsonOrThrow<{ day: string; wallpaper: DailyWallpaper | null }>(`${getApiUrl()}/api/wallpapers/daily?screen=tablet`, {
+    next: { revalidate: 300, tags: ["wallpapers", "daily"] },
+  });
+  return wallpaper;
+}
+
 /**
  * Wrapped with React.cache() so that generateMetadata and the page component
  * that both call this for the same `id` within a single render share one fetch.
