@@ -883,3 +883,45 @@ export const updateNotifyTemplate = (id: string, t: NotifyTemplateInput) => admi
 export const deleteNotifyTemplate = (id: string) => adminCall<{ ok: true }>("DELETE", `/notifications/templates/${id}`);
 export const resetNotifyTemplate = (id: string) => adminCall<NotifyTemplate>("POST", `/notifications/templates/${id}/reset`);
 export const prepareNotifyTemplate = (id: string) => adminGet<PreparedTemplate>(`/notifications/templates/${id}/prepare`);
+
+// ─── downloads ──────────────────────────────────────────────
+
+export type DownloadRange = "today" | "7d" | "30d" | "90d";
+export type DownloadSource = "all" | "app" | "web";
+type DownloadSplit = { total: number; app: number; web: number };
+export type DownloadsOverview = {
+  range: DownloadRange;
+  source: DownloadSource;
+  totals: {
+    today: DownloadSplit & { change: number | null };
+    week: DownloadSplit & { change: number | null };
+    month: DownloadSplit & { change: number | null };
+    all: DownloadSplit & { since: string | null };
+  };
+  /** hours ("00"–"23") for today, India days ("2026-11-06") otherwise */
+  chart: { key: string; app: number; web: number; other: number }[];
+  top: { id: string; title: string; thumbUrl: string | null; fileUrl: string; isMobile: boolean; category: string | null; count: number }[];
+};
+export type DownloadRow = {
+  id: string;
+  at: string;
+  source: string;
+  quality: string;
+  wallpaperId: string;
+  title: string;
+  thumbUrl: string | null;
+  fileUrl: string;
+  isMobile: boolean;
+  category: string | null;
+  userId: string | null;
+  username: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
+export const getDownloadsOverview = (range: DownloadRange, source: DownloadSource) =>
+  adminGet<DownloadsOverview>(`/downloads?range=${range}&source=${source}`);
+export const getRecentDownloads = (f: { source: DownloadSource; signedIn: boolean; q?: string; offset?: number }) =>
+  adminGet<{ data: DownloadRow[]; hasMore: boolean }>(
+    `/downloads/recent?source=${f.source}&signedIn=${f.signedIn}&limit=30&offset=${f.offset ?? 0}${f.q ? `&q=${encodeURIComponent(f.q)}` : ""}`
+  );
