@@ -81,7 +81,11 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      getUnread(screen, !!user)
+      if (!user) {
+        setUnread(0); // the inbox belongs to an account
+        return;
+      }
+      getUnread(screen, true)
         .then((n) => alive && setUnread(n))
         .catch(() => undefined);
       return () => {
@@ -136,6 +140,7 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
         >
           <Ionicons name="search" size={18} color={Colors.textPrimary} />
         </Pressable>
+        {user ? (
         <Pressable
           onPress={() => router.push("/notifications")}
           style={({ pressed }) => [styles.roundBtn, pressed && { opacity: 0.8 }]}
@@ -150,6 +155,7 @@ const HomeSections = ({ screen, refreshToken }: Props) => {
             </View>
           ) : null}
         </Pressable>
+        ) : null}
         <AvatarButton />
       </View>
     </View>

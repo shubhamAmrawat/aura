@@ -48,7 +48,7 @@ export default function NotificationBell({ align = "right", admin = false }: { a
   };
 
   const refreshCount = useCallback(() => {
-    if (!loaded) return;
+    if (!loaded || !signedIn) return; // the inbox belongs to an account
     void getUnreadCount(screen, signedIn, scope).then(setUnread);
   }, [screen, signedIn, loaded, scope]);
 
@@ -90,6 +90,9 @@ export default function NotificationBell({ align = "right", admin = false }: { a
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  // Signed out: no bell — there is no account to show notifications for.
+  if (!signedIn) return null;
 
   return (
     <div ref={rootRef} className="relative">

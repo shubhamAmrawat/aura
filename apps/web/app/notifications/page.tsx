@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/lib/authContext";
 import { useDevice } from "@/lib/useDevice";
 import { inboxScreen } from "@/lib/device";
@@ -20,7 +21,7 @@ export default function NotificationsPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !signedIn) return; // the inbox belongs to an account
     let alive = true;
     getInbox({ screen, signedIn, limit: 30 })
       .then(async (page) => {
@@ -55,9 +56,14 @@ export default function NotificationsPage() {
     <main className="min-h-screen pt-24" style={{ background: "var(--bg-primary)" }}>
       <div className="mx-auto max-w-2xl px-4 pb-16">
         <h1 className="text-4xl md:text-5xl" style={{ fontFamily: "var(--font-serif)", color: "var(--text-primary)" }}>Notifications</h1>
-        {!signedIn && loaded && (
-          <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Sign in to also see updates about your uploads and reports.</p>
-        )}
+        {!signedIn && loaded ? (
+          <div className="mt-6 rounded-2xl px-6 py-12 flex flex-col items-center gap-4 text-center" style={{ border: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
+            <p className="text-[15px] font-semibold" style={{ color: "var(--text-primary)" }}>Sign in to see your notifications</p>
+            <p className="text-sm max-w-sm" style={{ color: "var(--text-muted)" }}>New drops, updates about your uploads and reports, and news from Aurora show up here once you’re signed in.</p>
+            <Link href="/login?next=/notifications" className="h-10 px-5 rounded-full text-sm font-extrabold inline-flex items-center" style={{ background: "var(--accent)", color: "var(--bg-primary)" }}>Sign in</Link>
+          </div>
+        ) : (
+          <>
         <div className="mt-6 overflow-hidden rounded-2xl" style={{ border: "1px solid var(--border)", background: "var(--bg-secondary)" }}>
           {error && <p className="px-4 py-10 text-center text-sm" style={{ color: "var(--text-muted)" }}>Couldn&apos;t load notifications. Try again in a moment.</p>}
           {!error && items === null && (
@@ -72,6 +78,8 @@ export default function NotificationsPage() {
           <button onClick={more} disabled={loadingMore} className="mx-auto mt-4 block rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" style={{ border: "1px solid var(--border-hover)", color: "var(--text-primary)" }}>
             {loadingMore ? "Loading…" : "Show older"}
           </button>
+        )}
+          </>
         )}
       </div>
     </main>

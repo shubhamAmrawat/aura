@@ -106,7 +106,11 @@ async function countUnread(where: SQL, seen: Date) {
 }
 
 /** Inbox page: the user's own notifications plus recent broadcasts, newest first. */
+/** The inbox belongs to an account: signed out gets an empty one (not an error, so older apps keep working). */
+const EMPTY_INBOX = () => ({ data: [], hasMore: false, seenAt: new Date(), unread: 0 });
+
 export async function listInbox(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null; before: Date | null; limit: number; scope?: InboxScope }) {
+  if (!opts.userId) return EMPTY_INBOX();
   const where = inboxWhere(opts.userId, opts.screen, opts.scope);
   const rows = await db
     .select({
@@ -134,6 +138,7 @@ export async function listInbox(opts: { userId?: string; screen: ScreenFilter | 
 }
 
 export async function unreadCount(opts: { userId?: string; screen: ScreenFilter | null; since: Date | null; scope?: InboxScope }) {
+  if (!opts.userId) return { unread: 0 };
   const where = inboxWhere(opts.userId, opts.screen, opts.scope);
   return { unread: await countUnread(where, await seenAt(opts.userId, opts.since, opts.scope === "admin")) };
 }

@@ -3,6 +3,7 @@ import { ActivityIndicator, DeviceEventEmitter, FlatList, Pressable, RefreshCont
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
+import { router } from "expo-router";
 import Header from "../components/Header";
 import { Colors } from "../constants";
 import { useInsets } from "../hooks/useInsets";
@@ -30,8 +31,12 @@ const inFilter = (f: Filter, t: string) =>
 export default function NotificationsScreen() {
   const [fontsLoaded] = useFonts({ [SERIF]: require("../assets/fonts/InstrumentSerif-Regular.ttf") });
   const serif = fontsLoaded ? { fontFamily: SERIF, fontWeight: "400" as const } : { fontWeight: "700" as const };
-  const { user } = useAuth();
+  const { user, loaded } = useAuth();
   const signedIn = !!user;
+  // The inbox belongs to an account: signed out (e.g. after tapping a notification), go home.
+  useEffect(() => {
+    if (loaded && !user) router.replace("/");
+  }, [loaded, user]);
   const { screen } = useScreenFilter();
   const { bottomPadding } = useInsets();
   const [items, setItems] = useState<InboxItem[] | null>(null);
@@ -43,6 +48,7 @@ export default function NotificationsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
+    if (!signedIn) return;
     setError(false);
     try {
       const page = await getInbox(screen, signedIn);
